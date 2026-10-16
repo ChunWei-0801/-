@@ -1,0 +1,128 @@
+"""
+所有「算出來的數字」。**整個系統只有這裡加總錢**——路由不算、模型不算，前端只做衍生（結餘、比例）。
+
+領域：數字（共用元件：家庭 的通知門檻、建議都會呼叫）
+
+已實作：summary() 統一統計收入、支出與分類；savings_status() 統一存款目標燈號；
+latest_goals() 選擇適用月份的目標；setting_amount() 驗證可儲存的金額範圍。
+  ⚠️ 家庭模式：子女的收入不算進家庭收入（那多半是零用金，會重複算），支出要算
+  ⚠️ 只加總「這些人記的」（可見範圍 A），不要加帳本裡別人的（B）——那會把配偶的錢算成你的
+  ⚠️ 金額一律 Decimal（toolkit/money.py），不要 float
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
+from app.toolkit import money
+from app.toolkit.config import settings
+
+
+MAX_SETTING_AMOUNT = Decimal("999999999999.99")
+
+
+def setting_amount(value: Any) -> Decimal:
+    """預算與存款目標允許零，金額必須能安全存入 NUMERIC(14, 2)。
+
+    先限制範圍再四捨五入，避免極大輸入在 quantize 時觸發 Decimal 例外。
+    路由將 InvalidAmount 轉為 422；回傳值就是實際儲存並呈現的金額。
+    """
+    amount = money.to_decimal(value, allow_negative=False)
+    if amount > MAX_SETTING_AMOUNT:
+        raise money.InvalidAmount("金額不可超過 999,999,999,999.99")
+    try:
+        return money.quantize(amount)
+    except InvalidOperation:
+        raise money.InvalidAmount("金額格式無法儲存，請使用一般十進位數字") from None
+
+
+def latest_goals(db: Any, users: list[int], period_key: str, group_id: int | None = None) -> dict[int, Decimal]:
+    """每人選定月份適用的最新目標；沿用先前設定並排除未來月份。
+
+    未指定月份的預設值先套用，再由日期明確的設定覆蓋；同月份以 id 較大者為準。
+    group_id=None 代表整體目標；NULL 排序明確指定，SQLite 與 PostgreSQL 結果相同。
+    呼叫端先決定可見使用者與帳本，此函式不擴張權限範圍。
+    """
+    from app.models import SavingsGoal
+    from app.toolkit import crud
+
+    goals = {}
+    for row in crud.find(SavingsGoal, {"user_id__in": users, "group_id": group_id,
+                                      "or": [{"period_key__isnull": True}, {"period_key__lte": period_key}]},
+                         order_by=(SavingsGoal.period_key.asc().nullsfirst(), "id"), db=db):
+        goals[row.user_id] = row.goal_amount
+    return goals
+
+
+def savings_status(income: Any, expense: Any, goal: Any) -> dict[str, Any]:
+    """可支配上限 = 收入 − 每月想存；支出 ÷ 上限決定 safe／near／over。
+
+    >>> savings_status(50000, 42000, 10000)["level"]
+    'over'
+    """
+    inc, exp, g = money.to_decimal(income or 0), money.to_decimal(expense or 0), money.to_decimal(goal or 0)
+    allowance = inc - g
+    if allowance > 0:
+        ratio = exp / allowance
+    else:
+        ratio = Decimal(2) if exp > 0 else Decimal(0)
+    level = "over" if ratio >= Decimal(str(settings.savings_over_ratio)) else (
+        "near" if ratio >= Decimal(str(settings.savings_warn_ratio)) else "safe")
+    return {
+        "goal": g, "allowance": allowance, "used": exp, "left": allowance - exp,
+        "ratio": money.quantize(ratio, 4), "level": level,
+        "shortfall": max(Decimal(0), exp - allowance), "actual": inc - exp,
+    }
+
+
+def summary(db: Any, users: list[int], earners: list[int], period: str, group_id: int | None = None) -> dict[str, Any]:
+    '''GET /api/summary 的數字。users 是這次要算的人，earners 是收入要算進去的人（不含子女）。'''
+    from datetime import date
+
+    from app.models import Transaction
+    from app.toolkit import crud, period as periods
+
+    users, earners = set(users), set(earners)
+    year = int(period[:4])
+    months = periods.recent_months(period, 6)
+    years = [str(year - 2), str(year - 1), str(year)]
+
+    # a. 一次查出這三年、這些人記的收支（transfer 不算；選了帳本只算那本）
+    where = {"user_id__in": users, "kind__in": ["income", "expense"],
+             "occurred_on__between": (date(year - 2, 1, 1), date(year, 12, 31))}
+    if group_id is not None:
+        where["group_id"] = group_id
+    rows = crud.find(Transaction, where, fields=("user_id", "category_id", "kind", "amount", "occurred_on"), db=db)
+
+    # b. 一筆一筆分到桶子裡
+    per_user = {u: {"income": money.ZERO, "expense": money.ZERO} for u in users}
+    monthly = {m: {"income": money.ZERO, "expense": money.ZERO} for m in months}
+    yearly = {y: {"income": money.ZERO, "expense": money.ZERO} for y in years}
+    by_cat = {}
+    count = 0
+    for r in rows:
+        ym = r["occurred_on"].isoformat()[:7]
+        kind, amount = r["kind"], r["amount"]
+        if ym == period:
+            count += 1
+            per_user[r["user_id"]][kind] += amount
+            if kind == "expense":
+                by_cat[r["category_id"]] = by_cat.get(r["category_id"], money.ZERO) + amount
+        if kind == "income" and r["user_id"] not in earners:
+            continue                      # 子女的收入不算進家庭收入（多半是零用金，會重複算）
+        if ym in monthly:
+            monthly[ym][kind] += amount
+        yearly[ym[:4]][kind] += amount
+
+    # c. 合計：收入只加 earners，支出加全部
+    return {
+        "income": money.add(*[per_user[u]["income"] for u in users if u in earners]),
+        "expense": money.add(*[per_user[u]["expense"] for u in users]),
+        "count": count,
+        "byCat": [{"cat": str(c), "amount": a}
+                  for c, a in sorted(by_cat.items(), key=lambda kv: kv[1], reverse=True)],
+        "monthly": [{"m": m, **monthly[m]} for m in months],
+        "yearly": [{"y": y, "partial": periods.is_incomplete_year(y), **yearly[y]} for y in years],
+        "perUser": per_user,
+    }

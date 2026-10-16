@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>家庭記帳｜專題發表簡報</title>
+<meta name="description" content="可離線閱讀與投影的家庭記帳專題簡報，包含架構、實機展示、權限、規則與模型模式、評測方法及限制。">
+<link rel="stylesheet" href="learning.css">
+<style>
+body{background:#102337;color:#f3f7fc}.deck-head{display:flex;justify-content:space-between;align-items:center;padding:17px 5vw;border-bottom:1px solid #ffffff24;font-size:14px}.deck-head a{color:#d5e7f8}.deck-head nav{display:flex;gap:18px}.deck{max-width:1380px;margin:auto;padding:28px 5vw 115px}.slide{padding:36px 0 50px;min-height:65vh;border-bottom:1px solid #ffffff24}.slide h1{font-size:clamp(36px,5.6vw,78px);max-width:1050px;line-height:1.2;color:#fff}.slide h2{font-size:clamp(30px,4.2vw,59px);color:#fff;max-width:1060px}.slide h3{color:#fff;font-size:clamp(20px,2vw,27px)}.slide p,.slide li{font-size:clamp(18px,1.8vw,26px)}.slide .eyebrow{color:#7adad0}.slide .lead{font-size:clamp(22px,2.4vw,34px);color:#b7ccdf}.slide .tile{background:#ffffff08;border-color:#ffffff24;color:#bdd0e1;padding:25px}.slide .tile p{font-size:clamp(17px,1.55vw,23px)}.slide code{background:#ffffff15;color:#d8efff}.slide .pill{background:#ffffff0c;border-color:#ffffff24;color:#e0edf9;font-size:14px}.slide .muted,.slide .flowcaption{color:#b7ccdf}.slide .node{background:#183b52;border-color:#38718a;color:#fff}.slide .node small{color:#b5d1df}.slide .arrow{color:#7adad0}.slide .note{background:#ffffff0b;border-color:#7adad0}.slide .note.warn{background:#f9ce5810;border-color:#f5cf75}.slide .note p{font-size:clamp(17px,1.45vw,22px)}.slide .tablewrap{border-color:#ffffff30}.slide table{color:#e9f2fa;font-size:clamp(15px,1.45vw,20px)}.slide th{background:#1c3c54;color:#a8d8ef}.slide th,.slide td{border-color:#ffffff24;padding:16px}.hero-mark{font-size:clamp(38px,5vw,80px);color:#7adad0;letter-spacing:-.04em;font-weight:900}.hero-line{width:100px;height:6px;border-radius:3px;background:#7adad0;margin:32px 0}.big-quote{font-size:clamp(24px,3vw,40px)!important;border-left:5px solid #7adad0;padding-left:24px;margin:24px 0}.speaker-note{display:none;background:#fff3d4;color:#23394e;border-radius:10px;padding:14px 18px;margin-top:18px;font-size:15px}.speaker-note p{font-size:15px}.show-notes .speaker-note{display:block}.deck-controls{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#0b1b2bee;border-top:1px solid #ffffff24;padding:15px 5vw;display:none;align-items:center;justify-content:space-between;gap:12px}.deck-mode .deck-controls{display:flex}.deck-controls button{background:#203c53;border:1px solid #44647f;color:#eaf4fd;border-radius:9px;padding:9px 16px;cursor:pointer}.deck-controls button:disabled{opacity:.35;cursor:default}.deck-controls .main-next{background:#7adad0;color:#123144;border-color:#7adad0;font-weight:750}.counter{font-variant-numeric:tabular-nums;min-width:62px;text-align:center}.control-group{display:flex;align-items:center;gap:10px}.hint{font-size:13px;color:#acc4d8}.progress{position:absolute;top:0;left:0;height:3px;background:#7adad0;transition:width .18s ease}.deck-mode .slide{display:none;min-height:calc(100svh - 220px);border:0}.deck-mode .slide.active{display:block}.deck-mode .deck{padding-bottom:115px}body:fullscreen{overflow:auto}.deck-head button{padding:0;background:none;border:0;color:#d5e7f8;font:inherit;text-decoration:underline;cursor:pointer}.js-only{display:none}.deck-mode .js-only{display:inline}@media(max-width:800px){.deck-head{align-items:flex-start;gap:14px;flex-direction:column}.deck-head nav{gap:14px;flex-wrap:wrap}.deck{padding-top:15px}.slide{padding-top:22px}.slide .grid,.slide .grid.three{grid-template-columns:1fr}.slide h1{font-size:38px}.slide h2{font-size:32px}.slide p,.slide li{font-size:18px}.slide .flow{gap:5px}.slide .node{min-width:110px;padding:12px 8px}.deck-controls{padding:11px 5vw}.hint,.secondary-control{display:none}.deck-controls button{padding:8px 12px}.speaker-note{font-size:14px}}@media(prefers-reduced-motion:reduce){.progress{transition:none}}@media print{body{background:#fff;color:#172b40}.deck-head,.deck-controls{display:none!important}.deck{max-width:none;padding:0}.slide,.deck-mode .slide{display:block!important;min-height:0;break-after:page;padding:18px 0;border:0}.slide[aria-hidden="true"]{visibility:visible}.slide h1,.slide h2,.slide h3,.slide .lead,.slide .muted,.slide .flowcaption{color:#172b40}.slide h1{font-size:34pt}.slide h2{font-size:28pt}.slide p,.slide li{font-size:16pt}.slide .tile,.slide .node{background:#f1f5fa;color:#23394e;border-color:#aabbcb}.slide .node small{color:#50647a}.slide .eyebrow,.hero-mark{color:#087d76}.slide .pill,.slide code{color:#172b40;background:#edf2f8}.slide .note,.slide .note.warn{color:#172b40;background:#f3f6fa}.slide table{color:#172b40;font-size:12pt}.slide th{background:#edf2f8;color:#172b40}.slide th,.slide td{border-color:#aabbcb}.slide .grid,.slide .grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}.speaker-note{display:none!important}}
+</style>
+</head>
+<body>
+<header class="deck-head"><a class="brandlink" href="index.html">FamBudget · 專題發表</a><nav aria-label="文件導覽"><a href="tutorial.html">操作教學</a><a href="glossary.html">英中名詞</a><a href="../index.html">開啟系統</a><button id="fullscreen" class="js-only" type="button">全螢幕</button></nav></header>
+<main class="deck" aria-label="專題簡報">
+<section class="slide" id="slide-1" aria-labelledby="title-1">
+  <div class="eyebrow">01 · Family finance, in everyday language</div><div class="hero-mark" aria-hidden="true">家庭記帳</div>
+  <h1 id="title-1">把生活中的一句話，<br>變成看得懂的家計。</h1><div class="hero-line"></div>
+  <p class="lead">段落記帳 × 月年控管 × 有界線的家庭監管</p>
+  <div class="meta"><span class="pill">實機展示 5–8 分鐘</span><span class="pill">瀏覽器 → API → 資料庫</span><span class="pill">規則模式與 LLM 模式分開說明</span></div>
+  <aside class="speaker-note"><p>開場：「我們想降低每天記帳的輸入成本，也讓家庭成員在清楚的權限界線內看懂收支。接下來以真實後端示範；如果沒有模型設定，會明說使用規則解析。」</p></aside>
+</section>
+<section class="slide" id="slide-2" aria-labelledby="title-2">
+  <div class="eyebrow">02 · The problem</div><h2 id="title-2">記帳難在每天都願意記。</h2>
+  <div class="grid three"><article class="tile"><h3>輸入成本</h3><p>選分類、填金額、挑日期，零碎步驟累積成負擔。</p></article><article class="tile"><h3>語言有歧義</h3><p>「全家」可能是店家；「給我」可能是收入；少了金額不能靠猜。</p></article><article class="tile"><h3>共享有界線</h3><p>家長想掌握狀況，孩子也需要自己的帳與紀錄完整性。</p></article></div>
+  <p class="big-quote">「今天早餐55，在全家買咖啡，打工賺了1500。」</p><p class="muted">示例文字。咖啡沒有金額，應請使用者補上。</p>
+  <aside class="speaker-note"><p>問題頁約30秒。指出規則也能處理一部分語言；模型能否改善難例，需要評測證據，不能直接宣稱不可替代。</p></aside>
+</section>
+<section class="slide" id="slide-3" aria-labelledby="title-3">
+  <div class="eyebrow">03 · The solution</div><h2 id="title-3">先整理，再確認，最後才入帳。</h2>
+  <figure aria-label="輸入、解析、人確認、資料庫寫入的流程"><div class="flow"><div class="node"><strong>寫一段話</strong><small>自然語言或手動輸入</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>逐筆解析</strong><small>日期／金額／收支／分類</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>人確認</strong><small>補漏、修正、刪除</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>寫入後端</strong><small>交易與解析修正紀錄</small></div></div><figcaption class="flowcaption">解析是建議，不等於已經記帳。統計依資料庫中的交易計算。</figcaption></figure>
+  <div class="grid"><article class="tile"><h3>用月／年看進度</h3><p>收支、分類、預算與存款目標，讓數字有下一步。</p></article><article class="tile"><h3>用角色與監管定範圍</h3><p>家庭角色決定可用功能，監管關係決定可看對象。</p></article></div>
+  <aside class="speaker-note"><p>約30秒。強調人可以編輯結果，批次送出才走確認 API；沒有模型也能保留手動流程。</p></aside>
+</section>
+<section class="slide" id="slide-4" aria-labelledby="title-4">
+  <div class="eyebrow">04 · Architecture</div><h2 id="title-4">介面、權限、資料，各有責任。</h2>
+  <figure aria-label="前端經 HTTP JSON 連接 FastAPI，FastAPI 連資料庫及選用的模型服務"><div class="flow"><div class="node"><strong>靜態前端</strong><small>HTML · CSS · JavaScript<br>hash 路由 / #/entry</small></div><span class="arrow" aria-hidden="true">⇄</span><div class="node"><strong>FastAPI</strong><small>JWT · Pydantic<br>權限與金額統計</small></div><span class="arrow" aria-hidden="true">⇄</span><div class="node"><strong>SQLAlchemy</strong><small>SQLite：本機展示<br>PostgreSQL：正式環境</small></div></div><figcaption class="flowcaption">LLM 是 API 外部的選用服務。Render 規劃由 FastAPI 同源提供靜態前端；本機可使用 5174／8000。</figcaption></figure>
+  <div class="note"><p>前端提供操作與顯示；後端重新檢查身分、資料範圍與寫入條件。LLM 不加總錢，也不直接改資料庫。</p></div>
+  <aside class="speaker-note"><p>約40秒。SQLite用於不需Docker的展示，正式資料庫用PostgreSQL。部署設定是可用流程，不代表已經發布線上服務。</p></aside>
+</section>
+<section class="slide" id="slide-5" aria-labelledby="title-5">
+  <div class="eyebrow">05 · Live demo</div><h2 id="title-5">四個畫面，走完一次記帳。</h2>
+  <div class="grid"><article class="tile"><h3>① 登入與家庭</h3><p>使用 A 帳號建立家庭，B 帳號加入；確認兩個身分分開。</p></article><article class="tile"><h3>② 段落與修正</h3><p>早餐55、咖啡缺金額、收入1500。補咖啡65，確認寫入。</p></article><article class="tile"><h3>③ 明細與統計</h3><p>從空帳開始，支出120、收入1500、結餘1380。重新整理再看。</p></article><article class="tile"><h3>④ 預算與權限</h3><p>設定餐飲預算100，展示120的超支；用B帳號驗證全家資料被擋。</p></article></div>
+  <div class="note warn"><p>這些數字是示例資料的預期加總，不是模型準確率。展示前請依驗收手冊實際跑一次。</p></div>
+  <aside class="speaker-note"><p>實機約2分30秒。開啟「系統」連結；A一般視窗、B無痕視窗。貼句子、說明模式標示、補缺金額、送出、重新整理。不要在台上清空資料庫。</p></aside>
+</section>
+<section class="slide" id="slide-6" aria-labelledby="title-6">
+  <div class="eyebrow">06 · Access boundaries</div><h2 id="title-6">看得到，不等於能代改。</h2>
+  <div class="tablewrap"><table><thead><tr><th>身分／關係</th><th>展示重點</th><th>驗證方式</th></tr></thead><tbody><tr><td>自己的帳</td><td>可以記、改、刪自己的交易</td><td>個人明細與確認寫入</td></tr><tr><td>家庭家長</td><td>依家庭規則看全家統計</td><td><code>scope=family</code></td></tr><tr><td>家庭子女</td><td>不能直接取得全家總覽</td><td>UI 與 API 反向測試</td></tr><tr><td>監管者</td><td>查看獲授權對象，保留唯讀界線</td><td>讀取通過，代改被拒絕</td></tr></tbody></table></div>
+  <p class="muted">沒有登入他人帳號的功能；平台管理員身分不等於家庭財務閱讀權限。</p>
+  <aside class="speaker-note"><p>約40秒。展示不只看按鈕是否隱藏，也要實際驗證後端拒絕未授權請求。不要把平台管理員稱為可以看所有家庭財務資料的超級使用者。</p></aside>
+</section>
+<section class="slide" id="slide-7" aria-labelledby="title-7">
+  <div class="eyebrow">07 · Rules versus LLM</div><h2 id="title-7">兩種解析，要明確標示。</h2>
+  <div class="grid"><article class="tile"><h3>規則模式 · Rules</h3><p>本機關鍵字、金額與日期處理。模型未設定或不可用時接手；確認寫入仍呼叫真實後端。</p><p>優點：不依賴模型服務。限制：複雜語意與切分可能失敗。</p></article><article class="tile"><h3>模型模式 · LLM</h3><p>設定模型服務後，後端請模型抽取欄位，再檢查格式；使用者仍須確認。</p><p>需要：可用端點、模型版本與真正的比較評測。</p></article></div>
+  <div class="note warn"><p><strong>目前不宣稱已完成微調。</strong> Qwen、LoRA／QLoRA 是訓練規劃；這次沒有產出或驗證訓練權重，也沒有可報告的模型分數。</p></div>
+  <aside class="speaker-note"><p>約45秒。「今天若顯示規則備援，請把它看作產品穩定性展示，不是模型成果。訓練計畫與實測成果分開報告。」模型沒設定時路由503，只有解析備援，資料寫入不退回假後端。</p></aside>
+</section>
+<section class="slide" id="slide-8" aria-labelledby="title-8">
+  <div class="eyebrow">08 · Honest evaluation</div><h2 id="title-8">比較同一批題目，才知道有沒有進步。</h2>
+  <div class="grid"><article class="tile"><h3>人工留出集</h3><p>先定標註規則，切開訓練／驗證／測試。留出集不拿來調 prompt，也不送進訓練。</p></article><article class="tile"><h3>公平對照</h3><p>規則、zero-shot、few-shot、微調使用同一分類表、日期基準及後處理。</p></article></div>
+  <div class="tablewrap"><table><thead><tr><th>量什麼</th><th>回答什麼</th><th>目前狀態</th></tr></thead><tbody><tr><td>整段全欄位正確率</td><td>一次輸入是否完全不用修正</td><td>未執行正式留出集評測</td></tr><tr><td>分類 Macro-F1／缺值亂猜率</td><td>小分類與不知道時是否可靠</td><td>未測，不能填估計值</td></tr><tr><td>延遲 p50／p95</td><td>一般與較慢情況需要等多久</td><td>須在指定模型服務實測</td></tr></tbody></table></div>
+  <aside class="speaker-note"><p>約40秒。API測試通過只證明程式行为，不能換算成模型準確率。保留原始預測、答案、模型版本、樣本數與執行時間，將「未測」留白。</p></aside>
+</section>
+<section class="slide" id="slide-9" aria-labelledby="title-9">
+  <div class="eyebrow">09 · Validation</div><h2 id="title-9">用可重跑的檢查支持展示。</h2>
+  <div class="grid three"><article class="tile"><h3>功能</h3><p>登入、記帳、統計、家庭、預算與重新整理後的資料保留。</p></article><article class="tile"><h3>邊界</h3><p>缺金額、非法金額、空輸入、批次失敗回滾。</p></article><article class="tile"><h3>權限</h3><p>未登入、別人的交易、子女全家查詢、跨家庭存取。</p></article></div>
+  <div class="note"><p>實際命令、測試結果與未測項目記在 <strong>docs/04-發表與驗收手冊.md</strong>。本頁列的是驗收方法，不用沒有跑過的「全部通過」口號。</p></div>
+  <aside class="speaker-note"><p>約25秒。由主代理填入實際驗收紀錄；若現場需要證據，展示真實測試報告，清楚說明資料庫與模型模式。</p></aside>
+</section>
+<section class="slide" id="slide-10" aria-labelledby="title-10">
+  <div class="eyebrow">10 · Verified email and personal backgrounds</div><h2 id="title-10">信箱驗證，配上自己的登入畫面。</h2>
+  <div class="grid"><article class="tile"><h3>信箱驗證 · Email verification</h3><p>申請 → 30分鐘單次連結 → 驗證成功 → 登入。正式環境未驗證不發權杖；開發展示清楚標示未寄信。</p></article><article class="tile"><h3>自由背景 · Login background</h3><p>紙上晨光、森林微風、星空暮色、自己的照片。相簿與拍照、填滿／全圖／鋪排／原尺寸，位置、亮度、模糊與遮罩。</p></article></div>
+  <div class="note"><p>不設應用檔案大小門檻，原圖存在此瀏覽器IndexedDB。實際容量受裝置與瀏覽器限制；已驗證8.8MB照片原檔保存、重新整理及手機調整。</p></div>
+  <aside class="speaker-note"><p>約35秒。切換預設和照片，說明此裝置保存。再展示驗證狀態。真正寄信須配置自己的Brevo金鑰、驗證寄件人與公開網址，不能把開發連結說成已寄信。</p></aside>
+</section>
+<section class="slide" id="slide-11" aria-labelledby="title-11">
+  <div class="eyebrow">11 · Manual entry and currency conversion</div><h2 id="title-11">國際匯率輔助，實際金額由人決定。</h2>
+  <figure><div class="flow"><div class="node"><strong>外幣金額</strong><small>153種法定貨幣<br>搜尋／互換</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>參考換算</strong><small>來源與資料日期<br>Decimal十進位</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>手動確認</strong><small>帶入TWD<br>可改為實際扣款</small></div></div><figcaption class="flowcaption">手動流程不呼叫AI。修改實際金額後確認，才寫入資料庫。</figcaption></figure>
+  <div class="note"><p>目前帳本本位幣是新臺幣，海外交易轉為TWD後統計。備註保存原幣、匯率與日期；每日參考行情不是銀行即時成交價，手續費與差價以實扣金額為準。</p></div>
+  <aside class="speaker-note"><p>約40秒。選來源USD與目標TWD、看資料日期、換算、帶入手動金額後修改，再展示明細與統計。可直接手動輸入而不經過AI或匯率。</p></aside>
+</section>
+<section class="slide" id="slide-12" aria-labelledby="title-12">
+  <div class="eyebrow">12 · Limits and next steps</div><h2 id="title-12">下一步由證據決定。</h2>
+  <div class="grid"><article class="tile"><h3>目前限制</h3><p>規則解析處理不了所有語意；模型服務與正式留出集尚須配置與驗證；正式部署、寄信和多人真實使用另需實測。</p></article><article class="tile"><h3>接下來</h3><p>人工標註難例 → 跑規則與few-shot基準 → 視差異決定微調 → 同一留出集與實機回歸 → 再部署。</p></article></div>
+  <p class="big-quote">降低輸入成本，<br>保留人的決定權與家庭資料界線。</p>
+  <div class="meta"><a class="pill" href="tutorial.html">逐步操作教學</a><a class="pill" href="glossary.html">英中名詞表</a><a class="pill" href="../index.html">回到實機</a></div>
+  <aside class="speaker-note"><p>結尾約20秒。「我們先交付可以使用與檢查的產品；模型成效用保留集證據回答。謝謝。」剩餘時間用於答辯。</p></aside>
+</section>
+</main>
+<div class="deck-controls" role="group" aria-label="簡報操作"><div class="progress" id="progress" aria-hidden="true"></div><div class="control-group"><button id="prev" type="button" aria-label="上一張">← 上一張</button><span class="counter" id="counter" aria-live="polite"></span><button id="next" class="main-next" type="button" aria-label="下一張">下一張 →</button></div><span class="hint">← → 切頁 · Home / End · N 講者備註 · 可列印成 PDF</span><button class="secondary-control" type="button" id="notes" aria-pressed="false">講者備註</button></div>
+<script>
+(function(){
+  var slides=Array.from(document.querySelectorAll('.slide'));
+  var prev=document.getElementById('prev'),next=document.getElementById('next');
+  var notes=document.getElementById('notes'),counter=document.getElementById('counter');
+  var match=location.hash.match(/^#slide-(\d+)$/),current=match?Math.max(0,Math.min(slides.length-1,Number(match[1])-1)):0;
+  document.body.classList.add('deck-mode');
+  function show(n,updateHash){current=Math.max(0,Math.min(slides.length-1,n));slides.forEach(function(s,i){var active=i===current;s.classList.toggle('active',active);s.setAttribute('aria-hidden',String(!active));s.inert=!active;});prev.disabled=current===0;next.disabled=current===slides.length-1;counter.textContent=(current+1)+' / '+slides.length;document.getElementById('progress').style.width=((current+1)/slides.length*100)+'%';document.title=(current+1)+' / '+slides.length+' · 家庭記帳專題發表';if(updateHash)history.replaceState(null,'','#slide-'+(current+1));window.scrollTo({top:0,behavior:'instant'});}
+  function toggleNotes(){var on=document.body.classList.toggle('show-notes');notes.setAttribute('aria-pressed',String(on));}
+  prev.addEventListener('click',function(){show(current-1,true);});next.addEventListener('click',function(){show(current+1,true);});notes.addEventListener('click',toggleNotes);
+  document.addEventListener('keydown',function(e){if(e.altKey||e.ctrlKey||e.metaKey||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.isContentEditable)return;var n=current;if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key==='PageDown')n++;else if(e.key==='ArrowLeft'||e.key==='ArrowUp'||e.key==='PageUp')n--;else if(e.key==='Home')n=0;else if(e.key==='End')n=slides.length-1;else if(e.key.toLowerCase()==='n'){toggleNotes();e.preventDefault();return;}else return;e.preventDefault();show(n,true);});
+  document.getElementById('fullscreen').addEventListener('click',function(){if(document.fullscreenElement){document.exitFullscreen().catch(function(){});}else if(document.documentElement.requestFullscreen){document.documentElement.requestFullscreen().catch(function(){});}});
+  window.addEventListener('hashchange',function(){var m=location.hash.match(/^#slide-(\d+)$/);if(m)show(Number(m[1])-1,false);});
+  window.addEventListener('beforeprint',function(){slides.forEach(function(s){s.inert=false;});});window.addEventListener('afterprint',function(){show(current,false);});
+  show(current,false);
+})();
+</script>
+</body></html>

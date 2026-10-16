@@ -1,0 +1,45 @@
+/* Currency calculator shares application theme variables and native controls. */
+.exchange-page { display: grid; gap: 20px; max-width: 920px; margin: 0 auto; min-width: 0; }
+.exchange-intro h2 { font-size: 24px; color: var(--ink); margin: 0 0 10px; }
+.exchange-intro h2 small { display: inline-block; font-size: 13px; color: var(--ink-faint); font-weight: 400; }
+.exchange-intro p { font-size: 14px; line-height: 1.8; color: var(--ink-dim); margin: 0; }
+.exchange-calculator, .exchange-guide { min-width: 0; }
+.exchange-calculator .card__h { justify-content: space-between; flex-wrap: wrap; align-items: center; }
+.exchange-calculator form { display: grid; gap: 20px; }
+.exchange-calculator input, .exchange-calculator select { width: 100%; box-sizing: border-box; min-width: 0; }
+.exchange-calculator select { color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-input, 8px); padding: 12px 10px; font: inherit; font-size: 14px; }
+.exchange-calculator input { font-size: 16px; }
+.exchange-calculator select:focus-visible, .exchange-page button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.exchange-search { margin-top: 0; }
+.exchange-currencies { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: end; min-width: 0; }
+.exchange-swap { min-height: 44px; font-size: 18px; }
+.exchange-swap span { font-size: 12px; }
+.exchange-submit { justify-self: start; min-height: 44px; min-width: 160px; }
+.exchange-status { margin: 0 0 16px; font-size: 13px; line-height: 1.7; color: var(--ink-dim); }
+.exchange-message { padding: 13px 16px; border-radius: var(--r-input, 8px); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.exchange-message--error { background: var(--down-wash, #fff0ef); color: var(--down, #a72525); border: 1px solid var(--down, #a72525); }
+.exchange-message--warning { background: var(--accent-wash); color: var(--ink); border: 1px solid var(--line); }
+.exchange-result { margin-top: 24px; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-card, 12px); background: var(--accent-wash); }
+.exchange-result__label, .exchange-result__amount, .exchange-result__rate { display: block; overflow-wrap: anywhere; }
+.exchange-result__label { font-size: 14px; color: var(--ink-dim); }
+.exchange-result__amount { margin: 8px 0; font-size: clamp(26px, 5vw, 38px); color: var(--ink); line-height: 1.35; }
+.exchange-result__amount small { font-size: 17px; }
+.exchange-result__rate { font-size: 12px; line-height: 1.8; color: var(--ink-dim); }
+.exchange-result .hint { margin-top: 10px; }
+.exchange-result .btn { max-width: 100%; white-space: normal; text-align: left; }
+.exchange-source { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 12px; color: var(--ink-dim); line-height: 1.8; overflow-wrap: anywhere; }
+.exchange-source p { margin: 3px 0; }
+.exchange-source a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.exchange-guide h3 { margin: 0 0 12px; color: var(--ink); font-size: 16px; }
+.exchange-guide ol { padding-left: 22px; margin: 0 0 14px; color: var(--ink-dim); font-size: 13px; line-height: 1.9; }
+.exchange-page [hidden] { display: none !important; }
+@media (max-width: 620px) {
+  .exchange-page { gap: 16px; }
+  .exchange-intro h2 { font-size: 21px; }
+  .exchange-intro h2 small { display: block; margin-top: 6px; }
+  .exchange-calculator, .exchange-guide { padding: 18px; }
+  .exchange-currencies { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .exchange-swap { justify-self: start; }
+  .exchange-submit { width: 100%; }
+  .exchange-result { padding: 16px; }
+}

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>英中名詞表｜家庭記帳專題</title><meta name="description" content="家庭記帳、Web API、資料庫、權限與AI評測名詞的英文、繁體中文和實際例子。"><link rel="stylesheet" href="learning.css"></head>
+<body><header class="topbar"><a class="brandlink" href="index.html">家庭記帳 · 學習手冊</a><nav aria-label="文件導覽"><a href="tutorial.html">逐步教學</a><a href="presentation.html">發表簡報</a><a href="glossary.html" aria-current="page">英中名詞</a><a href="../index.html">回到系統</a></nav></header>
+<main class="container"><header class="intro"><span class="eyebrow">English ⇄ 繁體中文</span><h1>看到英文，也知道它在做什麼。</h1><p class="lead">同一個字在不同層有不同意思。這份名詞表把英文、中文與專題中的具體例子放在一起。</p></header>
+<div class="searchbox"><label for="term-search">找名詞</label><input id="term-search" type="search" placeholder="例如 JWT、權限、微調、預算" aria-describedby="search-status"><span id="search-status" aria-live="polite">所有名詞</span></div>
+<nav class="toc" aria-label="名詞分類"><a href="#finance">記帳與家庭</a><a href="#web">前後端</a><a href="#data">資料與權限</a><a href="#ai">AI 與評測</a><a href="#deploy">測試與部署</a></nav>
+<section class="section" id="finance"><h2>記帳與家庭 <span class="sub-en">Finance and family</span></h2><div class="tablewrap"><table><thead><tr><th>English / 中文</th><th>簡短解釋</th><th>專題例子</th></tr></thead><tbody>
+<tr><td class="term">Income<small>收入</small></td><td>流入的款項；金額為正數，方向由kind表示。</td><td>打工賺1500，<code>kind=income</code></td></tr>
+<tr><td class="term">Expense<small>支出</small></td><td>花出去的款項；不以負號取代收支欄位。</td><td>早餐55，<code>kind=expense</code></td></tr>
+<tr><td class="term">Net balance<small>結餘</small></td><td>同一範圍的收入減支出。</td><td>1500 − 120 = 1380</td></tr>
+<tr><td class="term">Budget<small>預算</small></td><td>計畫中的花費上限，與已花金額比較。</td><td>餐飲limit100、used120</td></tr>
+<tr><td class="term">Savings goal<small>存款目標</small></td><td>使用者想保留的款項；不是銀行存款證明。</td><td>每月目標3000</td></tr>
+<tr><td class="term">Category<small>分類</small></td><td>將交易分組的固定或家庭自訂類別。</td><td>餐飲、交通、薪資</td></tr>
+<tr><td class="term">Ledger / Group<small>帳本／群組</small></td><td>把相關交易放在共同容器；契約中group指帳本。</td><td>旅遊帳本，不等同family</td></tr>
+<tr><td class="term">Settlement<small>結算</small></td><td>依帳本內收支整理分攤與差額。</td><td>活動帳本結算</td></tr>
+<tr><td class="term">Family role<small>家庭角色</small></td><td>某人在這個家庭中的角色，與登入身分分開。</td><td>parent（家長）、child（子女）</td></tr>
+<tr><td class="term">Guardianship<small>監管關係</small></td><td>指定誰可以查看谁的資料，與角色是不同規則。</td><td>guardian（監管者）、ward（被監管者）</td></tr>
+<tr><td class="term">Allowance<small>零用金</small></td><td>家庭設定的零用金安排，不自動代表已收款。</td><td>家長設定子女零用金</td></tr>
+<tr><td class="term">Read-only view<small>唯讀檢視</small></td><td>能查看資料，但不能透過此關係代改紀錄。</td><td>查看被監管者交易</td></tr>
+</tbody></table></div></section>
+<section class="section" id="web"><h2>前後端 <span class="sub-en">Web and API</span></h2><div class="tablewrap"><table><thead><tr><th>English / 中文</th><th>簡短解釋</th><th>專題例子</th></tr></thead><tbody>
+<tr><td class="term">Frontend<small>前端</small></td><td>瀏覽器裡的介面、輸入和互動。</td><td>HTML、CSS、app.js</td></tr>
+<tr><td class="term">Backend<small>後端</small></td><td>伺服器端的規則、權限、儲存和計算。</td><td>FastAPI app.main</td></tr>
+<tr><td class="term">API<small>應用程式介面</small></td><td>兩個程式交換資料的公開契約。</td><td><code>/api/transactions</code></td></tr>
+<tr><td class="term">HTTP / REST<small>HTTP協定／REST架構風格</small></td><td>HTTP傳請求與回應；REST常用資源路徑與HTTP動詞描述操作。</td><td>GET查詢、POST建立、PATCH修改、DELETE刪除</td></tr>
+<tr><td class="term">Request / Response<small>請求／回應</small></td><td>呼叫端送的內容／服務端回的內容。</td><td>送text，回items</td></tr>
+<tr><td class="term">Endpoint / Route<small>端點／路由</small></td><td>HTTP方法加路徑形成的服務入口。</td><td><code>POST /api/nlp/parse-batch</code></td></tr>
+<tr><td class="term">Hash routing<small>井號路由</small></td><td>#後面的資訊由瀏覽器處理，不傳給伺服器。</td><td><code>#/entry</code>切換記帳頁</td></tr>
+<tr><td class="term">JSON<small>JSON資料格式</small></td><td>以物件、陣列、字串與數字傳遞資料。</td><td><code>{"amount":55}</code></td></tr>
+<tr><td class="term">Adapter<small>轉接器</small></td><td>保留同一操作名稱，替換資料來源。</td><td>api.js中的mock與http</td></tr>
+<tr><td class="term">Mock<small>模擬實作</small></td><td>以本機模擬資料來源練習介面；不證明真後端完成。</td><td>瀏覽器localStorage模式</td></tr>
+<tr><td class="term">CORS<small>跨來源資源共用</small></td><td>瀏覽器依伺服器允許來源決定是否讓網頁讀取跨站回應。</td><td>5174前端讀8000API</td></tr>
+<tr><td class="term">Same origin<small>同源</small></td><td>網址的協定、主機與埠號都相同。</td><td>Render由同一服務提供前端和/api</td></tr>
+<tr><td class="term">Status code<small>HTTP狀態碼</small></td><td>回應的類別與結果；成功碼不等於內容一定正確。</td><td>200成功、201建立、401未認證、403拒絕、422驗證錯誤、503暫時不可用</td></tr>
+</tbody></table></div></section>
+<section class="section" id="data"><h2>資料與權限 <span class="sub-en">Data and access</span></h2><div class="tablewrap"><table><thead><tr><th>English / 中文</th><th>簡短解釋</th><th>專題例子</th></tr></thead><tbody>
+<tr><td class="term">Schema<small>資料結構定義</small></td><td>資料有哪些欄位、型別與限制；API schema與資料表schema不必同名。</td><td>API的date對應表的occurred_on</td></tr>
+<tr><td class="term">Validation<small>驗證</small></td><td>檢查輸入是否符合格式與業務條件。</td><td>Pydantic驗請求；金額必須合理</td></tr>
+<tr><td class="term">ORM<small>物件關聯映射</small></td><td>用程式物件操作關聯式資料表。</td><td>SQLAlchemy的Transaction model</td></tr>
+<tr><td class="term">Migration<small>資料庫遷移</small></td><td>以版本步驟更新資料表結構。</td><td><code>alembic upgrade head</code></td></tr>
+<tr><td class="term">CRUD<small>新增、讀取、修改、刪除</small></td><td>Create、Read、Update、Delete四種基本資料操作。</td><td>交易明細增刪改查</td></tr>
+<tr><td class="term">Transaction<small>交易紀錄／資料庫交易</small></td><td>記帳指一筆收支；資料庫指一組全做或不做的操作。</td><td>transactions表；批次confirm的DB transaction</td></tr>
+<tr><td class="term">Atomicity / Rollback<small>原子性／回滾</small></td><td>一組操作全部成功才保留；失败就撤回整組。</td><td>批次第3筆非法，前2筆也不留下</td></tr>
+<tr><td class="term">Decimal<small>十進位精確數值</small></td><td>依十進位表示金額，避免二進位浮點的小數誤差。</td><td>資料庫NUMERIC、Python Decimal</td></tr>
+<tr><td class="term">Authentication<small>認證</small></td><td>確認「你是誰」。</td><td>email、密碼與JWT登入</td></tr>
+<tr><td class="term">Authorization<small>授權／權限檢查</small></td><td>確認「你能做什麼、能看哪些資料」。</td><td>子女不能查全家總覽</td></tr>
+<tr><td class="term">JWT<small>JSON Web Token</small></td><td>可驗簽的登入權杖；不是密碼，也不代表內容加密。</td><td><code>Authorization: Bearer ...</code></td></tr>
+<tr><td class="term">Access / Refresh token<small>存取／更新權杖</small></td><td>前者用於API呼叫；後者用於換發新的存取權杖。</td><td>refreshToken不應公開</td></tr>
+<tr><td class="term">Session<small>工作階段</small></td><td>一次裝置登入的狀態，可撤銷與到期。</td><td>個人資料中的登入裝置</td></tr>
+<tr><td class="term">Scope<small>資料範圍</small></td><td>這次查詢要看哪個被允許的集合。</td><td>me、family、userId、groupId</td></tr>
+<tr><td class="term">Audit log<small>稽核紀錄</small></td><td>記下重要操作的時間、操作者與事件供追溯。</td><td>邀請、角色變更與監管事件</td></tr>
+</tbody></table></div></section>
+<section class="section" id="ai"><h2>AI 與評測 <span class="sub-en">Models and evaluation</span></h2><div class="tablewrap"><table><thead><tr><th>English / 中文</th><th>簡短解釋</th><th>專題例子</th></tr></thead><tbody>
+<tr><td class="term">NLP<small>自然語言處理</small></td><td>讓程式處理人平常說寫的語言。</td><td>一段消費敘述拆成幾筆帳</td></tr>
+<tr><td class="term">LLM<small>大型語言模型</small></td><td>學習語言模式的模型，可抽取、判斷與生成文字；可能出錯。</td><td>解析語意與撰寫財務敘述</td></tr>
+<tr><td class="term">Rules-based parsing<small>規則解析</small></td><td>依程式寫好的條件、字詞與格式處理輸入。</td><td>找到早餐關鍵字與金額55</td></tr>
+<tr><td class="term">Prompt<small>提示內容</small></td><td>送給模型的任務說明、資料與範例。</td><td>分類清單、缺欄位要留空</td></tr>
+<tr><td class="term">Zero-shot / Few-shot<small>零樣本／少樣本提示</small></td><td>不放示例／放少量示例；都不會修改模型權重。</td><td>prompt裡放兩段記帳標準格式</td></tr>
+<tr><td class="term">Inference<small>推論</small></td><td>使用已有權重產生結果。</td><td>呼叫chat completions</td></tr>
+<tr><td class="term">Fine-tuning<small>微調</small></td><td>用訓練資料更新模型或adapter參數。</td><td>規劃中的記帳抽取訓練；本次未執行</td></tr>
+<tr><td class="term">LoRA / QLoRA<small>低秩適應／量化低秩適應</small></td><td>LoRA訓練較少的附加參數；QLoRA搭配量化基底以降低記憶體需求。</td><td>規劃Qwen基底加記帳adapter</td></tr>
+<tr><td class="term">Adapter weights<small>適配器權重</small></td><td>微調產出的附加模型參數，通常需搭配正確基底。</td><td>不是api.js的資料轉接器</td></tr>
+<tr><td class="term">Function / Tool calling<small>函式／工具呼叫</small></td><td>模型產生符合定義的工具參數，由程式驗證再執行。</td><td>record_transactions屬規劃；工具名稱不代表已寫入DB</td></tr>
+<tr><td class="term">Confidence<small>信心度</small></td><td>對結果可靠性的分數或指標；未校準前不能當作真正機率。</td><td>低信心欄位要求人检查</td></tr>
+<tr><td class="term">Hallucination<small>幻覺／無依據生成</small></td><td>產生輸入與事實不支持的內容。</td><td>沒寫咖啡金額卻自行填60</td></tr>
+<tr><td class="term">Fallback<small>備援</small></td><td>主服務不可用時使用可識別的替代流程。</td><td>模型503→規則；寫入仍走後端</td></tr>
+<tr><td class="term">Annotation / Gold label<small>標註／標準答案</small></td><td>由人工依固定規則寫出的可比較答案。</td><td>人工指定金額、日期、收支、分類</td></tr>
+<tr><td class="term">Training / Validation / Held-out test set<small>訓練／驗證／留出測試集</small></td><td>學習參數／選方案／最後評估用的不同資料。</td><td>留出集不得拿來反覆改prompt</td></tr>
+<tr><td class="term">Data leakage<small>資料洩漏</small></td><td>測試答案或近似樣本混入訓練或調參，使成績過度樂觀。</td><td>同句換金額後落在訓練與測試兩邊</td></tr>
+<tr><td class="term">Exact match rate<small>完全正確率</small></td><td>指定欄位全部吻合的樣本比例；須說清楚以筆或整段計算。</td><td>整段所有交易的四個核心欄位全對</td></tr>
+<tr><td class="term">Precision / Recall / F1<small>精確率／召回率／F1</small></td><td>預測有多少對／答案有多少找到／兩者的調和平均。</td><td>餐飲分類的TP、FP、FN</td></tr>
+<tr><td class="term">Macro-F1<small>各類別F1的平均</small></td><td>先算每類F1再平均，各分類權重相同。</td><td>避免常見的餐飲類掩蓋小分類失誤</td></tr>
+<tr><td class="term">Latency p50 / p95<small>延遲第50／95百分位</small></td><td>50%／95%的請求在該時間內完成，不是最大值。</td><td>包含指定部署與網路下的模型等待</td></tr>
+<tr><td class="term">Baseline / Blind rating<small>基準線／盲評</small></td><td>作為比較的基本方法／評者不知道輸出來自哪個版本。</td><td>規則基準；財務建議雙版本盲評</td></tr>
+</tbody></table></div></section>
+<section class="section" id="deploy"><h2>測試與部署 <span class="sub-en">Testing and deployment</span></h2><div class="tablewrap"><table><thead><tr><th>English / 中文</th><th>簡短解釋</th><th>專題例子</th></tr></thead><tbody>
+<tr><td class="term">Unit / Integration / End-to-end test<small>單元／整合／端到端測試</small></td><td>測小函式／測元件交互／從使用者操作走完整流程。</td><td>金額處理、API+DB、兩帳號完整demo</td></tr>
+<tr><td class="term">Negative test<small>反向測試</small></td><td>確認不被允許或非法的行為確實被拒絕。</td><td>子女直接查全家summary</td></tr>
+<tr><td class="term">Stub / Skipped<small>佔位實作／跳過</small></td><td>stub是待完成程式；skipped是測試沒有執行，不能算通過。</td><td>501路由、pytest skipped</td></tr>
+<tr><td class="term">Email verification<small>信箱驗證</small></td><td>用寄往信箱的限時單次連結證明收信能力。</td><td>正式環境先驗證再登入；本機示範明示未寄信</td></tr>
+<tr><td class="term">IndexedDB / Blob<small>瀏覽器資料庫／二進位物件</small></td><td>在裝置保存原始圖片，不把大照片塞進文字偏好設定。</td><td>登入背景照片與重新整理後恢復</td></tr>
+<tr><td class="term">Cover / Contain / Tile<small>填滿／完整顯示／重複鋪排</small></td><td>控制照片如何適應畫面；位置滑桿調整對齊或裁切。</td><td>自己的登入背景</td></tr>
+<tr><td class="term">Manual entry / Actual debit<small>手動記帳／實際扣款</small></td><td>由人確認帳單金額，獨立於AI和參考試算。</td><td>匯率帶入後可修改為銀行實扣</td></tr>
+<tr><td class="term">Exchange rate / Base currency<small>匯率／基準幣別</small></td><td>1單位來源貨幣能換得多少目標幣；比率需連同日期與來源。</td><td>USD、TWD、JPY等153法定貨幣；帳本本位幣TWD</td></tr>
+<tr><td class="term">Decimal / Quote date / Stale<small>十進位／行情日期／過期標示</small></td><td>保留金額精度並區分資料更新日期和取得時間，過期行情不能假稱即時。</td><td>日圓0位、美元2位、每日匯率明示來源日期</td></tr>
+<tr><td class="term">Health check<small>健康檢查</small></td><td>確認服務的指定狀態；不等同完整產品驗收。</td><td><code>/healthz</code></td></tr>
+<tr><td class="term">Environment variable / Secret<small>環境變數／機密</small></td><td>在程式外設定運行值／應限制存取的敏感值。</td><td>APP_ENV／JWT_SECRET、API key</td></tr>
+<tr><td class="term">Blueprint<small>部署藍圖</small></td><td>以設定檔描述服務與資料庫，套用後平台建立資源。</td><td>Render讀render.yaml；檔案存在不代表部署完成</td></tr>
+<tr><td class="term">Persistence / Backup<small>持久化／備份</small></td><td>服務重啟後保留資料／另外保存可還原副本。</td><td>PostgreSQL儲存；仍需驗證備份策略</td></tr>
+</tbody></table></div></section>
+<p class="empty-filter" id="no-results" hidden>找不到符合的名詞，試試「模型」、「API」或清除搜尋。</p>
+<div class="note warn"><p><strong>記得分清：</strong>資料轉接器 Adapter ≠ 微調 Adapter；一筆記帳 Transaction ≠ 資料庫交易 Transaction；通過程式測試 ≠ 量到模型準確率。</p></div>
+<footer class="footer">想看名詞如何串起來？閱讀 <a href="tutorial.html">逐步教學</a> 或 <a href="presentation.html">專題簡報</a>。停用 JavaScript 時，完整名詞表仍可閱讀與列印。</footer>
+</main>
+<script>(function(){var input=document.getElementById('term-search'),sections=Array.from(document.querySelectorAll('main section')),status=document.getElementById('search-status');var total=document.querySelectorAll('tbody tr').length;function filter(){var q=input.value.trim().toLocaleLowerCase(),count=0;sections.forEach(function(section){var visible=0;section.querySelectorAll('tbody tr').forEach(function(row){var match=!q||row.textContent.toLocaleLowerCase().includes(q);row.hidden=!match;if(match){visible++;count++;}});section.hidden=visible===0;});status.textContent=q?'找到 '+count+' 個名詞':'共 '+total+' 個名詞';document.getElementById('no-results').hidden=count!==0;}input.addEventListener('input',filter);filter();})();</script>
+</body></html>

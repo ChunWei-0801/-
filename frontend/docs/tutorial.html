@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>從啟動到記帳｜家庭記帳實作與操作教學</title><meta name="description" content="家庭記帳專題逐步教學：SQLite啟動、真實API、兩帳號家庭、段落解析修正、預算統計、權限反向驗證，以及模型設定與評測。"><link rel="stylesheet" href="learning.css"></head>
+<body>
+<header class="topbar"><a class="brandlink" href="index.html">家庭記帳 · 學習手冊</a><nav aria-label="文件導覽"><a href="tutorial.html" aria-current="page">逐步教學</a><a href="presentation.html">發表簡報</a><a href="glossary.html">英中名詞</a><a href="../index.html">回到系統</a></nav></header>
+<main class="container">
+<header class="intro"><span class="eyebrow">Build it · Use it · Check it</span><h1>從啟動，到第一筆真實記帳。</h1><p class="lead">先走完能保存資料的最短路徑，再認識 API、家庭權限與 AI。每一步都列出操作與預期效果；圖中的資料是教學示意。</p><div class="meta"><span class="pill">Python 3.10+</span><span class="pill">SQLite 展示免 Docker</span><span class="pill">文件可離線閱讀</span><span class="pill">繁中 · English terms</span></div></header>
+<nav class="toc" aria-label="教學章節"><a href="#start">啟動</a><a href="#accounts">帳號與家庭</a><a href="#entry">段落記帳</a><a href="#summary">統計與預算</a><a href="#access">權限驗證</a><a href="#implementation">程式怎麼走</a><a href="#model">模型與評測</a><a href="#troubleshoot">排除問題</a></nav>
+<div class="note warn"><p><strong>先分清楚：</strong>規則解析是 Rules；模型推論是 LLM；微調是 Fine-tuning。現在沒有產出或驗證微調權重。未設定模型時，解析 API 回 503，前端使用規則備援；確認後的交易仍寫入真實後端資料庫。API 連不上或尚未實作，不能當成模型備援。</p></div>
+<div class="steps">
+<section class="section step" id="start"><h2>啟動完整前後端<span class="sub-en">Start the frontend and backend</span></h2>
+<p>在專案根目錄，也就是 <code>run.py</code> 所在的資料夾執行。每個雲端任務已有隔離環境，直接使用現有 checkout，不需要另外建立 Git worktree。</p>
+<pre><code>python run.py --sqlite</code></pre>
+<p><strong>預期效果：</strong>安裝必要套件、初始化本機 SQLite 資料庫與預設分類，啟動前端與 API。以終端機印出的網址為準，預設如下：</p>
+<div class="tablewrap"><table><thead><tr><th>用途</th><th>預設網址</th><th>怎麼確認</th></tr></thead><tbody><tr><td>前端連真 API</td><td><a href="http://localhost:5174/?api=http://localhost:8000">http://localhost:5174/?api=http://localhost:8000</a></td><td>看到登入頁，API 狀態指向本機後端</td></tr><tr><td>健康檢查</td><td><a href="http://localhost:8000/healthz">http://localhost:8000/healthz</a></td><td>回應 HTTP 200；此檢查不代表所有功能已驗收</td></tr><tr><td>互動 API 文件</td><td><a href="http://localhost:8000/docs">http://localhost:8000/docs</a></td><td>能閱讀路由、請求格式與回應 schema</td></tr></tbody></table></div>
+<p>要使用 PostgreSQL，先啟動 Docker，再執行 <code>python run.py</code>。兩種模式都是後端持久化資料；SQLite 與 PostgreSQL 是不同資料庫，不會自動搬移彼此的資料。<code>python run.py --front-only</code> 只適合前端 mock 操作練習，不能證明 API 或資料庫已串接。</p>
+<div class="note"><p>操作本系統請用 HTTP 網址，不要直接開 <code>file://.../index.html</code>。本頁教學、名詞表與簡報本身可以離線讀取。</p></div>
+<details><summary>想手動了解初始化的每一步？</summary><p>先讀 <code>backend/.env.example</code> 與 <code>backend/README.md</code>。一般流程依序是安裝 <code>backend/requirements.txt</code>、設定資料庫與 JWT、<code>alembic upgrade head</code>、<code>python -m app.cli init-db</code>，再執行 <code>uvicorn app.main:app</code>。請在 <code>backend/</code> 執行後端命令；展示時用一鍵啟動比較不容易漏步驟。</p></details>
+</section>
+<section class="section step" id="accounts"><h2>準備兩個帳號與一個家庭<span class="sub-en">Accounts, family roles and separate sessions</span></h2>
+<ol><li>用一般瀏覽器視窗註冊 A：名字「家長示範」、你可管理的展示用 email，以及自己設定的密碼。走完個人化設定。</li><li>開啟「家庭成員」<code>#/members</code>，建立「展示家庭」。建立者為家庭家長。</li><li>產生<strong>子女角色</strong>的邀請碼，複製到自己的展示筆記。這是加入家庭的邀請，不是登入別人的權杖。</li><li>開啟無痕視窗或另一個瀏覽器，註冊 B：「子女示範」，用不同 email。走完個人化設定後，輸入邀請碼加入家庭。</li><li>分別重新整理兩個視窗，確認 A、B 顯示不同使用者，同一個家庭，且角色正確。</li></ol>
+<div class="note good"><p><strong>預期效果：</strong>A 和 B 有各自的登入工作階段，A 的家庭列表看到兩人。一般視窗的兩個分頁通常共享瀏覽器儲存，所以不能當成兩個獨立帳號。</p></div>
+<p>不要把真正的家人資料拿來投影。用新的展示帳號、空帳與虛構消費即可；重複彩排時換帳號或記下原本資料，避免把累積總額誤認為這次示例。</p>
+</section>
+<section class="section step" id="entry"><h2>解析一段話，補缺值，再確認<span class="sub-en">Parse → Review → Confirm</span></h2>
+<p>A 進入「收支明細」<code>#/entry</code>，展開「記一筆」，選擇「段落記帳」。貼上：</p>
+<pre><code>今天早餐55，今天在全家買咖啡，今天打工賺了1500。</code></pre>
+<ol><li>按「解析這段話」，先看目前是模型解析還是規則備援。</li><li>對照原文檢查筆數、日期、收支與分類。解析可能出錯，下面是<strong>人工確認後想得到的示意</strong>，不是保證每個模型都會輸出一樣的結果。</li><li>咖啡沒寫金額，應留空。填入教學金額 <strong>65</strong>；如果日期、分類或切分有誤，一併修正。</li><li>確認早餐／咖啡是支出、打工是收入，三筆都完整後，按「確認並寫入」。</li></ol>
+<figure class="mock-ui" aria-labelledby="preview-title"><div class="mock-title"><strong id="preview-title">解析預覽 · 教學示意</strong><span class="pill">尚未確認，不算入統計</span></div><div class="tablewrap"><table><thead><tr><th>原句</th><th>日期</th><th>金額</th><th>收支</th><th>分類</th></tr></thead><tbody><tr><td>今天早餐55</td><td>今天</td><td>55</td><td>支出</td><td>餐飲</td></tr><tr><td>今天在全家買咖啡</td><td>今天</td><td><span class="field-missing">必填：留空 → 補65</span></td><td>支出</td><td>餐飲</td></tr><tr><td>今天打工賺了1500</td><td>今天</td><td>1500</td><td>收入</td><td>薪資</td></tr></tbody></table></div><div style="padding:16px 20px"><span class="action-demo">確認並寫入 3 筆</span><p class="muted" style="font-size:13px">此為不可操作的圖例；請在系統實際輸入。</p></div></figure>
+<div class="legend" aria-label="圖例"><span><i class="dot yellow" aria-hidden="true"></i>必填或低信心：需要檢查</span><span><i class="dot blue" aria-hidden="true"></i>預覽：尚未寫入</span><span><i class="dot" aria-hidden="true"></i>確認成功：後端已接受</span></div>
+<p><strong>預期效果：</strong>明細中出現確認後的三筆。重新整理仍存在，登入同帳號的另一個瀏覽器也能讀取。若畫面說「寫入失敗」，保留原輸入，排除錯誤後再確認，不要把預覽當成已入帳。</p>
+<p>想完全手動記帳？切到「單筆手動」，自己填日期、金額、收支、分類與備註。這條流程不需要模型服務。</p>
+</section>
+<section class="section step" id="summary"><h2>驗算統計，設定第一個預算<span class="sub-en">Summary, budget and savings goal</span></h2>
+<p>在 A 的空帳、同一月份、沒有其他交易且只看「我」時，回總覽 <code>#/</code> 或「統計」<code>#/stats</code>：</p>
+<div class="grid three"><article class="tile"><span class="eyebrow">Income · 收入</span><h3>1,500</h3><p>打工收入</p></article><article class="tile"><span class="eyebrow">Expense · 支出</span><h3>120</h3><p>55 + 65</p></article><article class="tile"><span class="eyebrow">Net · 結餘</span><h3>1,380</h3><p>1,500 − 120</p></article></div>
+<ol><li>確認月份、範圍與帳本篩選沒有排除這三筆。</li><li>把本月餐飲預算設成 <strong>100</strong>。餐飲用了120，示例使用率120%，超出20。</li><li>可再設定每月存款目標；比較目標與結餘。存款目標是使用者的規劃，不能當成銀行實際存款。</li><li>切到年度統計；如果只有少數月份有資料，應說明這是目前已記錄資料，不能稱為完整年度財務。</li><li>B 在自己的帳上手動記一筆「交通支出80」。A 查看獲授權的家庭範圍：在上述空帳假設下，全家支出200、收入1500、結餘1300。</li></ol>
+<div class="note"><p><strong>先看明細，再看總計。</strong>金額由後端依目前可見範圍加總。數字對不上時先檢查月份、帳本、資料重複與角色，不要要求模型替你重算。</p></div>
+</section>
+<section class="section step" id="access"><h2>驗證「看得到」與「不能代改」<span class="sub-en">Authorization and negative tests</span></h2>
+<p>家庭家長與監管者是不同概念。若要讓 A 查看 B 的個人明細，依介面建立適當監管關係，再開啟唯讀監管檢視。使用 A 的帳號查看，不要登入 B 的帳號。</p>
+<div class="tablewrap"><table><thead><tr><th>驗證情境</th><th>操作</th><th>預期效果</th></tr></thead><tbody><tr><td>B 為子女</td><td>檢查「全家」切換是否可用</td><td>不能取得全家統計</td></tr><tr><td>B 直接呼叫 API</td><td>用 B 自己的權杖呼叫 <code>GET /api/summary?scope=family</code></td><td>只能取得自己的合法範圍，不能回傳其他家人的數字；此接口可能回200</td></tr><tr><td>A 已獲監管權</td><td>查 B 個人明細，再嘗試更新 B 的交易</td><td>讀取允許；更新拒絕</td></tr><tr><td>B 直接查 A 的個人帳</td><td>呼叫 <code>GET /api/transactions?userId=A的id</code></td><td>403；不得回 A 的私人明細</td></tr><tr><td>未登入</td><td>不帶權杖呼叫交易 API</td><td>401，不能取得私人資料</td></tr><tr><td>另一個家庭</td><td>用沒有關係的帳號查 B 資料</td><td>403或404；不得回私人交易內容</td></tr></tbody></table></div>
+<details><summary>API 測試怎麼操作？</summary><p>在本機 API 文件 <code>http://localhost:8000/docs</code>，先執行登入取得自己的 <code>accessToken</code>。若頁面提供 Authorize，填入自己的 token，再測目標路由。若版本未提供授權按鈕，用開發者工具 Network 找到自己的請求，複製成 fetch，僅更改目標路由或參數。權杖只放在自己電腦的測試工具，投影和截圖不要顯示它。</p><pre><code>// 僅在自己瀏覽器的開發者工具練習；請先填自己的 B 權杖。
+// 這段示意不會自動執行。
+fetch('http://localhost:8000/api/summary?scope=family', {
+  headers: { Authorization: 'Bearer &lt;B自己的accessToken&gt;' }
+}).then(async response =&gt; ({
+  status: response.status,
+  body: await response.json()
+})).then(console.log)</code></pre></details>
+<div class="note good"><p>不只檢查畫面有沒有按鈕。後端拒絕非法請求，才支持「權限有效」這個說法。測試結果與具體狀態碼寫入發表驗收手冊。</p></div>
+</section>
+<section class="section step" id="implementation"><h2>從畫面追到資料庫：實作路線<span class="sub-en">Trace a request end to end</span></h2>
+<figure aria-label="app.js 到 api.js 到 router schema service model database 的實作順序"><div class="flow"><div class="node"><strong>app.js</strong><small>收集使用者操作</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>api.js</strong><small>fetch HTTP JSON</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>Router + Schema</strong><small>驗證身分與請求</small></div><span class="arrow" aria-hidden="true">→</span><div class="node"><strong>Service + Model</strong><small>計算與資料庫交易</small></div></div><figcaption class="flowcaption">前端完成顯示，後端負責驗證及資料。兩邊以公開 API 格式串接。</figcaption></figure>
+<ol><li><strong>先讀契約。</strong><code>docs/02-前後端串接契約.md</code> 定義前端收什麼；舊文件的 stub 與時程敘述是原始規劃，現況以程式與測試為準。</li><li><strong>看畫面。</strong>從 <code>frontend/js/app.js</code> 的段落解析按鈕追到 <code>API.nlpParseBatch</code>，再看 <code>api.js</code> 的 HTTP 轉接器。</li><li><strong>看入口。</strong><code>backend/app/routers/ledger/nlp.py</code> 區分 parse（不寫入）與 confirm（驗證後寫入）。Pydantic schemas 限制請求格式。</li><li><strong>看規則。</strong>服務層負責解析、統計；guards 決定可見與可改範圍。資料模型與 Alembic 負責表結構。</li><li><strong>先做局部驗證，再整體跑。</strong>不要看到「回200」就結束，還要看資料型別、正確數字、拒絕未授權請求及回滾效果。</li></ol>
+<pre><code>cd backend
+python -m app.ownership
+python -m pytest tests/routes
+python -m pytest</code></pre>
+<p><strong>預期效果：</strong>分工檢查與測試產生實際結果。被跳過（skipped）不算已通過的功能；使用 stub 的參考測試也不能替代真實實作驗收。模型模擬測試不等於已測過外部模型。</p>
+<div class="tablewrap"><table><thead><tr><th>常見英文</th><th>中文意思</th><th>這裡的例子</th></tr></thead><tbody><tr><td>Request / Response</td><td>請求／回應</td><td>送文字給 parse-batch，拿回 items</td></tr><tr><td>Schema / Validation</td><td>資料結構／驗證</td><td>日期格式、amount型別、必要欄位</td></tr><tr><td>Transaction / Rollback</td><td>資料庫交易／回滾</td><td>批次其中一筆非法時全部不寫</td></tr><tr><td>Scope / Permission</td><td>資料範圍／權限</td><td>me、family和監管可見對象</td></tr></tbody></table></div>
+</section>
+<section class="section step" id="model"><h2>設定模型，保持結果可追溯<span class="sub-en">Model integration and honest evaluation</span></h2>
+<p>先有可用的模型 HTTP 服務，再在本機 <code>backend/.env</code> 或正式平台的環境設定填入必要變數。不要把金鑰提交到 Git，也不要貼在聊天中。</p>
+<div class="tablewrap"><table><thead><tr><th>名稱</th><th>用途</th><th>注意</th></tr></thead><tbody><tr><td><code>MODEL_BASE_URL</code></td><td>模型服務 base URL</td><td>服務須支援目前 client 使用的 OpenAI 相容 chat completions</td></tr><tr><td><code>MODEL_NAME</code></td><td>服務接受的模型識別名稱</td><td>與服務所提供的名稱一致，並記錄版本</td></tr><tr><td><code>MODEL_API_KEY</code></td><td>模型服務授權</td><td>若服務需要才設定；存在安全環境欄位</td></tr><tr><td><code>MODEL_TIMEOUT_SECONDS</code></td><td>呼叫逾時</td><td>測量延遲後再調整；不要用無限等待掩蓋問題</td></tr></tbody></table></div>
+<ol><li>重新啟動後端，先確認模型服務的健康與回應格式，再從系統解析同一段文字。</li><li>觀察模式標示與 Network 回應。如果顯示 fallback／規則，這筆就不能算模型成功案例。</li><li>保留原始輸入、解析、使用者修正與版本。使用者修正是候選標註，須人工整理後才能進訓練集。</li><li>規劃 QLoRA 前先做人工訓練／驗證／留出資料分割，固定分類、參考日期與評測腳本。完整步驟見 <code>docs/04-發表與驗收手冊.md</code>。</li></ol>
+<div class="note warn"><p><strong>目前模型訓練未執行、正式模型評測未執行。</strong>訓練規劃不等於訓練成果；不要把教學示例、單元測試或自己看過的句子當成留出集準確率。</p></div>
+</section>
+</div>
+<section class="section" id="troubleshoot"><h2>遇到問題，先確認哪一層<span class="sub-en">Troubleshooting</span></h2><div class="tablewrap"><table><thead><tr><th>現象</th><th>先查</th><th>下一步</th></tr></thead><tbody><tr><td>連不上後端</td><td><code>/healthz</code>、終端機服務是否仍在、網址與埠號</td><td>確認 API 已啟動；查看CORS允許來源是否等於前端實際來源</td></tr><tr><td>401／403</td><td>目前帳號、登入狀態、家庭角色、資料範圍</td><td>用正確帳號與自己權杖重試；不移除後端權限檢查</td></tr><tr><td>422</td><td>回應 detail、Network 的請求內容</td><td>修正欄位型別、日期格式與必填值</td></tr><tr><td>解析503</td><td>模型服務是否設定／健康</td><td>可用規則或手動記帳；清楚說明模式，資料寫入仍走後端</td></tr><tr><td>501</td><td>是哪一支路由、是否仍是stub</td><td>這是功能未完成，不能宣稱已驗收</td></tr><tr><td>資料不見／數字不同</td><td>API網址、SQLite/PG、帳號、月份、帳本範圍</td><td>回原資料庫與範圍，先比明細；不要直接重建資料庫</td></tr><tr><td>忘記密碼信未收到</td><td>Brevo設定、已驗證寄件人與平台回應</td><td>寄信是獨立整合；展示可用已知的自建展示帳號，勿假稱已寄出</td></tr><tr><td>埠號被占用</td><td>終端機錯誤、重複啟動的服務</td><td>停止自己之前啟動的服務，或用run.py支援的port參數換埠</td></tr></tbody></table></div></section>
+<section class="section" id="new-features"><h2>信箱、背景、實際金額與匯率<span class="sub-en">Email, backgrounds, manual entry and exchange</span></h2><ol><li>登入頁可申請信箱驗證。正式環境須真的收到驗證信；本機開發連結會明示沒有寄信。</li><li>展開登入背景，選三種預設或自己的照片。手機可選相簿／拍照，調整顯示方式、位置、亮度、模糊和遮罩；照片保存在此裝置。</li><li>點「手動輸入實際金額」直接填寫日期、金額、收支與分類，無需AI。</li><li>國際匯率可搜尋中英名稱、選不同幣別、查看來源與資料日期。目標TWD的結果可帶入手動記帳，再改成實際扣款後確認。</li></ol><p>完整逐步說明、英文名詞與限制見儲存庫 <code>docs/08-信箱背景手動記帳與匯率.md</code>。照片不設應用檔案大小上限，實際容量取決於裝置與瀏覽器；帳本仍以新臺幣統計。</p></section><footer class="footer">下一步：<a href="presentation.html">投影簡報</a> · <a href="glossary.html">英中名詞表</a> · <a href="api.html">原始 API 參考</a>。部署與發表驗收分別見儲存庫 <code>docs/05-部署指南.md</code>、<code>docs/04-發表與驗收手冊.md</code>。</footer>
+</main></body></html>
