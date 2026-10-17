@@ -2,8 +2,10 @@
 
 import base64
 from datetime import timedelta
+from io import BytesIO
 
 import pytest
+from PIL import Image
 
 from app.models import AuditLog, PasswordReset, User, UserSession
 from app.toolkit import crud, mailer, password_reset, passwords, tokens
@@ -452,16 +454,22 @@ def _data_uri(raw, mime="image/jpeg"):
 @pytest.mark.route(*AVATAR)
 def test_upload_avatar(api):
     me = user("d@x.tw", "王大明")
-    jpeg = b"\xff\xd8\xff\xe0" + b"0" * 100
+    source = BytesIO()
+    Image.new("RGB", (512, 384), "#176b5d").save(source, "JPEG")
+    jpeg = source.getvalue()
     r = api.put("/api/auth/me/avatar", headers=login(me), json={"image": _data_uri(jpeg, "image/png")})
     assert r.status_code == 200, r.text
-    assert r.json() == {"avatarUrl": _data_uri(jpeg), "avatar": "明"}                   # 型別看內容，不信宣告
     row = crud.get(User, me.id)
-    assert row.avatar_bytes == jpeg and row.avatar_mime == "image/jpeg"
+    assert r.json() == {"avatarUrl": _data_uri(row.avatar_bytes), "avatar": "明"}
+    assert row.avatar_mime == "image/jpeg"
+    with Image.open(BytesIO(row.avatar_bytes)) as avatar:
+        assert avatar.size == (256, 192) and not avatar.getexif()
+    stored = row.avatar_bytes
     for bad in (_data_uri(b"import os; os.system('x')"), "not-a-data-uri",
-                _data_uri(b"\xff\xd8\xff" + b"0" * 300000), "data:image/jpeg;base64,@@@@"):
+                _data_uri(b"\xff\xd8\xff" + b"0" * 300000), "data:image/jpeg;base64,@@@@",
+                _data_uri(b"\xff\xd8\xff\xe0" + b"0" * 100)):
         assert api.put("/api/auth/me/avatar", headers=login(me), json={"image": bad}).status_code == 422
-    assert crud.get(User, me.id).avatar_bytes == jpeg
+    assert crud.get(User, me.id).avatar_bytes == stored
 
 
 @pytest.mark.route(*NOAVATAR)

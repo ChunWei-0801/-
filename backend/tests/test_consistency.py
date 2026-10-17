@@ -1168,7 +1168,7 @@ def test_主頁不可以變成繞過登入的破口():
     opens = re.findall(r"'([^']+)'", mo.group(1))
     assert opens == ["login", "register", "forgot"],         "沒登入能看的頁被改了：%s" % opens
     anys = re.findall(r"'([^']+)'", re.search(r"var ANY = \[([^\]]*)\]", app).group(1))
-    assert anys == ["reset", "verify-email"], "登入與否都能開的頁被改了：%s" % anys
+    assert anys == ["reset", "verify-email", "appearance", "tutorial"], "登入與否都能開的頁被改了：%s" % anys
     verify = app[app.index("function vVerifyEmail("):app.index("function paintVerificationAvailability(")]
     for private in ("API.transactions", "API.summary", "API.members", "API.budgets"):
         assert private not in verify, "公開驗證頁不能讀取財務或家庭資料：" + private
@@ -1510,13 +1510,15 @@ def test_沒有側欄_原本的每個功能都嵌在儀表板上():
     pages = set(re.findall(r"(\w+): v\w+", routes))
     # 登入／註冊沒登入才看得到；member 是從家庭成員點進去的；admin 只有平台管理員（登入就直接導過去）
     # forgot 從登入頁點、reset 從信裡的連結點、setup 是註冊完路由閘帶過去的
-    need = pages - {"login", "register", "member", "admin", "forgot", "reset", "setup"}
+    need = pages - {"login", "register", "member", "admin", "forgot", "reset", "setup", "appearance", "tutorial"}
     missing = need - tiles
     assert not missing, "這些頁面拆掉側欄之後進不去了：%s" % sorted(missing)
+    settings = re.search(r"function vSettings\(\) \{(.*?)\n  \}", app, re.S).group(1)
+    assert 'href="#/appearance"' in settings and 'href="#/tutorial"' in settings
     assert "quick: true" in home, "儀表板上要有「記一筆」"
     # 換主題與登出原本在右上角的帳號選單裡。選單拆掉之後搬進常用功能——
     # 整個網站只有這兩個地方進得去，不能跟著選單一起消失。
-    for part in ("docs/guide.html", "#/profile/theme", "id: 'logout'"):
+    for part in ("nav: 'settings'", "#/appearance", "id: 'logout'"):
         assert part in home, "常用功能少了 " + part
 
     # 其他頁面要能回到總覽；總覽本身不需要那顆鈕
@@ -2047,7 +2049,9 @@ def test_主題設定_按下去就換_存不起來就換回去():
     assert choose.index("applyTheme(id)") < choose.index("API.updateProfile({ theme: id })"), "要先換再存，不要讓人等"
     assert "applyTheme(prev)" in choose, "存失敗要換回原本的主題"
     who = re.search(r"function paintWho\(\) \{(.*?)\n  \}", app, re.S).group(1)
-    assert "applyTheme(m.user.theme)" in who, "登入之後要以帳號存的主題為準"
+    assert "syncAccountAppearance(m.user)" in who, "登入之後要同步帳號主題與照片"
+    sync = re.search(r"function syncAccountAppearance\(user\) \{(.*?)\n  \}", app, re.S).group(1)
+    assert "applyTheme(user.theme)" in sync and "LoginBackground.importPhoto" in sync
 
     html = read("frontend/index.html")
     head = html[:html.index("</head>")]
@@ -2284,7 +2288,7 @@ def test_常用功能不跟著_summary_一起消失():
 
     tiles = app[app.index("function quickTiles(o)"):app.index("function tile(t)")]
     assert "o = o || {}" in tiles, "什麼資料都沒有的時候也要畫得出來"
-    for part in ("id: 'logout'", "#/profile/theme"):
+    for part in ("id: 'logout'", "#/appearance"):
         assert part in tiles, "常用功能少了 " + part
 
 
@@ -2838,7 +2842,7 @@ def test_存款目標搬到註冊後的個人化設定():
     paint = re.search(r"function paint\(\) \{(.*?)\n  \}\n", app, re.S).group(1)
     assert "!admin && !m.user.onboardedAt && page !== 'setup'" in paint, "還沒個人化設定的人，登入後要先帶去設定"
     setup = re.search(r"function vSetup\(\) \{(.*?)\n  \}", app, re.S).group(1)
-    for part in ("suGoalF", "suFinF", "themeCards(", "data-su-next", 'data-su-done="skip"', 'data-su-done="finish"'):
+    for part in ("suGoalF", "suFinF", "#/appearance", "data-su-next", 'data-su-done="skip"', 'data-su-done="finish"'):
         assert part in setup, "個人化設定少了 " + part
     done = re.search(r"function setupDone\(how\) \{(.*?)\n  \}", app, re.S).group(1)
     assert "onboarded: true" in done and "ME = null" in done and "tourAsk" in done, \
@@ -2895,11 +2899,11 @@ def test_忘記密碼的頁面_設定與文件():
 # ===========================================================================
 
 def test_前端的_API_清單跟分工表一對一():
-    """使用者要求：出錯時要指出是哪個 function。那份對照（api.js 的 FN）要跟 ownership.py 一致——
-    登記錯了，錯誤訊息就會指向錯的人。
+    """The route catalog covers named JSON methods and authenticated media transports.
 
-    反過來也要檢查：後端有、前端沒有對應的路由，代表那個功能畫面上用不到（功能不完整）。
-    這一條抓到過監管關係、改角色、預算、產生建議、自訂分類、登入裝置這六塊。
+    Images and multipart uploads use request/fetchMedia rather than fake mock
+    persistence. Adapter recordings and the media functional tests exercise
+    those transports; both catalogs must still match the backend API domain.
     """
     from app.ownership import all_routes
 
@@ -2907,10 +2911,16 @@ def test_前端的_API_清單跟分工表一對一():
     block = api[api.index("  var FN = {"):api.index("  };", api.index("  var FN = {"))]
     fn = dict((name, (route, owner)) for name, route, owner in
               re.findall(r"^    (\w+):\s+\[(?:'([^']+)'|null), '([^']+)'\]", block, re.M))
+    media_block = api[api.index("  var MEDIA_ROUTES = {"):api.index("  };", api.index("  var MEDIA_ROUTES = {"))]
+    media = dict((name, (route, owner)) for name, route, owner in
+                 re.findall(r"^    (\w+):\s+\['([^']+)', '([^']+)'\]", media_block, re.M))
+    assert media and not (fn.keys() & media.keys())
+    assert "mediaRoutes: MEDIA_ROUTES" in api
+    assert "request: function (path, opt)" in api and "fetchMedia: mediaRequest" in api
     routes = all_routes()
     labels = {"%s %s" % k: v.label for k, v in routes.items()}
     bad = []
-    for name, (route, owner) in fn.items():
+    for name, (route, owner) in {**fn, **media}.items():
         if not route:
             assert owner == "前端", name
             continue
@@ -2920,7 +2930,7 @@ def test_前端的_API_清單跟分工表一對一():
             bad.append("%s 登記給 %s，ownership.py 是 %s" % (name, owner, labels[route]))
     assert not bad, "；".join(bad)
 
-    used = {r for r, _ in fn.values() if r}
+    used = {r for r, _ in [*fn.values(), *media.values()] if r}
     missing = sorted(set(labels) - used)
     # 這幾支是前端的底層自己處理的：token 續期、登出時撤銷
     handled = {"POST /api/auth/refresh"}

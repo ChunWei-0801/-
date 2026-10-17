@@ -12,6 +12,7 @@ from __future__ import annotations
 
 
 from pydantic import BaseModel, ConfigDict, Field
+from app.schemas.appearance import AppearancePreferences, Language
 
 
 class RegisterIn(BaseModel):
@@ -59,6 +60,7 @@ class VerifyPasswordIn(BaseModel):
 
 class EmailVerificationRequestIn(BaseModel):
     email: str = Field(max_length=254)
+    language: Language | None = None
 
 
 class EmailVerificationConfirmIn(BaseModel):
@@ -71,11 +73,14 @@ class ProfilePatchIn(BaseModel):
     displayName: str | None = None
     birthYear: int | None = None
     theme: str | None = None
+    appearance: AppearancePreferences | None = None
+    language: Language | None = None
     onboarded: bool | None = None
 
 
 class AvatarIn(BaseModel):
-    image: str = Field(description="data:image/jpeg;base64,...（前端已縮到 256×256）")
+    model_config = ConfigDict(extra="forbid")
+    image: str = Field(min_length=1, max_length=280_000, description="data:image/jpeg;base64,...（前端已縮到 256×256）")
 
 
 class FinanceIn(BaseModel):

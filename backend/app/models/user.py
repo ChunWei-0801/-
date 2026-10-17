@@ -45,6 +45,10 @@ class User(Base):
     birth_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # 介面主題，預設 'paper'。只影響外觀，存在帳號上換裝置也一樣
     theme: Mapped[str] = mapped_column(Text, nullable=False, default="paper")
+    appearance: Mapped[Any | None] = mapped_column(JSONType, nullable=True)
+    language: Mapped[str] = mapped_column(Text, nullable=False, default="zh-TW")
+    appearance_photo_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    appearance_photo_mime: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 平台管理員。與家庭角色無關，且看不到任何財務資料
     is_platform_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # NULL = 正常。⚠️ 停權只擋登入與寫入，不刪任何資料

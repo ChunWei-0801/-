@@ -31,6 +31,8 @@ pyjwt>=2.10,<3
 # that, so every route that touches a password returns 500 on a fresh install.
 bcrypt>=4.1,<6
 python-multipart>=0.0.20          # form login
+Pillow>=11.3,<12                 # verify, orient and normalize uploaded photos
+tzdata>=2026.5,<2027              # IANA zones, including Python on Windows
 
 # --- Model ---
 # Our model is a fine-tuned Qwen2.5-1.5B (GGUF + llama.cpp on a Hugging Face

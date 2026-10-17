@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#16493F">
-<meta name="description" content="家庭記帳與財務控管系統 — 段落記帳、家庭權限、預算與統計，附操作教學、專題介紹及中英名詞解釋。">
+<meta name="description" content="家庭記帳 FamBudget — 記錄生活收支、管理預算與家庭帳本，讓每一筆花費都留下回憶。">
 
 <!-- ============================================================
      後端接口：留空 = 同源 API；本機 5174 靜態前端自動連到 8000。
@@ -13,7 +13,7 @@
      ============================================================ -->
 <meta name="api-base" content="">
 
-<title>家庭記帳與財務控管系統</title>
+<title>家庭記帳 FamBudget</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2305060A'/%3E%3Crect x='2.5' y='3.5' width='11' height='9' fill='none' stroke='%236C9FFB' stroke-width='1.3'/%3E%3Cpath d='M5 7h6M5 9.5h4' stroke='%236C9FFB' stroke-width='1.2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,11 +29,14 @@
     } catch (e) {}
   })();
 </script>
-<link rel="stylesheet" href="css/tokens.css?v=164">
-<link rel="stylesheet" href="css/app.css?v=164">
-<link rel="stylesheet" href="css/themes.css?v=164">
-<link rel="stylesheet" href="css/login-background.css?v=164">
-<link rel="stylesheet" href="css/exchange.css?v=164">
+<link rel="stylesheet" href="css/tokens.css?v=165">
+<link rel="stylesheet" href="css/app.css?v=165">
+<link rel="stylesheet" href="css/themes.css?v=165">
+<link rel="stylesheet" href="css/login-background.css?v=165">
+<link rel="stylesheet" href="css/exchange.css?v=165">
+<link rel="stylesheet" href="css/i18n.css?v=165">
+<link rel="stylesheet" href="css/media.css?v=165">
+<link rel="stylesheet" href="css/memories.css?v=165">
 </head>
 <body>
 
@@ -55,7 +58,7 @@
       <a class="brand appbar__brand" href="#/" aria-label="家庭記帳 FamBudget，回到總覽"><span class="brand__zh">家庭記帳</span><span class="brand__en" aria-hidden="true">FamBudget</span></a>
       <a class="appbar__home" id="homeBtn" href="#/" hidden><svg class="appbar__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6 9 12l6 6"/></svg><span>總覽</span></a>
       <span class="appbar__sp"></span>
-      <a class="appbar__docs" href="/docs/presentation.html" title="專題介紹與發表流程">專題介紹</a>
+      <a class="appbar__docs" href="#/settings" title="設定與使用教學">設定</a><a class="appbar__profile" id="accountAvatar" href="#/profile" aria-label="個人資料、目標與大頭貼" title="個人資料與目標">👤</a>
       <!-- 電腦版：不在總覽時，右上角隨時能記一筆（手機用底部分頁中間那顆） -->
       <button class="appbar__add" data-quick="entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>記一筆</span></button>
       <div class="bell__wrap">
@@ -95,7 +98,7 @@
 
     <div id="view" tabindex="-1"></div>
 
-    <footer class="foot"><span>家庭記帳 FamBudget</span><nav aria-label="專題與教學文件"><a href="/docs/presentation.html">專題介紹</a><a href="/docs/guide.html">操作教學</a><a href="/docs/glossary.html">中英名詞對照</a></nav></footer>
+    <footer class="foot"><span>家庭記帳 FamBudget</span><nav aria-label="使用協助"><a href="#/tutorial">使用教學</a><a href="#/appearance">主題與背景</a></nav></footer>
   </main>
 
   <!-- 手機：底部分頁。富邦、元大的 App 都是這樣——常用的四頁 ＋ 中間的記一筆 -->
@@ -110,12 +113,15 @@
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
-<script src="js/stars.js?v=164"></script>
-<script src="js/data.js?v=164"></script>
-<script src="js/api.js?v=164"></script>
-<script src="js/notify.js?v=164"></script>
-<script src="js/login-background.js?v=164"></script>
-<script src="js/exchange.js?v=164"></script>
-<script src="js/app.js?v=164"></script>
+<script src="js/stars.js?v=165"></script>
+<script src="js/data.js?v=165"></script>
+<script src="js/api.js?v=165"></script>
+<script src="js/notify.js?v=165"></script>
+<script src="js/login-background.js?v=165"></script>
+<script src="js/exchange.js?v=165"></script>
+<script src="js/i18n.js?v=165"></script>
+<script src="js/media.js?v=165"></script>
+<script src="js/memories.js?v=165"></script>
+<script src="js/app.js?v=165"></script>
 </body>
 </html>

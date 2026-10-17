@@ -25,6 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import catalog
+from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
 from app.guards import guest_only, login_required, token_required, visible_scope
 from app.models import (
     AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -129,6 +130,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -274,6 +276,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
             "id": str(user.id), "name": user.display_name, "email": user.email,
             "emailVerified": False, "role": None, "familyId": None,
             "theme": user.theme or "paper", "onboardedAt": None,
+            **_appearance_fields(user),
         }}
 
     # 5. 註冊完直接登入：寫一列 sessions（只存 refresh token 的指紋）
@@ -307,6 +310,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
             "birthYear": None,
             "joined": user.created_at.date().isoformat(),
             "theme": "paper",
+            **_appearance_fields(user),
             "onboardedAt": None,
             "savingsGoal": 0,
             "isPlatformAdmin": False,
@@ -394,6 +398,7 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -546,6 +551,7 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
             "birthYear": user.birth_year,
             "joined": user.created_at.date().isoformat(),
             "theme": user.theme or "paper",
+            **_appearance_fields(user),
             "onboardedAt": onboarded.isoformat() if onboarded else None,
             "savingsGoal": goal or 0,
             "isPlatformAdmin": user.is_platform_admin,
@@ -622,6 +628,7 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -802,6 +809,7 @@ def logout(
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -912,6 +920,7 @@ def logout_all(me: User, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1032,6 +1041,7 @@ def get_me(me: User, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1146,6 +1156,7 @@ def get_me(me: User, db: Session = Depends(get_db)):
             "birthYear": me.birth_year,
             "joined": me.created_at.date().isoformat(),
             "theme": me.theme or "paper",
+            **_appearance_fields(me),
             "onboardedAt": onboarded.isoformat() if onboarded else None,
             "savingsGoal": goal or 0,
             "isPlatformAdmin": me.is_platform_admin,
@@ -1240,6 +1251,7 @@ def update_me(body: ProfilePatchIn, me: User, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1356,6 +1368,13 @@ def update_me(body: ProfilePatchIn, me: User, db: Session = Depends(get_db)):
         except ValueError as exc:
             raise errors.unprocessable(str(exc)) from None
 
+    if "appearance" in sent:
+        changes["appearance"] = save_preferences(body.appearance)
+    if "language" in sent:
+        if body.language is None:
+            raise errors.unprocessable("請選擇介面語言")
+        changes["language"] = body.language
+
     # 4. 個人化設定走完：只收 true，已經設過的不蓋掉時間
     if "onboarded" in sent:
         if body.onboarded is not True:
@@ -1389,6 +1408,7 @@ def update_me(body: ProfilePatchIn, me: User, db: Session = Depends(get_db)):
         "birthYear": me.birth_year,
         "joined": me.created_at.date().isoformat(),
         "theme": me.theme or "paper",
+        **_appearance_fields(me),
         "onboardedAt": onboarded.isoformat() if onboarded else None,
         "savingsGoal": goal or 0,
         "isPlatformAdmin": me.is_platform_admin,
@@ -1473,6 +1493,7 @@ def change_password(
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1630,6 +1651,7 @@ def request_password_reset(body: PasswordResetIn, background: BackgroundTasks, d
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1725,7 +1747,7 @@ def request_password_reset(body: PasswordResetIn, background: BackgroundTasks, d
         try:
             mailer.send_mail(to, subject, text, html, to_name=who)
         except (mailer.MailNotConfigured, mailer.MailError) as exc:
-            logging.getLogger("fambudget").warning("重設密碼信寄不出去：%s", exc)
+            logging.getLogger("fambudget").warning("重設密碼信寄不出去：%s", exc.__class__.__name__)
 
     background.add_task(send)
     return answer
@@ -1804,6 +1826,7 @@ def confirm_password_reset(
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1947,6 +1970,7 @@ def get_finance(me: User, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2079,6 +2103,7 @@ def set_finance(body: FinanceIn, me: User, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2214,6 +2239,7 @@ def verify_password(body: VerifyPasswordIn, me: User, db: Session = Depends(get_
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2337,6 +2363,7 @@ def list_sessions(me: User, payload: dict = Depends(current_token_payload), db: 
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2458,7 +2485,7 @@ def upload_avatar(body: AvatarIn, me: User, db: Session = Depends(get_db)):
 
     【每一步用的工具與資料庫方法】
         步驟        呼叫                              做什麼
-        1 拆開驗證  images.from_data_uri(body.image)  回傳（位元組, 真正的型別）；格式、大小、內容不對丟 InvalidImage
+        1 拆開驗證  normalize_avatar(body.image)  解碼像素、縮到 256×256 並去除中繼資料，回傳（位元組, 真正的型別）；格式、大小、內容不對丟 InvalidImage
         2 存        crud.save(User, {"id": me.id, "avatar_bytes": data, "avatar_mime": mime}, db=db)  存進資料庫
                     db.commit()                       寫進去
         3 回傳      images.to_data_uri(data, mime)    用「重新嗅探出來的型別」組回 data URI
@@ -2481,6 +2508,7 @@ def upload_avatar(body: AvatarIn, me: User, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2496,7 +2524,7 @@ def upload_avatar(body: AvatarIn, me: User, db: Session = Depends(get_db)):
 
             # 1. 拆開並驗證：看檔案開頭的位元組，不信宣告的型別；超過 200 KB 擋掉
             try:
-                data, mime = images.from_data_uri(body.image)
+                data, mime = normalize_avatar(body.image)
             except images.InvalidImage as exc:
                 raise errors.unprocessable(str(exc)) from None
 
@@ -2519,7 +2547,7 @@ def upload_avatar(body: AvatarIn, me: User, db: Session = Depends(get_db)):
     """
     # 1. 拆開並驗證：看檔案開頭的位元組，不信宣告的型別；超過 200 KB 擋掉
     try:
-        data, mime = images.from_data_uri(body.image)
+        data, mime = normalize_avatar(body.image)
     except images.InvalidImage as exc:
         raise errors.unprocessable(str(exc)) from None
 
@@ -2586,6 +2614,7 @@ def delete_avatar(me: User, db: Session = Depends(get_db)):
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2658,6 +2687,7 @@ def request_email_verification(body: EmailVerificationRequestIn, request: Reques
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2671,13 +2701,13 @@ def request_email_verification(body: EmailVerificationRequestIn, request: Reques
 
         第二步：以下為已完成的函式內容。
 
-            return email_verification.request_verification(db, request, background, body.email)
+            return email_verification.request_verification(db, request, background, body.email, body.language)
 
     【做完怎麼確認】
         開發模式註冊，申請展示連結，驗證一次後查看 auth/me.emailVerified；再次使用應為 400。
         正式模式未驗證不能登入、沒有寄信設定不回展示連結；寄發與確認受速率限制。
     """
-    return email_verification.request_verification(db, request, background, body.email)
+    return email_verification.request_verification(db, request, background, body.email, body.language)
 
 
 @router.post("/auth/email-verification/confirm", summary="確認信箱驗證")
@@ -2718,6 +2748,7 @@ def confirm_email_verification(body: EmailVerificationConfirmIn, request: Reques
             from sqlalchemy.orm import Session
 
             from app import catalog
+            from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,

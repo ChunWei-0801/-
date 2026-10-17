@@ -1,10 +1,10 @@
-"""每一支路由的說明字串，格式要一致。
+"""Legacy teaching examples and product API documentation remain reviewable.
 
 ===========================================================================
 為什麼要測「說明的格式」
 ===========================================================================
-說明字串是四個人動手寫程式時唯一會讀的東西。它少一段、或是【完整寫法】裡的程式
-貼上去跑不起來，那一支就沒人做得完——而這種事不會有任何錯誤訊息，只會卡住一個人一個下午。
+既有教學路由保留可執行範例格式。新增的產品路由提供精簡的權限、輸入與結果說明，
+並驗證產生的 OpenAPI；實際授權、圖片與拼圖規則由功能測試驗證。
 
 所以這裡把格式釘死：
     · 十一個段落一個都不能少，而且順序固定
@@ -16,6 +16,7 @@
 
 import ast
 import inspect
+import re
 import textwrap
 
 import pytest
@@ -29,17 +30,55 @@ SECTIONS = [
 ]
 REQUEST_SECTIONS = ("【請求主體】", "【查詢參數】", "【路徑參數】", "【請求參數】")
 
+LEGACY_MODULE_NAMES = {
+    "app.routers.auth.auth", "app.routers.auth.admin",
+    "app.routers.ledger.transactions", "app.routers.ledger.nlp",
+    "app.routers.ledger.categories", "app.routers.ledger.groups",
+    "app.routers.analytics.stats", "app.routers.analytics.budgets",
+    "app.routers.analytics.alerts", "app.routers.analytics.advices",
+    "app.routers.analytics.exchange", "app.routers.access.family",
+    "app.routers.access.notifications",
+}
+PRODUCT_MODULE_NAMES = {"app.routers.memories", "app.routers.appearance"}
+LEGACY_MODULES = [module for module in routers.ALL if module.__name__ in LEGACY_MODULE_NAMES]
+PRODUCT_MODULES = [module for module in routers.ALL if module.__name__ in PRODUCT_MODULE_NAMES]
 
-def _routes():
+
+def _routes(modules):
     out = []
-    for module in routers.ALL:
+    for module in modules:
         for route in module.router.routes:
             for method in sorted(route.methods):
                 out.append(pytest.param(module, method, route, id="%s %s" % (method, route.path)))
     return out
 
 
-ROUTES = _routes()
+ROUTES = _routes(LEGACY_MODULES)
+PRODUCT_ROUTES = _routes(PRODUCT_MODULES)
+
+
+def test_every_router_has_an_explicit_documentation_contract():
+    assert {module.__name__ for module in routers.ALL} == LEGACY_MODULE_NAMES | PRODUCT_MODULE_NAMES
+
+
+@pytest.mark.parametrize("module, method, route", PRODUCT_ROUTES)
+def test_product_routes_document_access_and_expose_request_schemas(module, method, route):
+    from app.main import app
+
+    doc = inspect.getdoc(route.endpoint) or ""
+    assert doc.splitlines() and doc.splitlines()[0] == route.summary
+    assert len(doc.splitlines()) >= 3, "產品 API 需說明權限、輸入或結果"
+    operation = app.openapi()["paths"]["/api" + route.path][method.lower()]
+    assert operation["summary"] == route.summary and operation.get("description") == doc
+    assert operation.get("security"), "私人資料路由必須記錄登入要求"
+    assert str(route.status_code or 200) in operation["responses"]
+    for name in re.findall(r"{([^}]+)}", route.path):
+        assert any(parameter["name"] == name and parameter["in"] == "path" and parameter["required"]
+                   for parameter in operation.get("parameters", []))
+    if method in {"POST", "PUT", "PATCH"}:
+        request = operation.get("requestBody", {})
+        assert request.get("required") and request.get("content"), "寫入請求必須提供已定義的輸入模型"
+        assert all(content.get("schema") for content in request["content"].values())
 
 
 @pytest.mark.parametrize("module, method, route", ROUTES)
@@ -85,7 +124,7 @@ def test_完整寫法的程式解析得動而且對得上這一支(module, metho
         assert isinstance(extra, ast.FunctionDef) and extra.name == func, "第三步要是 %s()" % func
 
 
-@pytest.mark.parametrize("module", routers.ALL, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
+@pytest.mark.parametrize("module", LEGACY_MODULES, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
 def test_同一個檔案裡每一支的第一步都一樣(module):
     """apply() 會在不一樣的時候丟 AssertionError——照做的人才不會被互相覆蓋的 import 卡住。"""
     source, _extra = apply(open(module.__file__, encoding="utf-8").read())

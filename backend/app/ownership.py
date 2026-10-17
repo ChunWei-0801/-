@@ -1,27 +1,12 @@
-"""
-路由屬於哪個領域的單一事實來源。
+"""家庭記帳 API 的領域目錄與檔案索引。
 
-===========================================================================
-這個檔案是幹嘛的
-===========================================================================
-74 支路由分成四個領域（認證、記帳、數字、家庭）。哪一支屬於哪個領域只寫在這裡，
-錯誤卡上的「屬於：記帳」、API 瀏覽頁的分組、規格文件的路由清單都要跟這裡對得上，
-`pytest` 會檢查有沒有走散。
+登記實際公開的業務路由，供 API 文件、錯誤提示與一致性檢查使用。
+領域表示產品功能分類，不限制任何人的開發或維護權限。
 
-⚠️ 這裡**不是人員分工**。舊的四人分工與六週排程已經刪除；
-   最後一週誰做什麼，寫在 docs/04-最後一週分工.md 與 docs/分工/。
-
-===========================================================================
-怎麼用
-===========================================================================
     cd backend
-    python -m app.ownership          # 印出各領域的完成度，並檢查一致性
+    python -m app.ownership
 
-檢查項目：
-  1. 每一支實際掛上去的路由，都屬於一個領域
-  2. 每個領域宣告的路由，程式裡真的存在
-  3. 沒有一支路由同時屬於兩個領域
-  4. 每個 .py 檔案剛好屬於一個領域
+check() 檢查重複與未登記的路由／檔案；progress() 比對目錄與實際掛載結果。
 """
 
 from __future__ import annotations
@@ -39,35 +24,31 @@ class Member:
     """程式裡用的代號。"""
 
     label: str
-    """人看的編號，例如「認證」。"""
+    """顯示名稱，例如「認證」。"""
 
     domain: str
-    """領域名稱。一句話講完他負責什麼。"""
+    """領域名稱。概述此功能領域。"""
 
     scope: str
-    """這個領域的邊界：什麼算他的、什麼不算。寫清楚是為了避免功能衝突。"""
+    """功能與權限契約的說明。"""
 
     color: str
-    """在心智圖與文件裡代表他的顏色。"""
+    """文件中代表此領域的顏色。"""
 
     routes: list[tuple[str, str]] = field(default_factory=list)
     """(HTTP 方法, 路徑) 的清單。這是唯一的路由歸屬定義。"""
 
     files: list[str] = field(default_factory=list)
-    """他獨佔的檔案。**其他人不要改這些檔案。**"""
+    """此功能領域的實作檔案；供索引與文件使用。"""
 
     shared: list[str] = field(default_factory=list)
-    """他負責、但別人會用的共用元件。這些要最優先完成。"""
+    """提供多個功能使用的共用元件。"""
 
 
 
 # ===========================================================================
-# 四個領域
-# ---------------------------------------------------------------------------
-# 切分原則：
-#   1. 一個領域＝一個完整的概念，不是一堆零散的路由
-#   2. 一個檔案剛好一個主人，四個人不會改到同一個檔案
-#   3. 會擋住別人的東西（core、permission）要盡量小，才能最快完成
+# 產品功能領域。保留穩定的 m1–m4 鍵以相容現有文件與錯誤提示。
+# 此分類不代表人員、交付順序或檔案修改權限。
 # ===========================================================================
 MEMBERS: list[Member] = [
     Member(
@@ -115,6 +96,9 @@ MEMBERS: list[Member] = [
             ("PATCH", "/api/auth/me"),
             ("PUT", "/api/auth/me/avatar"),
             ("DELETE", "/api/auth/me/avatar"),
+            ("GET", "/api/auth/me/appearance-image"),
+            ("POST", "/api/auth/me/appearance-image"),
+            ("DELETE", "/api/auth/me/appearance-image"),
             ("GET", "/api/admin/users"),
             ("POST", "/api/admin/users/{user_id}/suspend"),
             ("DELETE", "/api/admin/users/{user_id}/suspend"),
@@ -126,6 +110,8 @@ MEMBERS: list[Member] = [
             "app/models/user.py",
             "app/schemas/auth.py",
             "app/services/email_verification.py",
+            "app/routers/appearance.py",
+            "app/schemas/appearance.py",
         ],
         shared=[
             "app/services/llm/client.py",
@@ -176,6 +162,18 @@ MEMBERS: list[Member] = [
             ("DELETE", "/api/groups/{gid}/members/{user_id}"),
             ("POST", "/api/groups/{gid}/settle"),
             ("PATCH", "/api/groups/{gid}/notify"),
+            ("GET", "/api/transactions/{transaction_id}/photos"),
+            ("POST", "/api/transactions/{transaction_id}/photos"),
+            ("GET", "/api/transaction-photos/{photo_id}/image"),
+            ("DELETE", "/api/transaction-photos/{photo_id}"),
+            ("GET", "/api/memories"),
+            ("PATCH", "/api/memories/settings"),
+            ("POST", "/api/memories/puzzles"),
+            ("GET", "/api/memories/puzzles/{game_id}/image"),
+            ("GET", "/api/memories/achievements"),
+            ("PUT", "/api/memories/wall-background"),
+            ("DELETE", "/api/memories/wall-background"),
+            ("GET", "/api/memories/wall-background/image"),
         ],
         files=[
             "app/routers/ledger/__init__.py",
@@ -192,6 +190,10 @@ MEMBERS: list[Member] = [
             "app/schemas/transaction.py",
             "app/schemas/nlp.py",
             "app/services/llm/parse.py",
+            "app/routers/memories.py",
+            "app/models/memories.py",
+            "app/schemas/memories.py",
+            "app/services/memories.py",
         ],
     ),
     Member(
@@ -334,6 +336,9 @@ SHARED_FILES: list[str] = [
     "app/routers/__init__.py",
     "app/services/__init__.py",
     "app/services/llm/__init__.py",
+    "app/toolkit/body_limit.py",
+    "app/services/mail_content.py",
+    "app/services/appearance.py",
 ]
 
 # ---------------------------------------------------------------------------
@@ -361,7 +366,7 @@ FRONTEND_ONLY = NEVER_IMPLEMENT
 
 
 # ---------------------------------------------------------------------------
-# 系統路由，不歸任何人，FastAPI 或 Render 自己提供。
+# 系統路由，由應用健康檢查或 FastAPI 文件功能提供。
 # ---------------------------------------------------------------------------
 SYSTEM_ROUTES: list[tuple[str, str]] = [
     ("GET", "/healthz"),          # 我們寫的，給 Render 做健康檢查
@@ -376,7 +381,7 @@ SYSTEM_ROUTES: list[tuple[str, str]] = [
 
 
 def owner_of(method: str, path: str) -> Member | None:
-    """查一支路由是誰的。"""
+    """查詢路由的功能領域。"""
     for m in MEMBERS:
         if (method.upper(), path) in m.routes:
             return m
@@ -384,7 +389,7 @@ def owner_of(method: str, path: str) -> Member | None:
 
 
 def all_routes() -> dict[tuple[str, str], Member]:
-    """所有有主人的路由。鍵是 (方法, 路徑)。"""
+    """全部業務路由。鍵是 (方法, 路徑)。"""
     out: dict[tuple[str, str], Member] = {}
     for m in MEMBERS:
         for r in m.routes:
@@ -398,15 +403,15 @@ def all_routes() -> dict[tuple[str, str], Member]:
 
 def progress() -> dict[str, dict]:
     """
-    比對「宣告要做的路由」與「實際掛上去的路由」，回傳每個人的進度。
+    比對目錄與實際掛載的路由，回傳每個功能領域的覆蓋情況。
 
     回傳
-        dict: 鍵是成員代號，值是
+        dict: 鍵是領域代號，值是
             `{"done": [...], "todo": [...], "member": Member}`。
 
     注意
         **路由還沒寫不算錯誤**，那是正常的進度。
-        這支的用途是讓大家隨時知道「還剩幾支」。
+        此結果用於維護 API 目錄的一致性。
     """
     from app.main import app  # 延後匯入，避免循環相依
     from app.routers._stub import is_stub
@@ -434,15 +439,14 @@ def progress() -> dict[str, dict]:
 
 def check() -> list[str]:
     """
-    檢查分工定義本身有沒有矛盾，以及有沒有「程式裡有但沒人認領」的路由。
+    檢查領域目錄是否重複，以及實際路由是否都已登記。
 
     回傳
         list[str]: 所有問題。空清單代表沒問題。
 
     注意
         **不檢查「宣告了但還沒寫」** —— 那是進度不是錯誤，用 progress() 看。
-        這支只抓真正的矛盾：兩個人搶同一支、檔案重複認領、
-        或是有人加了路由卻忘記在這裡登記。
+        此檢查會找出路由／檔案的重複登記及漏登。
     """
     from app.main import app
 
@@ -461,7 +465,7 @@ def check() -> list[str]:
 
     for key in sorted(actual - set(declared) - set(SYSTEM_ROUTES)):
         problems.append(
-            f"程式裡有但沒有人認領：{key[0]} {key[1]}"
+            f"實際路由尚未登記：{key[0]} {key[1]}"
             "（在 ownership.py 的 MEMBERS 裡加上去）"
         )
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 74 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 89 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>74 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>89 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -87,14 +87,14 @@
 
   <div class="note" style="margin-top:16px">
     <div class="note__k">這頁是契約範例，正式資料請向後端查詢</div>
-    <p>路由依 <code>ownership.py</code> 分工，請求與回應依前後端契約整理。
+    <p>路由依 <code>ownership.py</code> 功能領域分類，請求與回應依前後端契約整理。
     這裡的數字與日期都是格式示例，匯率需另查來源。
     <b>FastAPI 的 <code>/docs</code> 會依實際後端產生可送出請求的文件</b>；公開端點可直接測試，受保護端點先登入。</p>
   </div>
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">74 ROUTES · 4 MODULES</div>
+    <div class="mono">89 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -452,6 +452,21 @@
       body: "{\n  \"amount\": \"100\",\n  \"fromCurrency\": \"USD\",\n  \"toCurrency\": \"TWD\"\n}",
       res: "{\n  \"amount\": \"100\",\n  \"fromCurrency\": \"USD\",\n  \"toCurrency\": \"TWD\",\n  \"rate\": \"32.18084893\",\n  \"convertedAmount\": \"3218.08\",\n  \"decimalPlaces\": 2,\n  \"provider\": \"currency-api 每日彙整（備援）\",\n  \"sourceUrl\": \"https://github.com/fawazahmed0/exchange-api\",\n  \"updatedAt\": \"2026-10-14\",\n  \"updatePrecision\": \"day\",\n  \"nextUpdateAt\": null,\n  \"fetchedAt\": \"2026-10-15T00:00:00Z\",\n  \"stale\": false,\n  \"warning\": \"主要來源暫時無法連線，使用 currency-api 每日彙整參考匯率；非銀行即時成交價。\"\n}",
       note: "回應範例是格式示意，非目前或銀行成交報價。<code>convertedAmount</code> 依目標幣別小數位四捨五入。TWD 結果可帶入手動記帳，原幣金額、採用匯率與資料日期寫入備註，<b>確認實際扣款後才寫入</b>。其它目標幣別可試算，帳本統計仍用 TWD。無效金額／幣別回 422，來源與快取均不可用回 503。" },
+    { n: 81, o: 'm1', m: 'GET', p: '/api/auth/me/appearance-image', a: '本人', d: "讀取自己的同步背景照片", note: "Private JPEG bytes; 404 尚未上傳照片。", res: "圖片bytes（JPEG）" },
+    { n: 82, o: 'm1', m: 'POST', p: '/api/auth/me/appearance-image', a: '本人', d: "同步自己的背景照片", note: "背景實際解碼、縮圖後存資料庫；回傳受保護的圖片路徑。", body: "{\n  \"dataUrl\": \"data:image/jpeg;base64,...\"\n}", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 83, o: 'm1', m: 'DELETE', p: '/api/auth/me/appearance-image', a: '本人', d: "清除自己的同步背景照片", note: "移除帳號雲端照片，不刪除交易或其他人的背景。", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 84, o: 'm2', m: 'GET', p: '/api/transactions/{transaction_id}/photos', a: '可見範圍', d: "紀錄的回憶照片", note: "照片讀取遵循交易可見範圍；修改一律限紀錄本人。", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 85, o: 'm2', m: 'POST', p: '/api/transactions/{transaction_id}/photos', a: '本人', d: "拍照或加入購買照片", note: "multipart file；每筆最多4張，瀏覽版本上限20 MB；解碼並移除EXIF後持久保存。", body: "multipart/form-data: file", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 86, o: 'm2', m: 'GET', p: '/api/transaction-photos/{photo_id}/image', a: '可見範圍', d: "查看紀錄照片", note: "Private JPEG bytes；需登入且仍有該交易讀取權限。", res: "圖片bytes（JPEG）" },
+    { n: 87, o: 'm2', m: 'DELETE', p: '/api/transaction-photos/{photo_id}', a: '本人', d: "移除自己的紀錄照片", note: "刪除照片不影響原交易金額；共享成員與監管者不能代刪。", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 88, o: 'm2', m: 'GET', p: '/api/memories', a: '本人', d: "小天地與拼圖進度", note: "伺服器回傳拼圖、設定、待分配片數、週期額度與影像限制。", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 89, o: 'm2', m: 'PATCH', p: '/api/memories/settings', a: '本人', d: "設定拼圖與成就牆", note: "只送要改的設定；片數9/16/25/36/64/100，每期可開始1至31張；不接受客戶端片數獎勵。", body: "{\n  \"wallName\": \"生活回憶\",\n  \"period\": \"month\",\n  \"timezone\": \"Asia/Taipei\",\n  \"pieceCount\": 16,\n  \"changesPerPeriod\": 1\n}", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 90, o: 'm2', m: 'POST', p: '/api/memories/puzzles', a: '本人', d: "選照片開始下一幅拼圖", note: "multipart file；未完成目前拼圖時409，跨週/月也不能跳過；新圖受當期額度限制。", body: "multipart/form-data: file", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 91, o: 'm2', m: 'GET', p: '/api/memories/puzzles/{game_id}/image', a: '本人', d: "拼圖及永久成就照片", note: "Private JPEG bytes；只能讀自己的拼圖與已完成成就快照。", res: "圖片bytes（JPEG）" },
+    { n: 92, o: 'm2', m: 'GET', p: '/api/memories/achievements', a: '本人', d: "依年月查看成就牆", note: "year/month/page查詢；以完成當時的拼圖時區歸檔年月，每頁50項。", q: ['year', 'month', 'page'], res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 93, o: 'm2', m: 'PUT', p: '/api/memories/wall-background', a: '本人', d: "設定成就牆背景照片", note: "multipart file；可自由更換自己的成就牆背景，不改既有拼圖快照。", body: "multipart/form-data: file", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 94, o: 'm2', m: 'DELETE', p: '/api/memories/wall-background', a: '本人', d: "移除成就牆背景照片", note: "清除牆面背景，不刪除已完成成就。", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
+    { n: 95, o: 'm2', m: 'GET', p: '/api/memories/wall-background/image', a: '本人', d: "自己的成就牆背景", note: "Private JPEG bytes；無背景時404，沒有公開圖片網址。", res: "圖片bytes（JPEG）" },
     { n: 66, o: 'sys', m: 'GET', p: '/healthz', a: '公開',
       d: '健康檢查（Render 用）' },
     { n: 67, o: 'sys', m: 'GET', p: '/docs', a: '公開',

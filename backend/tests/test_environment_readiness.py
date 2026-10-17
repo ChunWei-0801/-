@@ -60,3 +60,11 @@ def test_capabilities_does_not_expose_credentials(monkeypatch):
     assert response.json()["mail_configured"] is True
     assert "test-model-secret" not in response.text and "test-mail-secret" not in response.text
     assert "example.org" not in response.text
+
+
+def test_sensitive_api_responses_cannot_be_cached():
+    response = TestClient(app).get("/api/auth/me")
+    assert response.status_code == 401
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["pragma"] == "no-cache"
+    assert response.headers["x-content-type-options"] == "nosniff"

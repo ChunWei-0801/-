@@ -6,3 +6,13 @@ venv/
 .pytest_cache/
 *.db
 .DS_Store
+
+# Private runtime state and recovery artifacts
+.claude/
+work/
+backups/
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.log

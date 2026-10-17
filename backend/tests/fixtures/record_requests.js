@@ -9,6 +9,8 @@ const path = require('path');
 const root = process.argv[2];
 const store = new Map();
 global.localStorage = { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+const session = new Map();
+global.sessionStorage = { getItem: k => session.has(k) ? session.get(k) : null, setItem: (k, v) => session.set(k, String(v)), removeItem: k => session.delete(k) };
 global.setTimeout = f => setImmediate(f);
 function boot(http) {
   for (const f of ['frontend/js/data.js', 'frontend/js/api.js']) delete require.cache[require.resolve(path.join(root, f))];

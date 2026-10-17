@@ -3770,3 +3770,51 @@ body.is-home .appbar__add, body.in-family .appbar__add, body.is-admin .appbar__a
    ⚠️ 不要做成紅色的——登出不是危險動作，紅色會跟刪除那類混在一起。 */
 #view .dtile--out .dtile__ic { background: var(--sunk); color: var(--ink-faint); border-color: var(--line); }
 #view .dtile--out .dtile__t { color: var(--ink-soft); }
+
+/* Account settings, shared appearance preview, and the in-app help centre. */
+.appbar__profile { display: flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; border: 1px solid var(--line); border-radius: 50%; background: var(--card); }
+.appbar__profile .ava { width: 34px; height: 34px; font-size: 14px; }
+.phead__av a { display: block; border-radius: 50%; }
+.phead__av a:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.settings-intro { margin-bottom: 24px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); padding: 22px; }
+.settings-intro h1 { font-size: clamp(23px,4vw,30px); margin: 18px 0 10px; line-height: 1.5; }
+.settings-intro p { color: var(--ink-soft); font-size: 14px; line-height: 1.9; margin: 10px 0 18px; }
+.settings-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; margin-bottom: 24px; }
+.settings-link { display: block; margin: 0; transition: border-color .15s; }
+.settings-link:hover { border-color: var(--accent); }
+.settings-link > span { font-size: 27px; }
+.settings-link h2 { font-size: 18px; margin: 12px 0 8px; }
+.settings-link p { color: var(--ink-soft); font-size: 13px; line-height: 1.9; }
+.settings-shortcuts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 26px; align-items: center; }
+.settings-shortcuts h2 { font-size: 17px; margin-right: auto; }
+.settings-shortcuts a { color: var(--accent); font-size: 14px; text-decoration: underline; }
+.language-settings { margin: 18px 0 4px; max-width: 100%; }
+.remember-login { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.remember-login input { width: 18px; height: 18px; accent-color: var(--accent); }
+.remember-login__help { color: var(--ink-soft); font-size: 12px; line-height: 1.8; margin: 8px 0 14px; }
+.appearance-layout { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(0,1fr); gap: 22px; align-items: start; }
+.appearance-editor { min-width: 0; }
+.appearance-colors { margin-top: 20px; }
+.appearance-colors h2 { font-size: 18px; }
+.appearance-colors > p { color: var(--ink-soft); font-size: 13px; margin: 10px 0 16px; }
+.appearance-preview { position: sticky; top: 90px; }
+.preview-label { color: var(--accent); font-size: 12px; margin-bottom: 12px; }
+.appearance-preview h2 { font-size: 22px; }
+.appearance-preview > p { color: var(--ink-soft); font-size: 13px; line-height: 1.9; margin: 12px 0; }
+.appearance-preview__balance { padding: 24px 18px; border-radius: var(--r-card); border: 1px solid var(--accent-line); background: var(--accent-wash); margin: 24px 0; }
+.appearance-preview__balance small, .appearance-preview__balance span { display: block; color: var(--ink-soft); font-size: 12px; }
+.appearance-preview__balance strong { display: block; font-size: clamp(24px,3vw,34px); color: var(--ink); margin: 8px 0; }
+.appearance-preview__transaction { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 13px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.appearance-preview .btn { margin-top: 22px; }
+.appearance-preview .btn:disabled { opacity: 1; cursor: default; }
+.appearance-actions { position: sticky; bottom: 80px; z-index: 3; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--card); margin-top: 22px; box-shadow: var(--shadow-card); }
+.appearance-actions p { width: 100%; margin: 0; font-size: 12px; color: var(--ink-soft); }
+.appearance-actions p:empty { display: none; }
+.tutorial-topic { margin-bottom: 14px; padding: 0; overflow: hidden; }
+.tutorial-topic summary { display: flex; align-items: center; gap: 14px; padding: 20px; font-size: 17px; cursor: pointer; list-style: none; }
+.tutorial-topic summary span { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; font-size: 13px; border-radius: 50%; color: var(--accent); background: var(--accent-wash); }
+.tutorial-topic p { padding: 0 22px 22px; font-size: 14px; color: var(--ink-soft); line-height: 2; }
+body.public-settings .main { padding-top: 24px; }
+body.public-settings .page { max-width: 1160px; margin: auto; }
+@media(min-width:761px) { .appearance-actions { bottom: 18px; } }
+@media(max-width:760px) { .appearance-layout,.settings-grid { grid-template-columns: minmax(0,1fr); } .appearance-preview { position: static; } .appearance-preview__balance { margin: 15px 0; } .appearance-actions { bottom: 80px; } body.is-out .appearance-actions { bottom: 12px; } .settings-intro { padding: 18px; } .tutorial-topic summary { font-size: 15px; padding: 16px; } .settings-shortcuts { align-items: flex-start; flex-direction: column; } }

@@ -15,6 +15,12 @@ global.localStorage = {
   setItem: (k, v) => store.set(k, String(v)),
   removeItem: k => store.delete(k),
 };
+const session = new Map();
+global.sessionStorage = {
+  getItem: k => (session.has(k) ? session.get(k) : null),
+  setItem: (k, v) => session.set(k, String(v)),
+  removeItem: k => session.delete(k),
+};
 global.setTimeout = f => setImmediate(f);
 global.window = { __FAMBUDGET_TODAY__: '2026-09-14' };
 

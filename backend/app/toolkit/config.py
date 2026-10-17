@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     )
     require_email_verification: bool | None = Field(
         default=None,
-        description="是否要求完成信箱驗證才能登入；未設定時正式環境要求、開發環境允許展示。",
+        description="正式環境一律要求完成信箱驗證；開發環境可用此設定開啟驗證，未設定時允許開發測試。",
     )
     admin_emails: str = Field(
         default="",
@@ -200,7 +200,9 @@ class Settings(BaseSettings):
 
     @property
     def email_verification_required(self) -> bool:
-        return self.is_production if self.require_email_verification is None else self.require_email_verification
+        # Production never accepts an unverified account, including when an old
+        # deployment accidentally retains REQUIRE_EMAIL_VERIFICATION=false.
+        return self.is_production or bool(self.require_email_verification)
 
     @property
     def email_delivery_mode(self) -> str:

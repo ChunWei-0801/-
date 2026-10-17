@@ -2807,14 +2807,23 @@
         所有使用者輸入都要 esc() 過再塞進 innerHTML。
      ------------------------------------------------------------ */
   var TOK = 'fambudget.auth';
-
+  var REMEMBER = 'fambudget.remember-login';
+  function remembersLogin() {
+    try { return localStorage.getItem(REMEMBER) === 'true'; } catch (e) { return false; }
+  }
+  function setRememberLogin(on) {
+    try { localStorage.setItem(REMEMBER, on ? 'true' : 'false'); } catch (e) {}
+  }
   function tokens() {
-    try { return JSON.parse(localStorage.getItem(TOK) || 'null'); } catch (e) { return null; }
+    try {
+      return JSON.parse(sessionStorage.getItem(TOK) || localStorage.getItem(TOK) || 'null');
+    } catch (e) { return null; }
   }
   function setTokens(t) {
     try {
-      if (t) localStorage.setItem(TOK, JSON.stringify(t));
-      else localStorage.removeItem(TOK);
+      localStorage.removeItem(TOK);
+      sessionStorage.removeItem(TOK);
+      if (t) (remembersLogin() ? localStorage : sessionStorage).setItem(TOK, JSON.stringify(t));
     } catch (e) {}
   }
 
@@ -3139,6 +3148,28 @@
     reset:              [null, '前端']
   };
 
+  /* Account backgrounds and private media use request()/fetchMedia() because
+     their callers handle JSON, multipart uploads, and binary image responses.
+     Keep these real transports in the same route catalog without inventing
+     mock photo storage or extra callable facade methods. */
+  var MEDIA_ROUTES = {
+    accountBackground: ['GET /api/auth/me/appearance-image', '認證'],
+    saveAccountBackground: ['POST /api/auth/me/appearance-image', '認證'],
+    deleteAccountBackground: ['DELETE /api/auth/me/appearance-image', '認證'],
+    transactionPhotos: ['GET /api/transactions/{transaction_id}/photos', '記帳'],
+    uploadTransactionPhoto: ['POST /api/transactions/{transaction_id}/photos', '記帳'],
+    transactionPhotoImage: ['GET /api/transaction-photos/{photo_id}/image', '記帳'],
+    deleteTransactionPhoto: ['DELETE /api/transaction-photos/{photo_id}', '記帳'],
+    memories: ['GET /api/memories', '記帳'],
+    updateMemoriesSettings: ['PATCH /api/memories/settings', '記帳'],
+    startMemoryPuzzle: ['POST /api/memories/puzzles', '記帳'],
+    memoryPuzzleImage: ['GET /api/memories/puzzles/{game_id}/image', '記帳'],
+    memoryAchievements: ['GET /api/memories/achievements', '記帳'],
+    saveMemoryWallBackground: ['PUT /api/memories/wall-background', '記帳'],
+    deleteMemoryWallBackground: ['DELETE /api/memories/wall-background', '記帳'],
+    memoryWallBackground: ['GET /api/memories/wall-background/image', '記帳']
+  };
+
   /* 畫面一定會讀的欄位。少了任何一個，畫面會在很後面的地方壞掉（讀不到 undefined 的 map），
      看不出是哪一支回錯——所以在這裡先檢查，直接指出是哪一支。 */
   var SHAPE = {
@@ -3461,7 +3492,25 @@
     }).catch(function (e) { throw tag(e, name); });
   }
 
-  global.API = { mode: MODE, base: BASE, routes: FN, where: where };
+  function safeApiPath(path) {
+    if (typeof path !== 'string' || !/^\/api\/[A-Za-z0-9_/?=&%.,:-]+$/.test(path) || path.indexOf('..') >= 0 || /%2f|%5c|%2e/i.test(path)) throw new Error('不支援的 API 路徑');
+    return path;
+  }
+  function mediaRequest(path, opt, retried) {
+    path = safeApiPath(path); opt = opt || {};
+    var h = {}, t = tokens();
+    if (t && t.accessToken) h.Authorization = 'Bearer ' + t.accessToken;
+    if (opt.headers && opt.headers['Content-Type']) h['Content-Type'] = opt.headers['Content-Type'];
+    return fetch(BASE + path, { method: opt.method || 'GET', headers: h, body: opt.body, signal: opt.signal }).then(function (r) {
+      if (r.status === 401 && !retried) return doRefresh().then(function () { return mediaRequest(path, opt, true); });
+      if (!r.ok) return fail(r, path);
+      return r;
+    });
+  }
+
+  global.API = { mode: MODE, base: BASE, routes: FN, mediaRoutes: MEDIA_ROUTES, where: where,
+    setRememberLogin: setRememberLogin, remembersLogin: remembersLogin,
+    request: function (path, opt) { return req(safeApiPath(path), opt); }, fetchMedia: mediaRequest };
   Object.keys(FN).forEach(function (name) {
     global.API[name] = function () { return call(name, Array.prototype.slice.call(arguments)); };
   });

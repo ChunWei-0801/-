@@ -1,5 +1,5 @@
-/* Login / registration backgrounds. Photos stay in this browser as original
-   IndexedDB Blobs; localStorage contains preferences only, never image data. */
+/* Shared account backgrounds. Original photos stay as IndexedDB Blobs;
+   the application synchronises an optimised copy after signing in. */
 (function (root) {
   'use strict';
 
@@ -24,6 +24,7 @@
   var busy = false;
   var notice = '';
   var metaWarning = '';
+  var editSnapshot = null;
 
   function number(value, min, max, fallback) {
     var n = Number(value);
@@ -48,6 +49,7 @@
   catch (error) { /* Restricted storage does not prevent using the controls. */ }
 
   function savePreferences() {
+    if (editSnapshot) return;
     try { root.localStorage.setItem(KEY, JSON.stringify(state)); metaWarning = ''; }
     catch (error) { metaWarning = '瀏覽器無法保存背景設定；設定仍可在本次開啟使用。'; }
   }
@@ -138,7 +140,7 @@
     var previous = photo;
     photo = next;
     sync(); // Stop using the previous URL before releasing it.
-    if (previous && previous.url !== (next && next.url)) root.URL.revokeObjectURL(previous.url);
+    if (previous && previous.url !== (next && next.url) && (!editSnapshot || editSnapshot.photo !== previous)) root.URL.revokeObjectURL(previous.url);
   }
 
   function storageExplanation(error) {
@@ -172,6 +174,7 @@
   }
 
   function persistPhoto(target, token) {
+    if (editSnapshot) { notice = '照片已載入預覽。按「套用主題」後保存。'; updatePanel(); return Promise.resolve(); }
     return queueWrite(function () {
       if (revision !== token || photo !== target) return;
       return databaseOperation('readwrite', function (store) {
@@ -229,6 +232,7 @@
     savePreferences();
     notice = reset ? '已恢復紙上晨光及預設設定。' : '已移除自訂照片，改用紙上晨光。';
     updatePanel();
+    if (editSnapshot) return;
     queueWrite(function () {
       return databaseOperation('readwrite', function (store) { return store.delete('custom'); });
     }).catch(function () {
@@ -258,9 +262,9 @@
   }
 
   function markup() {
-    return '<details class="login-bg"><summary><span>登入背景 <small lang="en">Login background</small></span>' +
+    return '<details class="login-bg"><summary><span>全站背景 <small lang="en">Shared background</small></span>' +
       '<span class="login-bg__summary-name" data-lbg-current></span></summary><div class="login-bg__panel">' +
-      '<p class="login-bg__intro">挑選登入與註冊畫面的背景。登入後的系統主題可另外設定。</p>' +
+      '<p class="login-bg__intro">在這裡瀏覽背景並即時預覽；按「套用主題」後，登入頁與登入後的每個頁面會使用同一個背景。</p>' +
       '<fieldset class="login-bg__presets"><legend>選擇背景</legend>' + presets.map(function (preset) {
         return '<label class="login-bg__preset"><input type="radio" name="login-background" value="' + preset.id + '" data-lbg-preset>' +
           '<span class="login-bg__thumb login-bg__thumb--' + preset.id + '" aria-hidden="true">' + (preset.id === 'custom' ? '＋' : '') + '</span>' +
@@ -268,9 +272,9 @@
       }).join('') + '</fieldset>' +
       '<section class="login-bg__photo" data-lbg-custom hidden aria-label="自訂照片">' +
         '<div class="login-bg__upload"><label class="login-bg__file">選擇照片<input type="file" accept="image/*" data-lbg-file aria-label="選擇自訂背景照片"></label>' +
-        '<label class="login-bg__file login-bg__file--camera">拍照<input type="file" accept="image/*" capture="environment" data-lbg-file aria-label="拍照作為登入背景"></label></div>' +
-        '<p class="login-bg__photo-info" data-lbg-photo-info></p>' +
-        '<p class="login-bg__help">本功能不設檔案大小上限。照片只保存在此瀏覽器，不會上傳到伺服器；可使用容量與圖片格式仍取決於裝置、瀏覽器及可用儲存空間。</p>' +
+        '<label class="login-bg__file login-bg__file--camera">拍照<input type="file" accept="image/*" capture="environment" data-lbg-file aria-label="拍照作為全站背景"></label></div>' +
+        '<p class="login-bg__photo-info" data-lbg-photo-info data-i18n-skip></p>' +
+        '<p class="login-bg__help">本功能不設原始檔案大小上限。照片原檔保存在此瀏覽器；登入後會同步適合瀏覽的壓縮版本，方便其他裝置使用。可用容量與格式仍取決於裝置及瀏覽器。</p>' +
         '<label class="login-bg__select">照片顯示方式<select data-lbg-setting="fit">' +
           '<option value="cover">填滿畫面 · Cover（可能裁切）</option><option value="contain">完整顯示 · Contain（保留全圖）</option>' +
           '<option value="tile">重複鋪排 · Tile</option><option value="actual">原始尺寸 · Actual size</option></select></label>' +
@@ -283,7 +287,7 @@
         slider('overlay', '主題色遮罩', 0, 70, 1, '原色', '柔和') + '</div></fieldset>' +
       '<p class="login-bg__status" data-lbg-status role="status" aria-live="polite"></p>' +
       '<button class="login-bg__reset" type="button" data-lbg-reset>恢復預設</button>' +
-      '<p class="login-bg__help">恢復預設會重設滑桿，並刪除這裡儲存的照片。更換裝置或清除網站資料後，需重新選擇照片。</p>' +
+      '<p class="login-bg__help">套用恢復預設後會清除背景照片並重設滑桿。換裝置登入可載入同步版本；原始檔仍需保留自己的備份。</p>' +
       '</div></details>';
   }
 
@@ -310,18 +314,21 @@
   }
 
   function unmount() {
+    if (editSnapshot) cancelEdit();
     if (cleanup) cleanup();
     cleanup = null;
     host = null;
     // Keep the photo URL alive while another route can reuse the same photo.
   }
 
-  function mount(container) {
+  function mount(container, options) {
     var element = typeof container === 'string' ? root.document.querySelector(container) : container;
     if (!element) return null;
     unmount();
     host = element;
+    if (options && options.preview) editSnapshot = { state: Object.assign({}, state), photo: photo };
     host.innerHTML = markup();
+    if (options && options.preview) host.querySelector('details').open = true;
     function change(event) {
       var input = event.target;
       if (input.hasAttribute('data-lbg-preset')) {
@@ -360,11 +367,71 @@
     return element.querySelector('.login-bg');
   }
 
+
+  function cancelEdit() {
+    if (!editSnapshot) return;
+    var old = editSnapshot;
+    editSnapshot = null;
+    ++revision;
+    busy = false;
+    state = old.state;
+    replacePhoto(old.photo);
+    notice = '';
+    sync();
+  }
+
+  function commitEdit() {
+    var old = editSnapshot;
+    editSnapshot = null;
+    savePreferences();
+    if (old && old.photo && old.photo !== photo) root.URL.revokeObjectURL(old.photo.url);
+    if (photo) return persistPhoto(photo, revision);
+    return queueWrite(function () {
+      return databaseOperation('readwrite', function (store) { return store.delete('custom'); });
+    }).catch(function () {});
+  }
+
+  function importPreferences(value) {
+    if (!value || editSnapshot) return;
+    // The original photograph is device-local. Preserve its id on this device.
+    state = normalize(Object.assign({}, value, { photoId: state.photoId }));
+    savePreferences(); sync(); updatePanel(); initialize();
+  }
+
+  function clearAccountPhoto() {
+    if (editSnapshot) return Promise.resolve();
+    ++revision;
+    busy = false;
+    state.photoId = '';
+    replacePhoto(null);
+    savePreferences(); updatePanel();
+    // Retain the selected preset while the next account's private photo loads.
+    return queueWrite(function () {
+      return databaseOperation('readwrite', function (store) { return store.delete('custom'); });
+    }).catch(function () {});
+  }
+
   root.LoginBackground = {
     mount: mount,
     sync: sync,
     unmount: unmount,
     ready: initialize,
+    commit: commitEdit,
+    cancel: cancelEdit,
+    clearPhoto: clearAccountPhoto,
+    importPreferences: importPreferences,
+    getPhotoBlob: function () { return photo && photo.blob; },
+    importPhoto: function (blob) {
+      if (editSnapshot || !blob) return Promise.resolve();
+      var token = ++revision;
+      return decode(blob).then(function (decoded) {
+        if (revision !== token) { root.URL.revokeObjectURL(decoded.url); return; }
+        var id = 'account-' + Date.now().toString(36);
+        state.photoId = id;
+        var next = { blob: blob, id: id, name: '帳號背景照片', url: decoded.url, width: decoded.width, height: decoded.height, stored: false };
+        replacePhoto(next); savePreferences(); return persistPhoto(next, token);
+      });
+    },
     getState: function () {
       return Object.assign({}, state, { hasPhoto: !!photo, photoStorage: photo ? (photo.stored ? 'saved' : 'temporary') : 'none' });
     }

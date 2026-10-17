@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.toolkit.config import settings
+from app.toolkit.body_limit import APIBodyLimit
 
 from app import routers
 from app.toolkit import db
@@ -59,6 +60,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(APIBodyLimit)
+
+
+@app.middleware("http")
+async def private_response_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if request.url.path.startswith("/api/"):
+        # Account tokens, ledger entries and private photos must not survive
+        # in browser/shared HTTP caches after logout or on a shared device.
+        response.headers.setdefault("Cache-Control", "no-store")
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 # ===========================================================================

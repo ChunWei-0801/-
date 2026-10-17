@@ -160,13 +160,25 @@ def test_業務錯誤照後端的原話_不加技術資訊(run):
 # 前端真的會送出去的請求，後端都收得下
 # ===========================================================================
 @pytest.fixture(scope="module")
-def sent():
+def media_sent():
+    """Exercise the public media bridge with real FormData and binary responses."""
+    if not shutil.which("node"):
+        pytest.skip("這台機器沒有 node")
+    out = subprocess.run(["node", os.path.join(HERE, "fixtures", "record_media_requests.js"), REPO],
+                         capture_output=True, check=True)
+    return json.loads(out.stdout.decode("utf-8"))
+
+
+@pytest.fixture(scope="module")
+def sent(media_sent):
     """用 mock 把每一支 API 走過一次，記下 http 轉接器同一組參數會送出的請求。"""
     if not shutil.which("node"):
         pytest.skip("這台機器沒有 node")
     out = subprocess.run(["node", os.path.join(HERE, "fixtures", "record_requests.js"), REPO],
                          capture_output=True, check=True)
-    return json.loads(out.stdout.decode("utf-8"))
+    legacy = json.loads(out.stdout.decode("utf-8"))
+    assert not set(legacy).intersection(media_sent["sent"]), "media routes must not replace legacy adapter coverage"
+    return {**legacy, **media_sent["sent"]}
 
 
 def _routes():
@@ -198,6 +210,7 @@ def test_前端每一支都走過_而且打的網址就是登記的那條路由(
                 wrong.append("API.%s → %s（登記的是 %s）" % (row["fn"], req and req["method"] + " " + req["url"], key))
         walked.add((v, p))
     assert not wrong, wrong
+    assert walked <= declared, sorted(walked - declared)
     # refresh 是 req() 自己打的，沒有對應的畫面函式
     assert declared - walked == {("POST", "/api/auth/refresh")}, sorted(declared - walked)
 
@@ -221,6 +234,21 @@ def test_前端送的主體與查詢參數_後端的模型都收得下(sent):
                     problems.append("%s 送了 ?%s，後端沒有宣告" % (key, part.split("=")[0]))
             body = req.get("body")
             params = list(dep.body_params)
+            if req.get("bodyKind") == "multipart":
+                # File uploads use actual FormData. Validate the multipart field
+                # against FastAPI's UploadFile parameter instead of pretending
+                # the upload is a JSON request with no body.
+                from fastapi.params import File
+                required = {p.alias or p.name for p in params if p.field_info.is_required()}
+                accepted = {p.alias or p.name for p in params if isinstance(p.field_info, File)}
+                if not required <= set(body) or set(body) - accepted:
+                    problems.append("%s multipart 欄位 %s 與後端檔案欄位 %s 不符" % (key, sorted(body), sorted(accepted)))
+                for name, part in body.items():
+                    if part.get("contentType") != "image/jpeg" or part.get("size", 0) <= 0 or not part.get("filename"):
+                        problems.append("%s 的 %s 不是有效的相片檔案部分" % (key, name))
+                if any(k.lower() == "content-type" for k in req.get("headers", {})):
+                    problems.append("%s 不能手動設定 multipart Content-Type，瀏覽器需加入 boundary" % key)
+                continue
             if body is None:
                 if any(b.field_info.is_required() for b in params):
                     problems.append("%s 前端沒送主體，後端規定要有" % key)
@@ -238,6 +266,20 @@ def test_前端送的主體與查詢參數_後端的模型都收得下(sent):
             if model.model_config.get("extra") == "forbid" and set(body) - set(model.model_fields):
                 problems.append("%s 多送了 %s，%s 不收多的欄位" % (key, sorted(set(body) - set(model.model_fields)), model.__name__))
     assert not problems, "\n".join(problems)
+
+
+def test_私有媒體轉接器帶工作階段權杖_圖片保留二進位(media_sent):
+    """The supplemental API uses the real authenticated bridge, with no mock fallback."""
+    assert media_sent["auth"] == {"session": True, "persistent": False}
+    rows = [row for entries in media_sent["sent"].values() for row in entries]
+    assert len(rows) == 15
+    for row in rows:
+        assert row["adapter"] == "media"
+        assert row["request"]["headers"].get("Authorization") == "Bearer contract-access-token"
+        assert row["request"]["url"].startswith("/api/")
+        if row["request"]["method"] == "GET" and "image" in row["request"]["url"]:
+            assert row["response"]["contentType"] == "image/jpeg"
+            assert row["response"]["size"] > 0
 
 
 def test_mock_回的每一筆都過得了逐筆檢查(sent):

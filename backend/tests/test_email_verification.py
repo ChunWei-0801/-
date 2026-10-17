@@ -110,6 +110,8 @@ def test_production_registration_requires_verification_and_never_exposes_demo(em
     assert crud.count(EmailVerification) == 0
     monkeypatch.setattr(settings, "require_email_verification", False)
     assert email_api.post(REQUEST, json={"email": "verify@example.com"}).status_code == 503
+    assert email_api.post("/api/auth/login", json={"email": "verify@example.com", "password": "test1234"}).status_code == 403
+    assert settings.email_verification_required is True
 
 
 def test_production_requests_do_not_enumerate_and_confirmation_enables_login(email_api, monkeypatch):
@@ -152,6 +154,7 @@ def test_daily_send_limit_and_confirmation_attempt_limit(email_api):
 def test_old_development_sessions_cannot_bypass_production_requirement(email_api, monkeypatch):
     login = register(email_api)
     monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "require_email_verification", False)
     assert email_api.get("/api/auth/me", headers=auth(login)).status_code == 403
     assert email_api.post("/api/auth/refresh", json={"refreshToken": login["refreshToken"]}).status_code == 403
 
@@ -177,7 +180,11 @@ def test_mail_failure_is_generic_and_logs_neither_recipient_nor_token(email_api,
         raise mailer.MailError("verify@example.com secret-token test-only-key")
     monkeypatch.setattr(mailer, "send_mail", fail)
     result = email_api.post(REQUEST, json={"email": "verify@example.com"})
-    assert result.status_code == 200 and result.json()["message"] == email_verification.GENERIC_MESSAGE
+    assert result.status_code == 503 and "暫時無法寄出" in result.json()["detail"]
+    assert crud.count(EmailVerification) == 0
+    monkeypatch.setattr(mailer, "send_mail", lambda *args, **kwargs: "provider-accepted")
+    assert email_api.post(REQUEST, json={"email": "verify@example.com"}).status_code == 200
+    assert crud.count(EmailVerification) == 1
     assert "verify@example.com" not in caplog.text and "secret-token" not in caplog.text and "test-only-key" not in caplog.text
 
 
@@ -191,3 +198,41 @@ def test_blank_verification_setting_preserves_production_requirement(tmp_path, m
     assert production.require_email_verification is None and production.email_verification_required is True
     assert development.require_email_verification is None and development.email_verification_required is False
     assert Settings(**config, app_env="production", require_email_verification="  ").email_verification_required is True
+    assert Settings(**config, app_env="production", require_email_verification=False).email_verification_required is True
+
+
+@pytest.mark.parametrize("base_url", ["http://localhost:5174", "http://budget.example.com", "https://", "https://budget.example.com/#/login"])
+def test_production_verification_never_sends_unusable_or_insecure_links(email_api, monkeypatch, base_url):
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "brevo_api_key", "test-only-key")
+    monkeypatch.setattr(settings, "mail_from", "sender@example.com")
+    monkeypatch.setattr(settings, "app_base_url", base_url)
+    register(email_api)
+    sent = []
+    monkeypatch.setattr(mailer, "send_mail", lambda *args, **kwargs: sent.append(args))
+    known = email_api.post(REQUEST, json={"email": "verify@example.com"})
+    unknown = email_api.post(REQUEST, json={"email": "absent@example.com"})
+    assert known.status_code == unknown.status_code == 503 and known.json() == unknown.json()
+    assert sent == [] and crud.count(EmailVerification) == 0
+
+
+@pytest.mark.parametrize("language,subject_part", [
+    ("zh-TW", "驗證"), ("zh-CN", "验证"), ("en", "Verify"),
+    ("ja", "確認"), ("ko", "인증"), ("es", "Verifica"),
+])
+def test_real_delivery_uses_selected_language_and_single_use_link(email_api, monkeypatch, language, subject_part):
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "brevo_api_key", "test-only-key")
+    monkeypatch.setattr(settings, "mail_from", "sender@example.com")
+    monkeypatch.setattr(settings, "app_base_url", "https://budget.example.com")
+    messages = []
+    monkeypatch.setattr(mailer, "send_mail", lambda to, subject, text, html, **kwargs: messages.append((subject, text)))
+    register(email_api)
+    response = email_api.post(REQUEST, json={"email": "verify@example.com", "language": language})
+    assert response.status_code == 200 and response.json()["delivery"] == "email"
+    assert "demoVerificationUrl" not in response.json()
+    subject, text = messages[0]
+    assert subject_part in subject
+    token = text.split("/#/verify-email/", 1)[1].split()[0]
+    assert email_api.post(CONFIRM, json={"token": token}).status_code == 200
+    assert email_api.post(CONFIRM, json={"token": token}).status_code == 400

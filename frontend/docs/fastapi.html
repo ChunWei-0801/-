@@ -764,13 +764,13 @@ grep -rn <span class="tk-st">"TODO(記帳)"</span> app/services/   <span class="
               <td><b style="color:var(--m1)">認證</b><br></td>
               <td>認證</td>
               <td><span class="fname">routers/auth/auth.py</span>、<span class="fname">routers/auth/admin.py</span>、<span class="fname">services/email_verification.py</span>、<span class="fname">models/user.py</span>、<span class="fname">schemas/auth.py</span></td>
-              <td class="tight">21 支</td>
+              <td class="tight">31 支</td>
             </tr>
             <tr>
               <td><b style="color:var(--m2)">記帳</b><br></td>
               <td>記帳 ★ 核心</td>
               <td><span class="fname">routers/ledger/transactions.py</span>、<span class="fname">routers/ledger/nlp.py</span>、<span class="fname">routers/ledger/categories.py</span>、<span class="fname">routers/ledger/groups.py</span>、<span class="fname">models/category.py</span>、<span class="fname">models/group.py</span>、<span class="fname">schemas/group.py</span>、<span class="fname">services/evaluation.py</span>、<span class="fname">models/transaction.py</span>、<span class="fname">models/nlp.py</span>、<span class="fname">schemas/transaction.py</span>、<span class="fname">schemas/nlp.py</span>、<span class="fname">services/llm/parse.py</span></td>
-              <td class="tight">19 支</td>
+              <td class="tight">31 支</td>
             </tr>
             <tr>
               <td><b style="color:var(--m3)">數字</b><br></td>
@@ -792,7 +792,7 @@ grep -rn <span class="tk-st">"TODO(記帳)"</span> app/services/   <span class="
         <div class="note__k">地基已經做好了，第一天就能開工</div>
         <p>以前要最優先完成的兩塊——「取出登入者」和「可見範圍」——已經寫好、測好：
         <code>app/guards.py</code>（<code>current_user</code>、<code>@login_required</code>、<code>visible_scope()</code>）、
-        <code>app/toolkit/crud.py</code>（增刪改查）、<code>app/models/</code>（21 張表）。直接 import 來用。</p>
+        <code>app/toolkit/crud.py</code>（增刪改查）、<code>app/models/</code>（25 張表）。直接 import 來用。</p>
       </div>
 
       <div class="note">
@@ -807,7 +807,7 @@ grep -rn <span class="tk-st">"TODO(記帳)"</span> app/services/   <span class="
           <div class="fl__d"><code>docs/02-前後端串接契約.md</code> 同名的那一節：前端送什麼、要回什麼。請求主體的模型（<code>schemas/</code>）已經照它寫好了。</div></div></div>
         <div class="fl"><div class="fl__n">2</div><div class="fl__b">
           <div class="fl__t">資料表已經在 models/</div>
-          <div class="fl__d">21 張表跟 <code>data.js</code> 的 schema 逐欄對齊（有測試擋）。要改欄位：data.js → models → <code>alembic revision --autogenerate</code>。</div></div></div>
+          <div class="fl__d">25 張表跟 <code>data.js</code> 的 schema 逐欄對齊（有測試擋）。要改欄位：data.js → models → <code>alembic revision --autogenerate</code>。</div></div></div>
         <div class="fl"><div class="fl__n">3</div><div class="fl__b">
           <div class="fl__t">規則用 toolkit/、加總寫進 services/</div>
           <div class="fl__d">「誰可以、什麼時候不行」多半已經寫在 <code>toolkit/</code>；加總與模型在 <code>services/</code>。<b>純函式，好測試。</b></div></div></div>
@@ -908,7 +908,7 @@ grep -rn <span class="tk-st">"TODO(記帳)"</span> app/services/   <span class="
 
     <footer class="foot">
       <div>家庭記帳與財務控管系統 · FastAPI 說明書</div>
-      <div class="mono">BACKEND · 74 ROUTES · 4 MEMBERS</div>
+      <div class="mono">BACKEND · 89 ROUTES · 4 MEMBERS</div>
     </footer>
 
   </div>

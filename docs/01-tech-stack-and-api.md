@@ -37,13 +37,13 @@
 
 | 用 React 的好處 | 對本專案的實際影響 |
 |---|---|
-| 元件化、狀態管理 | 目前十六個畫面已經寫完，重寫是純成本 |
+| 元件化、狀態管理 | 目前二十個畫面已經寫完，重寫是純成本 |
 | 生態系豐富 | 我們沒有要用第三方 UI 套件 |
 | 履歷加分 | 冠文已有 React 經驗，其他三人沒有 |
 
 | 用原生的代價 | 實際狀況 |
 |---|---|
-| 沒有元件複用 | 十六個畫面規模還撐得住，函式化就夠 |
+| 沒有元件複用 | 二十個畫面規模還撐得住，函式化就夠 |
 | 手寫 DOM 操作 | 已經封裝在 `app.js` 的 render 函式裡 |
 | 沒有型別檢查 | 用 `js/api.js` 這一層集中管住資料形狀 |
 
@@ -62,7 +62,7 @@
 | **Pydantic** | v2 | 請求／回應驗證 | **強制結構化輸出的關鍵**，LLM 回傳也用它驗 |
 | **pydantic-settings** | 2.6+ | 環境變數管理 | 設定集中，不散落在各處 |
 | **SQLAlchemy** | 2.0 | ORM | 2.0 的型別標註對新手比較友善 |
-| **Alembic** | 1.14+ | 資料庫遷移 | 21 張表一定會改，沒有遷移工具會很痛苦 |
+| **Alembic** | 1.14+ | 資料庫遷移 | 25 張表一定會改，沒有遷移工具會很痛苦 |
 | **psycopg** | 3.2+ | PostgreSQL 驅動 | `[binary]` 版有預編譯輪檔，不用編譯 |
 | **PyJWT** | 2.10+ | JWT 簽發驗證 | 比 python-jose 維護更活躍 |
 | **passlib[bcrypt]** | 1.7+ | 密碼雜湊 | **絕不自己實作密碼雜湊** |
@@ -151,9 +151,9 @@ final_project/
 │   │   ├── ownership.py         分工的單一事實來源（誰負責哪支路由、哪些檔案）
 │   │   ├── catalog.py           固定清單（角色、權限表、理財選項、系統分類…），正本是 data.js
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
-│   │   ├── models/              21 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
+│   │   ├── models/              25 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             74 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             89 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **74 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **89 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -453,8 +453,8 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 
 | 領域 | 資料夾 | 路由 |
 |---|---|---|
-| **認證** | `backend/app/routers/auth/` | 21 支 |
-| **記帳** | `backend/app/routers/ledger/` | 19 支 |
+| **認證** | `backend/app/routers/auth/` | 24 支 |
+| **記帳** | `backend/app/routers/ledger/` | 31 支 |
 | **數字** | `backend/app/routers/analytics/` | 13 支 |
 | **家庭** | `backend/app/routers/access/` | 21 支 |
 
@@ -478,3 +478,27 @@ docker compose up
 ```bash
 python -m http.server 5174 --directory frontend
 ```
+
+## 4-8　外觀同步、回憶照片與小天地
+
+| # | 方法 | 路徑 | 領域 | 權限 | 用途 |
+|---|---|---|---|---|---|
+| 81 | GET | `/api/auth/me/appearance-image` | 認證 | 本人 | 讀取自己的同步背景照片。Private JPEG bytes; 404 尚未上傳照片。 |
+| 82 | POST | `/api/auth/me/appearance-image` | 認證 | 本人 | 同步自己的背景照片。背景實際解碼、縮圖後存資料庫；回傳受保護的圖片路徑。 |
+| 83 | DELETE | `/api/auth/me/appearance-image` | 認證 | 本人 | 清除自己的同步背景照片。移除帳號雲端照片，不刪除交易或其他人的背景。 |
+| 84 | GET | `/api/transactions/{transaction_id}/photos` | 記帳 | 可見範圍 | 紀錄的回憶照片。照片讀取遵循交易可見範圍；修改一律限紀錄本人。 |
+| 85 | POST | `/api/transactions/{transaction_id}/photos` | 記帳 | 本人 | 拍照或加入購買照片。multipart file；每筆最多4張，瀏覽版本上限20 MB；解碼並移除EXIF後持久保存。 |
+| 86 | GET | `/api/transaction-photos/{photo_id}/image` | 記帳 | 可見範圍 | 查看紀錄照片。Private JPEG bytes；需登入且仍有該交易讀取權限。 |
+| 87 | DELETE | `/api/transaction-photos/{photo_id}` | 記帳 | 本人 | 移除自己的紀錄照片。刪除照片不影響原交易金額；共享成員與監管者不能代刪。 |
+| 88 | GET | `/api/memories` | 記帳 | 本人 | 小天地與拼圖進度。伺服器回傳拼圖、設定、待分配片數、週期額度與影像限制。 |
+| 89 | PATCH | `/api/memories/settings` | 記帳 | 本人 | 設定拼圖與成就牆。只送要改的設定；片數9/16/25/36/64/100，每期可開始1至31張；不接受客戶端片數獎勵。 |
+| 90 | POST | `/api/memories/puzzles` | 記帳 | 本人 | 選照片開始下一幅拼圖。multipart file；未完成目前拼圖時409，跨週/月也不能跳過；新圖受當期額度限制。 |
+| 91 | GET | `/api/memories/puzzles/{game_id}/image` | 記帳 | 本人 | 拼圖及永久成就照片。Private JPEG bytes；只能讀自己的拼圖與已完成成就快照。 |
+| 92 | GET | `/api/memories/achievements` | 記帳 | 本人 | 依年月查看成就牆。year/month/page查詢；以完成當時的拼圖時區歸檔年月，每頁50項。 |
+| 93 | PUT | `/api/memories/wall-background` | 記帳 | 本人 | 設定成就牆背景照片。multipart file；可自由更換自己的成就牆背景，不改既有拼圖快照。 |
+| 94 | DELETE | `/api/memories/wall-background` | 記帳 | 本人 | 移除成就牆背景照片。清除牆面背景，不刪除已完成成就。 |
+| 95 | GET | `/api/memories/wall-background/image` | 記帳 | 本人 | 自己的成就牆背景。Private JPEG bytes；無背景時404，沒有公開圖片網址。 |
+
+背景設定為獨立的 `#/appearance` 頁，可先預覽再套用。套用後登入與登入後頁面使用相同外觀；登入後的照片同步是帳號私有的瀏覽版本。
+
+每筆新記帳的片數由伺服器記錄，失敗儲存不領片，修改不重複獎勵。未完成拼圖不能因跨期換照片；完成圖與完成年月永久保存。未完成拼圖使用的交易刪除後撤回該片，相同內容重建不重複發獎。

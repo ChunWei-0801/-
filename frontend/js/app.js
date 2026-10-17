@@ -12,6 +12,15 @@
   var VERIFY_EMAIL = '';
   var EMAIL_VERIFY_TOKEN = '';
   var CAPABILITIES = null;
+  var AUTH_LOGGED_IN = false;
+  var appearanceOriginalTheme = null;
+  var appearanceTheme = null;
+  var appearanceReturn = '#/login';
+  var appearanceSyncUser = '';
+  var APPEARANCE_OWNER = 'fambudget.appearance.account';
+  var APPEARANCE_PENDING = 'fambudget.appearance.pending';
+  var LANGUAGE_PENDING = 'fambudget.language.pending';
+  var languageSyncUser = '';
   if (API.mode === 'http') {
     fetch(API.base + '/capabilities').then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) { CAPABILITIES = d; paintMailStatus(); paintVerificationAvailability(); }).catch(function () {});
@@ -122,13 +131,13 @@
   function currentTheme() {
     return document.documentElement.getAttribute('data-theme') || 'paper';
   }
-  function applyTheme(id) {
+  function applyTheme(id, persist) {
     var t = themeOf(id) || themeOf('paper');
     if (!t) return;
     document.documentElement.setAttribute('data-theme', t.id);
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta && t.band) meta.setAttribute('content', t.band);
-    try { localStorage.setItem(THEME_KEY, t.id); } catch (e) {}
+    if (persist !== false) try { localStorage.setItem(THEME_KEY, t.id); } catch (e) {}
   }
   applyTheme(currentTheme());
 
@@ -253,6 +262,7 @@
   var ROLE_TW = { master: '平台管理員', parent: '家長', child: '子女' };
 
   function toast(msg, kind, undo) {
+    if (global.I18n) msg = global.I18n.translate(msg);
     var feedback = document.getElementById('gateFeedback');
     if (kind === 'err' && feedback) {
       feedback.textContent = String(msg).split('｜出錯的函式：')[0];
@@ -350,7 +360,8 @@
 
   function num(v) {
     var n = Number(v) || 0;
-    return n.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
+    var options = { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 };
+    return global.I18n ? global.I18n.number(n, options) : n.toLocaleString('en-US', options);
   }
   /* ISO 8601（後端一律回 UTC）→ 使用者時區的「2026-09-14 18:05」。不是 ISO 的原樣顯示 */
   function localAt(iso) {
@@ -379,6 +390,7 @@
 
   function todayText() {
     var d = new Date(todayKey() + 'T12:00:00');
+    if (global.I18n) return global.I18n.date(d, { month: 'long', day: 'numeric', weekday: 'long' });
     return (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日　星期' + '日一二三四五六'.charAt(d.getDay());
   }
 
@@ -466,13 +478,12 @@
          等於斷定他沒有家庭，而我們根本沒問到。 */
       { nav: 'members', label: !o.famOff && o.fm && o.fm.family === null ? '加入家庭' : '家庭成員',
         icon: 'members', badge: o.fm && o.fm.family ? o.fm.members.length + ' 人' : '' },
-      { nav: 'profile', label: '個人資料', icon: 'profile' },
-      { href: '/docs/guide.html', label: '操作教學', icon: 'guide' },
-      { href: '/docs/presentation.html', label: '專題介紹', icon: 'guide' },
-      { href: '/docs/glossary.html', label: '中英名詞', icon: 'guide' },
+      { nav: 'profile', label: '個人資料與目標', icon: 'profile' },
+      { nav: 'memories', label: '記帳小天地', icon: 'guide' },
+      { nav: 'settings', label: '設定與使用教學', icon: 'theme' },
       /* 這兩格原本在右上角的帳號選單裡。選單拆掉之後搬過來——
          整個網站只有這兩個地方進得去主題與登出，不能跟著一起消失。 */
-      { href: '#/profile/theme', label: '換主題', icon: 'theme' },
+      { href: '#/appearance', label: '主題與背景', icon: 'theme' },
       { id: 'logout', label: '登出', icon: 'out', tone: 'out' }
     ];
     return '<section class="qk"><div class="qk__h"><h2 class="qk__t">常用功能</h2></div>' +
@@ -513,7 +524,7 @@
     head(title || (greeting() + '，' + callName(user.name)), sub || famLine(user, fm), act);
     var av = document.getElementById('pav');
     if (av) {
-      av.innerHTML = ava(user);
+      av.innerHTML = '<a href="#/profile" aria-label="個人資料、目標與大頭貼" title="個人資料、目標與大頭貼">' + ava(user) + '</a>';
       av.hidden = false;
     }
   }
@@ -528,12 +539,14 @@
   }
 
   function vHome() {
+    var routeAt = location.hash;
     /* 還沒拿到人之前先擺上一次骨架。ME 有的話（換頁回來）直接招呼，
        不要先閃一下「總覽」再換成名字。 */
     if (ME && ME.user) greet(ME.user); else head('', '');
     $view.innerHTML = '<div class="page">' + skeleton(4, 'skel__k') + '</div>';
 
     API.me().then(function (m) {
+      if (routeAt !== location.hash) return;
       greet(m.user);
       var sc = scopeOf(m), fam = sc === 'family';
       return Promise.all([
@@ -546,6 +559,7 @@
         soft(API.transactions(Object.assign({ from: todayKey(), to: todayKey(), groupId: GROUP },
           fam ? {} : { userId: m.user.id })))
       ]).then(function (r) {
+      if (routeAt !== location.hash) return;
         var d = r[0], b = r[1], gs = r[2].__err ? [] : (r[2].groups || []),
             ads = r[3].__err ? [] : (r[3].advices || []), fm = r[4], tx = r[5];
         var ids = !d.__err && d.members ? d.members.map(function (u) { return u.id; }) : [m.user.id];
@@ -639,6 +653,7 @@
            ⚠️ 這一支問不到就整塊不顯示：寫「還沒有加入家庭」等於替後端回答，
               他可能是有家庭的，只是我們問不到。 */
         soft(API.invites()).then(function (inv) {
+      if (routeAt !== location.hash) return;
           var box = document.getElementById('homeInv');
           if (!box || inv.__err) return;
           if (inv.received.length) box.innerHTML = inviteCards(inv.received);
@@ -649,6 +664,7 @@
         });
       });
     }).catch(function (e) {
+      if (routeAt !== location.hash) return;
       /* 數字拿不到，但功能還是要能按——尤其是登出 */
       $view.innerHTML = '<div class="page">' + errState(e) + quickTiles({}) + '</div>';
     });
@@ -658,7 +674,7 @@
     return '<section class="first-steps" aria-labelledby="firstTitle">' +
       '<div class="first-steps__head"><div><p class="first-steps__eyebrow">開始記帳 · Getting started</p>' +
         '<h2 id="firstTitle">用三個步驟，建立你的收支概況</h2></div>' +
-        '<a href="/docs/guide.html">完整操作教學 →</a></div>' +
+        '<a href="#/tutorial">完整使用教學 →</a></div>' +
       '<ol><li><b>記下本月收入</b><span>例如「今天薪資 30000」，讓可花額度有依據。</span></li>' +
         '<li><b>記一筆生活支出</b><span>例如「早餐 55，捷運 30」。核對日期、金額與分類後再確認。</span></li>' +
         '<li><b>設定存款與預算</b><span>到個人資料設定目標，再到統計查看花費。</span></li></ol>' +
@@ -832,7 +848,7 @@
   function txRow(t, hit) {
     TXSEEN[t.id] = t;
     var can = txCan(t), picked = PICK.on && PICK.ids.indexOf(t.id) >= 0;
-    return '<tr class="txr' + (hit && hit === t.id ? ' is-hit' : '') + (picked ? ' is-picked' : '') + '"' +
+    return '<tr class="txr' + (hit && hit === t.id ? ' is-hit' : '') + (picked ? ' is-picked' : '') + '" data-transaction-id="' + esc(t.id) + '" data-media-editable="' + (isMine(t) ? 'true' : 'false') + '"' +
         (PICK.on && can ? ' data-pickrow="' + esc(t.id) + '"' : '') + '>' +
       (PICK.on
         ? '<td class="txr__ck">' + (can
@@ -846,11 +862,11 @@
       '<td class="txr__c"><span style="color:' + tint(t.catColor) + '">' +
         esc(t.catName) + '</span></td>' +
       '<td class="txr__t"><span class="txr__cm" style="color:' + tint(t.catColor) + '">' + esc(t.catName) + '</span>' +
-        esc(t.merchant || t.catName) +
-        (t.note ? ' <em>' + esc(t.note) + '</em>' : '') +
-        (t.raw ? '<br><span class="txr__raw">「' + esc(t.raw) + '」</span>' : '') +
+        '<span data-i18n-skip>' + esc(t.merchant || t.catName) + '</span>' +
+        (t.note ? ' <em data-i18n-skip>' + esc(t.note) + '</em>' : '') +
+        (t.raw ? '<br><span class="txr__raw" data-i18n-skip>「' + esc(t.raw) + '」</span>' : '') +
       '</td>' +
-      '<td class="txr__u">' + esc(t.userName) + '</td>' +
+      '<td class="txr__u" data-i18n-skip>' + esc(t.userName) + '</td>' +
       '<td class="txr__s">' + (t.source === 'nlp' ? '段落' : '手動') + '</td>' +
       '<td class="txr__a' + (t.kind === 'income' ? ' is-in' : '') + '">' +
         (t.kind === 'income' ? '+' : '−') + money(t.amount).replace('NT$ ', '') + '</td>' +
@@ -1479,13 +1495,17 @@
      算不出來的時候「按年」直接關掉，不給一份對不上的數字。
      ============================================================ */
   function vStats() {
+    var routeAt = location.hash;
     head('統計', '');
     $view.innerHTML = '<div class="page">' + skeleton(4) + '</div>';
 
     API.me().then(function (m) {
+      if (routeAt !== location.hash) return;
       var sc = scopeOf(m);
-      return API.summary({ scope: sc, groupId: GROUP }).then(function (d) { render(m, sc, d); });
-    }).catch(function (e) { $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
+      return API.summary({ scope: sc, groupId: GROUP }).then(function (d) {
+      if (routeAt !== location.hash) return; render(m, sc, d); });
+    }).catch(function (e) {
+      if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
 
     function render(m, sc, d) {
       if (STAT.period === 'year' && !d.yearly) STAT.period = 'month';
@@ -1552,12 +1572,15 @@
   var ADVOPEN = null;    // 展開中的那一則
 
   function vAdvice() {
+    var routeAt = location.hash;
     head('財務建議', '');
     $view.innerHTML = '<div class="page">' + skeleton(4) + '</div>';
     API.me().then(function (m) {
+      if (routeAt !== location.hash) return;
       var sc = scopeOf(m);
       head('財務建議', sc === 'family' ? '全家的建議，以及你照顧的家人的個人建議' : '', scopeSeg(m));
       return API.advices({ scope: sc }).then(function (d) {
+      if (routeAt !== location.hash) return;
         ADV = d.advices || [];
         $view.innerHTML =
           '<div class="page">' +
@@ -1575,14 +1598,17 @@
         if (sc === 'family') return;
         /* 沒填理財習慣的話提一次——這是它真正派得上用場的地方 */
         return API.financeProfile().then(function (p) {
+      if (routeAt !== location.hash) return;
           var f = p.finance || {};
           if (f.style || (f.goals || []).length || (f.habits || []).length || f.note) return;
           var box = document.getElementById('advHint');
           if (box) box.innerHTML = '<a class="nudge" href="#/profile">' +
             '<b>想要更貼近你的建議？</b><span>填一下理財習慣，一分鐘就好 →</span></a>';
-        }).catch(function () {});
+        }).catch(function () {
+      if (routeAt !== location.hash) return;});
       });
-    }).catch(function (e) { $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
+    }).catch(function (e) {
+      if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
   }
 
   function advLevel(a) {
@@ -1655,6 +1681,7 @@
 
   function shortDate(iso) {
     var d = new Date(iso);
+    if (global.I18n) return global.I18n.date(d, { month: 'long', day: 'numeric', weekday: 'long' });
     return (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日';
   }
 
@@ -1676,14 +1703,17 @@
   }
 
   function vMembers() {
+    var routeAt = location.hash;
     head('家庭', '');
     $view.innerHTML = '<div class="page">' + skeleton(4) + '</div>';
     Promise.all([API.members(), API.invites()]).then(function (r) {
+      if (routeAt !== location.hash) return;
       var d = r[0], inv = r[1];
       PERMS = d;   // 「誰可以做什麼」要用，見 HELP.perms
       if (!d.family) return renderNoFamily(inv);
       renderFamily(d, inv);
-    }).catch(function (e) { $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
+    }).catch(function (e) {
+      if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
   }
 
   function renderNoFamily(inv) {
@@ -1982,15 +2012,18 @@
        通知點某一則             → #/member/U3/T1051（那一筆會標起來）
      ============================================================ */
   function vMember(id, hit) {
+    var routeAt = location.hash;
     head('成員紀錄', '');
     $view.innerHTML = '<div class="page">' + skeleton(4) + '</div>';
 
     /* 先問「我看不看得到」，確認之後才去拿明細。
        沒權限就不要發那個請求——後端會回 403，前端也不該去撞。 */
     Promise.all([API.me(), API.members(), API.allowances().catch(function () {
+      if (routeAt !== location.hash) return;
       return { allowances: [] };
     })])
       .then(function (r) {
+      if (routeAt !== location.hash) return;
         var me = r[0], d = r[1], al = r[2];
         var u = d.members.filter(function (x) { return x.id === id; })[0];
 
@@ -2020,10 +2053,12 @@
         var a = (al.allowances || []).filter(function (x) { return x.wardId === id; })[0];
         u.allowance = a ? a.amount : 0;
         return API.transactions({ userId: id }).then(function (tx) {
+      if (routeAt !== location.hash) return;
           render(me, d, u, tx, partial);
         });
       })
       .catch(function (e) {
+      if (routeAt !== location.hash) return;
         $view.innerHTML = '<div class="page">' + errState(e) + '</div>';
       });
 
@@ -2080,11 +2115,13 @@
      每一本帳可以各自設一個每月存款目標。
      ============================================================ */
   function vGroups() {
+    var routeAt = location.hash;
     head('帳本', '家用、旅遊、自己的零用，分開記');
     $view.innerHTML = '<div class="page">' + skeleton(4) + '</div>';
 
     Promise.all([API.groups({ includeArchived: true }), API.members()])
       .then(function (r) {
+      if (routeAt !== location.hash) return;
       var d = r[0], fam = r[1];
 
       /* 展開的時候要用到，先記下來——點開一本帳不用再打一次 API */
@@ -2156,7 +2193,8 @@
       /* ⚠️ 重畫之後一定要叫它——不然使用者展開表單、按了建立，
          畫面重畫完就無聲收合，看起來像沒有反應。 */
       foldRestore();
-    }).catch(function (e) { $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
+    }).catch(function (e) {
+      if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
   }
 
 
@@ -2566,8 +2604,14 @@
     { sel: '#bell', hash: '#/',
       t: '通知',
       b: '家人記帳、或是你花到設定的比例時，這裡會亮。' }
+    ,{ sel: '[data-manual-entry]', hash: '#/', t: '直接記下實際金額', b: '不想輸入句子時，直接填寫日期、分類與實際花費，還可附上購物照片。' }
+    ,{ sel: '[data-nav="exchange"]', hash: '#/', t: '外幣也能輕鬆換算', b: '選擇兩種貨幣查詢參考匯率，再帶入手動記帳，依實際扣款調整金額。' }
+    ,{ sel: '#pav', hash: '#/', t: '點頭貼，設定自己的目標', b: '更換大頭貼、設定每月存款目標與分類預算，都在個人資料裡。' }
+    ,{ sel: '[data-nav="memories"]', hash: '#/', t: '每筆記帳，一塊生活拼圖', b: '選擇照片和片數，每記一筆收集一片。拼完後，作品會留在你的成就牆。' }
+    ,{ sel: '[data-nav="settings"]', hash: '#/', t: '把系統設定成喜歡的樣子', b: '設定裡能改主題、背景和語言，也能查看使用教學或重新開啟這段導覽。' }
   ];
     var tourAt = -1;
+    var tourAttempts = 0;
 
   function clamp(v, lo, hi) {
     if (hi < lo) return lo;                   // 空間比框還小：貼著上緣就好
@@ -2640,6 +2684,7 @@
     if (next < 0) next = 0;
     if (next >= TOUR.length) { tourEnd(); toast('隨時可以從「使用說明」再看一次', 'ok'); return; }
     tourAt = next;
+    tourAttempts = 0;
     var step = TOUR[tourAt];
 
     if (step.hash && location.hash !== step.hash) { location.hash = step.hash; }
@@ -2658,7 +2703,10 @@
       var rr = n.getBoundingClientRect();
       return rr.width > 0 && rr.height > 0;
     })[0];
-    if (!el0) { tourGo(1); return; }          // 那個東西這次不在畫面上就跳過
+    if (!el0) {
+      if (++tourAttempts < 20) { setTimeout(tourPaint, 200); return; }
+      tourGo(1); return;
+    }          // 那個東西這次不在畫面上就跳過
 
     /* 導覽期間 body 是 overflow:hidden（不讓使用者自己捲，否則圈圈會跟目標分家）。
        但那也擋掉了我們自己的 scrollIntoView——目標在畫面外的那幾步就會圈到空氣。
@@ -2765,10 +2813,12 @@
      停權是關門，不是配鑰匙。
      ============================================================ */
   function vAdmin() {
+    var routeAt = location.hash;
     head('平台管理', '停權與稽核。這裡看不到任何人的帳。');
     $view.innerHTML = '<div class="page">' + skeleton(4) + '</div>';
 
     Promise.all([API.adminUsers(), API.audit()]).then(function (r) {
+      if (routeAt !== location.hash) return;
       var users = r[0].users, logs = r[1].logs;
       var h = '<div class="page"><div class="duo">' +
         '<section class="duo__c">' +
@@ -2801,6 +2851,7 @@
       '</div></div>';
       $view.innerHTML = h;
     }).catch(function (e) {
+      if (routeAt !== location.hash) return;
       $view.innerHTML = '<div class="page">' + errState(e) + '</div>';
     });
   }
@@ -2923,7 +2974,7 @@
              而標語仍然要講**結果**不講機制——
              「打一句話就記好一筆帳」是說明文件的句型，它在講功能怎麼運作，
              主頁要講的是使用者得到什麼。機制降到副標，細節再降到三點。 */
-          '<span class="lp__k">家庭財務專題 · FamBudget</span>' +
+          '<span class="lp__k">和家人一起，記錄生活 · FamBudget</span>' +
           '<h1 class="lp__t">家庭記帳與財務控管系統</h1>' +
           '<p class="lp__en" lang="en">Family Budget &amp; Financial Management</p>' +
           '<div class="lp__rule"></div>' +
@@ -2945,8 +2996,7 @@
               'stroke-width="1.8"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>' +
           '</button>' +
           '<p class="lp__n">第一次來？下一步可以建立帳號</p>' +
-          '<nav class="learning-links" aria-label="了解與展示專題"><a href="/docs/presentation.html">專題介紹與發表流程 →</a>' +
-            '<a href="/docs/guide.html">操作教學</a><a href="/docs/glossary.html">中英名詞對照</a></nav>' +
+          '<nav class="learning-links" aria-label="使用協助"><a href="#/appearance">瀏覽主題與背景</a><a href="#/tutorial">使用教學</a></nav>' + languageSelector() +
         '</div>' +
         '<div class="lp__r">' + ledgerArt() + '<p class="illustration-note">畫面示意 · 上方數字為範例，實際記帳從你的帳號開始</p></div>' +
       '</div>';
@@ -2978,22 +3028,19 @@
         '<h1 class="gate__t">' + title + '</h1>' +
         '<p class="gate__s">' + sub + '</p>' +
         inner + '<p class="gate__feedback" id="gateFeedback" role="alert" hidden></p>' +
-        '<nav class="learning-links learning-links--center" aria-label="使用協助"><a href="/docs/guide.html">操作教學</a>' +
-          '<a href="/docs/glossary.html">中英名詞對照</a></nav>' +
-        (document.body.classList.contains('login-background-on') ? '<div class="login-bg-slot" id="loginBgSlot"></div>' : '') +
+        '<nav class="learning-links learning-links--center" aria-label="使用協助"><a href="#/appearance">瀏覽主題與背景</a><a href="#/tutorial">使用教學</a></nav>' + languageSelector() +
       '</div></div>';
     mountLoginBackground();
   }
 
   function mountLoginBackground() {
     if (!global.LoginBackground) return;
-    if (!document.body.classList.contains('login-background-on')) { global.LoginBackground.unmount(); return; }
-    var slot = document.getElementById('loginBgSlot');
-    if (!slot) {
-      slot = document.createElement('div'); slot.id = 'loginBgSlot'; slot.className = 'login-bg-slot login-bg-slot--landing';
-      $view.appendChild(slot);
-    }
-    global.LoginBackground.mount(slot);
+    global.LoginBackground.sync();
+    global.LoginBackground.ready();
+  }
+
+  function languageSelector() {
+    return global.I18n && global.I18n.renderLanguageSelect ? '<div class="language-settings">' + global.I18n.renderLanguageSelect() + '</div>' : '';
   }
 
   function vLogin() {
@@ -3007,6 +3054,8 @@
           '<input type="email" id="lgEmail" autocomplete="username" value="' + esc(VERIFY_EMAIL) + '" required></label>' +
         '<label class="fld"><span>密碼</span>' +
           '<input type="password" id="lgPw" autocomplete="current-password" required></label>' +
+        '<label class="remember-login"><input type="checkbox" id="lgRemember"' + (API.remembersLogin && API.remembersLogin() ? ' checked' : '') + '><span>記住登入狀態</span></label>' +
+        '<p class="remember-login__help">勾選後，下次可直接使用。共用電腦建議不勾選；密碼可由瀏覽器密碼管理員自行選擇保存。</p>' +
         '<a class="gate__fp" href="#/forgot">忘記密碼？</a>' +
         '<button class="btn btn--go gate__go" type="submit">登入</button>' +
         '<p class="gate__alt">還沒有帳號？<a href="#/register" data-gate="register">建立一個</a></p>' +
@@ -3093,7 +3142,7 @@
      ============================================================ */
   var SETUP = { step: 0, note: '' };
   var SETUP_BUSY = false;
-  var SETUP_STEPS = ['存錢目標', '理財習慣', '主題'];
+  var SETUP_STEPS = ['存錢目標', '理財習慣', '外觀確認'];
 
   function setupDots() {
     return '<ol class="stp" aria-label="個人化設定，共 ' + SETUP_STEPS.length + ' 步">' +
@@ -3105,8 +3154,10 @@
   }
 
   function vSetup() {
+    var routeAt = location.hash;
     head('個人化設定', '');
     API.me().then(function (m) {
+      if (routeAt !== location.hash) return;
       var u = m.user;
       ME = m;
       var skipAll = '<p class="gate__alt"><button type="button" class="gate__lnk" data-su-done="skip">全部先跳過，直接開始用</button></p>' +
@@ -3134,6 +3185,7 @@
       if (SETUP.step === 1) {
         authShell('你怎麼管錢？', '選你覺得像的就好。財務建議會參考這些，讓說法更貼近你。', setupDots() + skeleton(2), true);
         API.financeProfile().then(function (d) {
+      if (routeAt !== location.hash) return;
           var f = d.finance || {};
           SETUP.note = f.note || '';
           var has = function (key, id) { return (f[key] || []).indexOf(id) >= 0 ? ' checked' : ''; };
@@ -3160,17 +3212,21 @@
                 '<button class="btn btn--go" type="submit">下一步</button></div>' +
               '<button type="button" class="gate__lnk" data-su-next>先跳過這一步</button>' +
             '</form>' + skipAll, true);
-        }).catch(function (e) { toast(e.message || '讀不到選項，先跳過這一步', 'err'); SETUP.step = 2; vSetup(); });
+        }).catch(function (e) {
+      if (routeAt !== location.hash) return; toast(e.message || '讀不到選項，先跳過這一步', 'err'); SETUP.step = 2; vSetup(); });
         return;
       }
 
-      authShell('挑一個喜歡的樣子', '按一下就換，整個系統馬上變成那個樣子。之後可從「總覽 › 換主題」調整。',
+      authShell('你的風格已經準備好了', '已沿用登入頁的主題與背景，不需要再選一次。之後隨時可以到設定調整。',
         setupDots() +
-        '<div class="thm__row su__thm" id="thmRow">' + themeCards(u.theme || currentTheme()) + '</div>' +
+        '<div class="card setup-appearance"><h2>目前的介面配色</h2><p>' + esc((themeOf(currentTheme()) || {}).name || '') + '</p>' +
+          '<p class="flow-help">背景照片與顯示方式也會繼續保留。想瀏覽其他風格時，可以先開啟預覽再決定。</p>' +
+          '<a class="btn" href="#/appearance">瀏覽主題與背景</a></div>' +
         '<div class="su__nav"><button type="button" class="btn" data-su-back>上一步</button>' +
           '<button type="button" class="btn btn--go" data-su-done="finish">完成，開始記帳</button></div>' +
           '<p class="flow-help">若還沒有帳本，完成後會建立「個人帳本」供你記帳。</p>', true);
-    }).catch(function (e) { $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
+    }).catch(function (e) {
+      if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
   }
 
   /* 走完或全部跳過：標記在帳號上，回總覽，再問要不要導覽 */
@@ -3271,9 +3327,12 @@
   }
 
   function vProfile(at) {
-    head('個人資料', '');
+    var routeAt = location.hash;
+    if (at === 'theme') { location.hash = '#/appearance'; return; }
+    head('個人資料與目標', '');
     $view.innerHTML = '<div class="page">' + skeleton(3) + '</div>';
     API.me().then(function (m) {
+      if (routeAt !== location.hash) return;
       var u = m.user;
       /* 左邊是「我是誰」，右邊是「我的錢怎麼管」。
          存款目標和提醒放在一起：提醒算的就是目標之後剩下的額度。 */
@@ -3284,7 +3343,7 @@
             '<div class="me__top">' +
               '<div class="me__a" id="profAva">' + ava(u, 'ava--xl') + '</div>' +
               '<div class="me__who">' +
-                '<div class="me__n">' + esc(u.name) + '</div>' +
+                '<div class="me__n" data-i18n-skip>' + esc(u.name) + '</div>' +
                 '<div class="me__r">' + esc(ROLE_TW[u.role] || '') + '　·　' + (u.emailVerified ? '信箱已驗證' : '信箱尚未驗證') + '</div>' +
                 '<div class="me__do">' +
                   '<label class="btn btn--sm">換照片' +
@@ -3333,32 +3392,12 @@
         '</section>' +
       '</div>' +
 
-      /* 主題設定：左右滑著挑，按一下就套用 */
-      '<section class="thm">' +
-        '<div class="sec"><h2 class="sec__t">主題設定</h2>' +
-          '<span class="sec__n">' + (global.DATA.themes || []).length + ' 套</span>' +
-          '<div class="thm__nav">' +
-            '<button type="button" data-thm-go="-1" aria-label="往左看">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6 9 12l6 6"/></svg></button>' +
-            '<button type="button" data-thm-go="1" aria-label="往右看">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>' +
-          '</div>' +
-        '</div>' +
-        '<div class="thm__row" id="thmRow">' + themeCards(u.theme || currentTheme()) + '</div>' +
-      '</section>' +
+      '<section class="card settings-shortcuts"><h2>更多設定</h2><a href="#/appearance">主題與背景 →</a><a href="#/settings">帳號與系統設定 →</a><a href="#/tutorial">使用教學與導覽 →</a></section>' +
       '</div>';
       $view.innerHTML = h;
-      var onCard = document.querySelector('.thm__i.on');
-      if (onCard && onCard.scrollIntoView) onCard.parentNode.scrollLeft = onCard.offsetLeft - 8;
       foldRestore();
       paintAlerts();
       paintSessions();
-      /* 從儀表板的「換主題」進來的（#/profile/theme）：直接捲到主題那一段，
-         不用自己往下找。主題設定本來就在這一頁的最下面。 */
-      if (at === 'theme') {
-        var thm = document.querySelector('.thm');
-        if (thm && thm.scrollIntoView) thm.scrollIntoView({ block: 'start', behavior: 'smooth' });
-      }
     });
   }
 
@@ -3549,7 +3588,7 @@
             '<path d="M10 4h8.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H10"/></svg>' +
           '<span class="ic__d" style="background:' + tint(cur.color) + '"></span>' +
           '<span class="gsw__d" style="background:' + tint(cur.color) + '"></span>' +
-          '<span class="gsw__n">' + esc(cur.name) + '</span>' +
+          '<span class="gsw__n" data-i18n-skip>' + esc(cur.name) + '</span>' +
           '<svg class="gsw__cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
             'stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>' +
         '</button>' +
@@ -3573,32 +3612,227 @@
   }
 
   function paintWho() {
-    API.me().then(function (m) {
+    return API.me().then(function (m) {
       ME = m;
+      var account = document.getElementById('accountAvatar');
+      if (account) account.innerHTML = ava(m.user);
       /* 角色決定「有沒有這個功能」，監管決定「看得到誰」——兩件事 */
       document.body.classList.toggle('role-child', m.user.role !== 'parent');
       /* ⚠️ 平台管理員沒有財務頁可以看——那不是藏起來，是他真的沒有資料 */
       document.body.classList.toggle('is-admin', !!m.user.isPlatformAdmin);
-      if (m.user.theme && m.user.theme !== currentTheme()) applyTheme(m.user.theme);
+      syncAccountLanguage(m.user);
+      return syncAccountAppearance(m.user);
     });
   }
+
+  function syncAccountLanguage(user) {
+    if (!user || !global.I18n || languageSyncUser === user.id) return;
+    languageSyncUser = user.id;
+    var pending = false;
+    try { pending = localStorage.getItem(LANGUAGE_PENDING) === 'true'; } catch (e) {}
+    if (pending) {
+      API.updateProfile({ language: global.I18n.language() }).then(function () {
+        try { localStorage.removeItem(LANGUAGE_PENDING); } catch (e) {}
+      }).catch(function () { languageSyncUser = ''; });
+    } else if (user.language) global.I18n.setLanguage(user.language, { silent: true });
+  }
+  global.addEventListener('fambudget:languagechange', function (event) {
+    try { localStorage.setItem(LANGUAGE_PENDING, 'true'); } catch (e) {}
+    API.authState().then(function (auth) {
+      if (!auth.loggedIn) return;
+      return API.updateProfile({ language: event.detail.language }).then(function () {
+        try { localStorage.removeItem(LANGUAGE_PENDING); } catch (e) {}
+      });
+    }).catch(function () { toast('語言已套用到此裝置，帳號同步稍後重試', 'err'); });
+  });
+
+  function appearancePrefs() {
+    var p = global.LoginBackground ? global.LoginBackground.getState() : {};
+    return { preset: p.preset, fit: p.fit, x: p.x, y: p.y, brightness: p.brightness, blur: p.blur, overlay: p.overlay };
+  }
+  function pendingAppearance() {
+    try { return localStorage.getItem(APPEARANCE_PENDING) === 'true'; } catch (e) { return false; }
+  }
+  function setPendingAppearance(value) {
+    try { localStorage.setItem(APPEARANCE_PENDING, value ? 'true' : 'false'); } catch (e) {}
+  }
+  function accountAppearanceKey(user) {
+    return String(user.id) + '|' + ((user.appearance && user.appearance.updatedAt) || '') + '|' + (user.appearanceImageUrl ? 'photo' : 'none');
+  }
+  function rememberAccountAppearance(user) {
+    try { localStorage.setItem(APPEARANCE_OWNER, accountAppearanceKey(user)); } catch (e) {}
+  }
+  function syncAccountAppearance(user) {
+    if (!user || appearanceOriginalTheme || pendingAppearance()) return;
+    if (user.theme && user.theme !== currentTheme()) applyTheme(user.theme);
+    if (!global.LoginBackground) return;
+    var key = accountAppearanceKey(user);
+    if (appearanceSyncUser === key) return;
+    appearanceSyncUser = key;
+    return global.LoginBackground.ready().then(function () {
+      if (appearanceSyncUser !== key || appearanceOriginalTheme || pendingAppearance()) {
+        if (appearanceSyncUser === key) appearanceSyncUser = '';
+        return;
+      }
+      var saved = '';
+      try { saved = localStorage.getItem(APPEARANCE_OWNER) || ''; } catch (e) {}
+      global.LoginBackground.importPreferences(user.appearance || {});
+      // A device can contain another account's photo, or an older remote version.
+      // Only retain an original when its account and server revision both match.
+      if (user.appearanceImageUrl && saved === key && global.LoginBackground.getState().hasPhoto) return;
+      return global.LoginBackground.clearPhoto().then(function () {
+        if (appearanceSyncUser !== key) return;
+        if (!user.appearanceImageUrl) { rememberAccountAppearance(user); return; }
+        return API.fetchMedia(user.appearanceImageUrl).then(function (r) { return r.blob(); }).then(function (blob) {
+          if (appearanceSyncUser !== key || appearanceOriginalTheme || pendingAppearance()) return;
+          return global.LoginBackground.importPhoto(blob).then(function () { rememberAccountAppearance(user); });
+        });
+      });
+    }).catch(function () { if (appearanceSyncUser === key) appearanceSyncUser = ''; });
+  }
+  function resizedAppearancePhoto(blob) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(blob), image = new Image();
+      image.onload = function () {
+        var scale = Math.min(1, 1920 / Math.max(image.naturalWidth, image.naturalHeight));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        var ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height); URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/jpeg', .86));
+      };
+      image.onerror = function () { URL.revokeObjectURL(url); reject(new Error('無法讀取背景照片')); };
+      image.src = url;
+    });
+  }
+  function syncLocalAppearanceToAccount() {
+    if (!pendingAppearance() || !API.request) return Promise.resolve();
+    var prefs = appearancePrefs();
+    return API.updateProfile({ theme: currentTheme(), appearance: prefs }).then(function () {
+      var blob = global.LoginBackground && global.LoginBackground.getPhotoBlob();
+      if (prefs.preset === 'custom' && blob) {
+        return resizedAppearancePhoto(blob).then(function (dataUrl) {
+          return API.request('/api/auth/me/appearance-image', { method: 'POST', body: { dataUrl: dataUrl } });
+        });
+      }
+      if (prefs.preset !== 'custom') return API.request('/api/auth/me/appearance-image', { method: 'DELETE' });
+    }).then(function () { return API.me(); }).then(function (account) {
+      rememberAccountAppearance(account.user);
+      appearanceSyncUser = accountAppearanceKey(account.user);
+      if (ME && ME.user && ME.user.id === account.user.id) ME.user = account.user;
+      setPendingAppearance(false);
+    });
+  }
+  function markAppearanceTheme() {
+    document.querySelectorAll('[data-appearance-theme]').forEach(function (button) {
+      var selected = button.dataset.appearanceTheme === appearanceTheme;
+      button.classList.toggle('on', selected); button.setAttribute('aria-pressed', String(selected));
+      var label = button.querySelector('.thm__st'); if (label) label.textContent = selected ? '預覽中' : '預覽';
+    });
+  }
+  function vAppearance() {
+    head('主題與背景', '先瀏覽預覽，滿意後再套用。登入前後使用同一個風格。');
+    appearanceOriginalTheme = currentTheme(); appearanceTheme = appearanceOriginalTheme;
+    appearanceReturn = AUTH_LOGGED_IN ? (ME && ME.user && !ME.user.onboardedAt ? '#/setup' : '#/settings') : '#/login';
+    $view.innerHTML = '<div class="page appearance-page">' +
+      '<div class="settings-intro"><a class="btn btn--sm" href="' + appearanceReturn + '">← 返回</a><h1>找到喜歡的生活風格</h1><p>點選配色與背景，畫面會立即呈現預覽；尚未按套用前，可隨時取消。</p></div>' +
+      '<div class="appearance-layout"><section class="appearance-editor"><div id="appearanceBackground"></div>' +
+      '<section class="card appearance-colors"><div class="sec"><h2>介面配色</h2><div class="thm__nav"><button type="button" data-thm-go="-1" aria-label="往左瀏覽配色">←</button><button type="button" data-thm-go="1" aria-label="往右瀏覽配色">→</button></div></div><p>背景與按鈕配色可以自由搭配。</p><div class="thm__row" id="thmRow">' +
+      themeCards(appearanceTheme).replace(/data-theme-pick=/g, 'data-appearance-theme=').replace(/使用中/g, '預覽中').replace(/套用/g, '預覽') + '</div></section></section>' +
+      '<aside class="appearance-preview card"><div class="preview-label">即時預覽 · Preview</div><h2>你的家庭記帳</h2><p>登入頁、總覽與記帳畫面會延續你選擇的背景。</p>' +
+      '<div class="appearance-preview__balance"><small>本月可再支出</small><strong>NT$ 12,800</strong><span>範例畫面，不影響你的帳目</span></div>' +
+      '<div class="appearance-preview__transaction"><span>☕ 午後咖啡</span><b>− NT$ 65</b></div><div class="appearance-preview__transaction"><span>🛒 日常採買</span><b>− NT$ 480</b></div>' +
+      '<button type="button" class="btn btn--go" disabled>記一筆</button><p class="flow-help">可直接觀察整頁背景，也可捲動瀏覽所有配色。</p></aside></div>' +
+      '<div class="appearance-actions"><button class="btn" type="button" data-appearance-cancel>取消預覽</button><button class="btn btn--go" type="button" data-appearance-apply>套用主題</button><p id="appearanceStatus" role="status"></p></div></div>';
+    if (global.LoginBackground) global.LoginBackground.ready().then(function () {
+      if (/^#\/appearance(?:\/|$)/.test(location.hash)) global.LoginBackground.mount('#appearanceBackground', { preview: true });
+    });
+  }
+  function saveAppearance() {
+    var button = document.querySelector('[data-appearance-apply]');
+    var status = document.getElementById('appearanceStatus');
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    status.textContent = '正在套用主題…';
+    applyTheme(appearanceTheme); setPendingAppearance(true);
+    Promise.resolve(global.LoginBackground ? global.LoginBackground.commit() : null).then(function () {
+      appearanceOriginalTheme = null;
+      return AUTH_LOGGED_IN ? syncLocalAppearanceToAccount() : Promise.resolve();
+    }).then(function () {
+      toast(AUTH_LOGGED_IN ? '主題已套用，登入前後保持同步' : '主題已套用，登入後也會延續這個風格', 'ok');
+      location.hash = appearanceReturn;
+    }).catch(function (error) {
+      // Local appearance remains usable even if the account sync needs a retry.
+      appearanceOriginalTheme = null;
+      status.textContent = '已套用到此裝置，帳號同步未完成：' + (error.message || '請稍後重試');
+      button.disabled = false;
+    });
+  }
+  function vSettings() {
+    head('設定', '讓家庭記帳更符合你的生活方式。');
+    document.body.classList.remove('is-out');
+    $view.innerHTML = '<div class="page"><nav class="settings-grid" aria-label="設定選項">' +
+      '<a class="card settings-link" href="#/profile"><span>👤</span><h2>個人資料與目標</h2><p>更換大頭貼、名字、存款目標、每月預算與登入裝置。</p></a>' +
+      '<a class="card settings-link" href="#/appearance"><span>🎨</span><h2>主題與背景</h2><p>先瀏覽預覽，再套用配色、照片與顯示樣式。</p></a>' +
+      '<a class="card settings-link" href="#/tutorial"><span>🧭</span><h2>使用教學與導覽</h2><p>了解各項功能，隨時重新開啟逐步操作導覽。</p></a>' +
+      '<a class="card settings-link" href="#/memories"><span>🧩</span><h2>記帳小天地</h2><p>設定拼圖照片、目標片數與自己的成就牆。</p></a></nav>' +
+      '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和帳本名稱會保留原文。</p>' + languageSelector() + '</section>' +
+      '<section class="card"><h2>帳號安全</h2><p class="flow-help">可在個人資料檢查登入中的裝置，並登出其他裝置。</p><a class="btn" href="#/profile">管理登入裝置</a> <button class="btn btn--danger" id="logout">登出</button></section></div>';
+  }
+  function vTutorial() {
+    head('使用教學', '從第一筆記帳開始，慢慢建立自己的財務生活。');
+    var topics = [
+      ['開始使用與驗證信箱', '建立帳號後，到你填寫的電子信箱找驗證信，點擊連結並確認。沒收到時先檢查垃圾郵件，再回信箱驗證頁重新寄送；驗證完成後即可登入。'],
+      ['手動記下實際花費', '到「收支明細」選擇手動記帳，填日期、收入或支出、實際金額、分類及帳本，核對後確認。你可加上店家、備註與購物照片，方便日後回想。'],
+      ['用一段話整理多筆', '按「記一筆」，輸入例如「早餐55，午餐120」。解析後請逐筆核對日期、分類與金額，補齊缺漏再確認儲存。畫面會標示目前使用的解析方式。'],
+      ['查看或修正紀錄', '在收支明細可搜尋店家或備註，依收入、支出與記錄者篩選。自己的紀錄可修改或刪除；已結算帳本的紀錄不能變更。照片按鈕可查看當時的購物回憶。'],
+      ['目標、預算與統計', '點總覽的大頭貼進入個人資料，設定每月想存的金額與分類預算。回總覽查看可再支出金額，在統計頁看各分類支出與趨勢。'],
+      ['國際匯率換算', '在匯率換算選擇原幣、目標幣與金額。換算結果會顯示來源與日期；按帶入記帳後，再把金額核對成實際扣款。帳本目前統一以新臺幣彙總。'],
+      ['與家人共享帳本', '到家庭成員建立家庭，產生邀請碼讓家人加入，再建立或分享帳本。只有被授權的帳本與監管關係可查看資料；加入家庭不會自動公開全部私人紀錄。'],
+      ['選擇風格與語言', '到設定的「主題與背景」，瀏覽配色與三種背景，也可選照片或拍照，調整顯示方式與亮度，預覽滿意後按套用。登入頁與登入後會沿用相同背景。設定也能更換語言。'],
+      ['記帳小天地與成就牆', '選一張喜歡的照片作為拼圖，設定片數與每週或每月的節奏。每筆有效記帳收集一片，拼完後才可開始下一張。完成的作品會依年月留在你命名的成就牆。'],
+      ['在手機上使用', '手機瀏覽器可使用相同功能。底部「記一筆」方便新增，照片可選相簿或拍照；背景照片原檔保存在裝置，帳號會同步適合其他裝置顯示的版本。']
+    ];
+    $view.innerHTML = '<div class="page tutorial-page"><div class="settings-intro"><a class="btn btn--sm" href="' + (AUTH_LOGGED_IN ? '#/settings' : '#/login') + '">← 返回</a><h1>一起把生活記清楚</h1><p>第一次使用，可先跟著導覽，再隨時回來查各項操作。</p><button class="btn btn--go" type="button" data-start-tour>開始互動導覽</button></div>' +
+      '<section class="tutorial-topics">' + topics.map(function (item, index) {
+        return '<details class="card tutorial-topic"' + (index === 0 ? ' open' : '') + '><summary><span>' + (index + 1) + '</span>' + item[0] + '</summary><p>' + item[1] + '</p></details>';
+      }).join('') + '</section></div>';
+  }
+  function vMemories() {
+    head('記帳小天地', '一筆一片，收集生活裡的好風景。');
+    if (global.Memories && global.Memories.render) global.Memories.render($view);
+    else $view.innerHTML = '<div class="page"><div class="card">暫時無法載入小天地，請重新整理後再試。</div></div>';
+  }
+  function enhanceMedia() {
+    if (!global.TransactionMedia) return;
+    global.TransactionMedia.mountRecordButtons($view);
+    if (/^#\/entry/.test(location.hash)) global.TransactionMedia.mountEntryHook($view);
+  }
+  // Modules can render after asynchronous API responses without changing app internals.
+  var mediaObserver = new MutationObserver(function () { enhanceMedia(); });
+  mediaObserver.observe($view, { childList: true, subtree: true });
+  global.FamBudgetUI = { navigate: function (route) { location.hash = '#/' + route; }, toast: toast, refresh: paint, head: head };
 
   /* ---------- 路由 ---------- */
   var ROUTES = { '': vHome, entry: vEntry, stats: vStats,
                  advice: vAdvice, members: vMembers,
                  login: vLogin, register: vRegister, profile: vProfile,
                  member: vMember, groups: vGroups, admin: vAdmin,
-                 setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange };
+                 setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange, appearance: vAppearance, settings: vSettings, tutorial: vTutorial, memories: vMemories };
 
   var OPEN = ['login', 'register', 'forgot'];      // 沒登入也能看的頁（登入了就送回總覽）
   /* 登入與否都能開：信裡的重設連結可能在「還登入著」的瀏覽器上點開，不能把人送走 */
-  var ANY = ['reset', 'verify-email'];
+  var ANY = ['reset', 'verify-email', 'appearance', 'tutorial'];
 
   function paint() {
+    var requestedHash = location.hash;
     // #/member/U3/T1051 → ['member', 'U3', 'T1051']
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var page = parts[0];
     API.authState().then(function (a) {
+      if (requestedHash !== location.hash) return;
+      AUTH_LOGGED_IN = a.loggedIn;
       if (ANY.indexOf(page) >= 0) { render(); return; }
       /* 登入閘。沒登入只能待在 login／register／forgot，
          登入了就別再讓他看登入頁。 */
@@ -3617,6 +3851,7 @@
 
          ME 在登出時會清掉，所以這裡不會拿上一個人的身分來判斷。 */
       (ME && ME.user ? Promise.resolve(ME) : API.me()).then(function (m) {
+        if (requestedHash !== location.hash) return;
         ME = m;
         var admin = !!m.user.isPlatformAdmin;
         if (admin && page !== 'admin') { location.hash = '#/admin'; return; }
@@ -3628,6 +3863,7 @@
         return (admin || CATS.length ? Promise.resolve() : loadCats().catch(function () {}))
           .then(render);
       }).catch(function (e) {
+        if (requestedHash !== location.hash) return;
         /* 權杖失效（後端說沒登入）→ 回登入頁；其他錯誤直接講出是哪一支 */
         if (e && e.status === 401) {
           API.logout().then(function () { ME = null; CATS = []; location.hash = '#/login'; paint(); });
@@ -3638,11 +3874,16 @@
       });
 
       function render() {
-        document.body.classList.toggle('login-background-on', page === 'login' || page === 'register');
-        if (global.LoginBackground && page !== 'login' && page !== 'register') global.LoginBackground.unmount();
+        if (requestedHash !== location.hash) return;
+        document.body.classList.add('login-background-on');
+        if (appearanceOriginalTheme && page !== 'appearance') { applyTheme(appearanceOriginalTheme); appearanceOriginalTheme = null; }
+        if (global.LoginBackground) { global.LoginBackground.unmount(); global.LoginBackground.sync(); global.LoginBackground.ready(); }
+        document.body.classList.toggle('is-out', !a.loggedIn);
+        document.body.classList.toggle('public-settings', !a.loggedIn && (page === 'appearance' || page === 'tutorial'));
         /* 勾選模式只屬於收支明細。離開就收掉，不然成員頁的明細也會長出勾選框 */
         if (page !== 'entry') { PICK.on = false; PICK.ids = []; }
         (ROUTES[page] || vHome)(parts[1], parts[2]);
+        enhanceMedia();
         /* 總覽就是儀表板；其他頁面左上角出現「總覽」可以回去 */
         var hb = document.getElementById('homeBtn');
         if (hb) hb.hidden = page === '' || page === 'admin' || OPEN.indexOf(page) >= 0;
@@ -3714,6 +3955,16 @@
       return;
     }
 
+    if (t.closest('[data-appearance-apply]')) { saveAppearance(); return; }
+    if (t.closest('[data-appearance-cancel]')) { location.hash = appearanceReturn; return; }
+    var ap = t.closest('[data-appearance-theme]');
+    if (ap) { appearanceTheme = ap.dataset.appearanceTheme; applyTheme(appearanceTheme, false); markAppearanceTheme(); return; }
+    if (t.closest('[data-start-tour]')) {
+      API.authState().then(function (a) {
+        if (!a.loggedIn) { toast('登入後即可開始操作導覽', 'ok'); location.hash = '#/login'; return; }
+        location.hash = '#/'; setTimeout(tourStart, 450);
+      }); return;
+    }
     var tp = t.closest('[data-theme-pick]');
     if (tp) { chooseTheme(tp.dataset.themePick); return; }
     var tg = t.closest('[data-thm-go]');
@@ -3873,6 +4124,7 @@
       API.logoutAll().then(function () {
         if (global.Notify) { global.Notify.stop(); global.Notify.reset(); }
         ME = null; CATS = [];
+        appearanceSyncUser = ''; languageSyncUser = ''; gateStep = 'login';
         document.body.classList.remove('is-admin', 'role-child');
         document.body.classList.add('is-out');
         location.hash = '#/login';
@@ -3889,6 +4141,8 @@
         /* ⚠️ 身分也要清。不清的話，管理員登出、家長登入的那一瞬間，
            路由閘還拿著管理員的身分，會把家長送去 #/admin。 */
         ME = null;
+        CATS = []; DATA_CATS = {}; CATS_ERR = null;
+        appearanceSyncUser = ''; languageSyncUser = ''; gateStep = 'login';
         document.body.classList.remove('is-admin', 'role-child');
         document.body.classList.add('is-out');
         location.hash = '#/login';
@@ -4550,8 +4804,19 @@
   /* 登入成功之後要做的事都一樣：重畫身分、開通知、回總覽 */
   function afterLogin(d, fresh) {
     ME = null;                      // 同上：路由閘要重新問一次這個人是誰
+    CATS = []; DATA_CATS = {}; CATS_ERR = null;
+    F = { userId: 'all', kind: 'all', source: 'all', q: '' };
+    SCOPE = 'me';
+    batch = null; BATCH_META = null; MANUAL_IMPORT = null;
+    TXSEEN = {}; TXROWS = []; TXGROUPS = [];
+    ADV = []; ADVQ = ''; ADVOPEN = null;
+    FOLD = {}; FOLD_HTML = {};
+    if ($search) $search.value = '';
+    setGroup('all');
+    languageSyncUser = '';
+    appearanceSyncUser = '';
     document.body.classList.remove('is-out');
-    paintWho();
+    syncLocalAppearanceToAccount().then(paintWho).catch(paintWho);
     if (global.Notify) { global.Notify.reset(); global.Notify.start(); }
     location.hash = '#/';
     paint();
@@ -4575,6 +4840,7 @@
     if (f.id === 'loginF') {
       e.preventDefault();
       busy(f, true, '登入中…');
+      if (API.setRememberLogin) API.setRememberLogin(!!document.getElementById('lgRemember').checked);
       API.login({
         email: document.getElementById('lgEmail').value,
         password: document.getElementById('lgPw').value
@@ -4593,6 +4859,7 @@
     if (f.id === 'regF') {
       e.preventDefault();
       busy(f, true, '建立中…');
+      if (API.setRememberLogin) API.setRememberLogin(false);
       API.register({
         name: document.getElementById('rgName').value,
         email: document.getElementById('rgEmail').value,
@@ -4994,10 +5261,14 @@
   if ($mode) $mode.textContent = API.mode === 'http' ? API.base : '瀏覽器內的資料';
   /* 頁尾說清楚資料在哪：沒接後端時，資料只存在這台瀏覽器 */
   var $foot = document.querySelector('.foot > span');
-  if ($foot) $foot.textContent = '家庭記帳 FamBudget　·　' + (API.mode === 'http' ? '已連接後端' : '本機模擬資料');
+  if ($foot) $foot.textContent = '家庭記帳 FamBudget';
   API.authState().then(function (a) {
-    if (a.loggedIn) { paintWho(); paintGroups(); }
-    paint();
+    if (a.loggedIn) {
+      paintGroups();
+      // Load the signed-in account before opening a theme-preview snapshot.
+      (pendingAppearance() ? syncLocalAppearanceToAccount().catch(function () {}) : Promise.resolve())
+        .then(paintWho).catch(function () {}).then(paint);
+    } else paint();
   });
 
   /* 監管通知：輪詢 + 音效 + 鈴鐺。實作在 js/notify.js
@@ -5077,6 +5348,7 @@
     idleClose();
     API.logout().catch(function () {}).then(function () {
       ME = null; CATS = [];
+      appearanceSyncUser = ''; languageSyncUser = ''; gateStep = 'login';
       location.hash = '#/login';
       paint();
       if (why) toast(why, 'err');

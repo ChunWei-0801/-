@@ -5,13 +5,14 @@
 
 import logging
 from datetime import datetime, timedelta, timezone
-from html import escape
 from threading import Lock
+from urllib.parse import urlsplit
 
 from fastapi import HTTPException
 
 from app.toolkit import crud, errors, mailer, password_reset, tokens
 from app.toolkit.config import settings
+from app.services.mail_content import verification_message
 
 GENERIC_MESSAGE = "若此信箱已註冊且尚未驗證，驗證信將送至此信箱。請查看收件匣與垃圾信件匣。"
 DEMO_MESSAGE = "目前為開發展示模式，沒有寄出郵件。請使用下方展示連結完成信箱驗證。"
@@ -24,6 +25,10 @@ _rate_lock = Lock()
 
 def verification_link(token: str) -> str:
     # 共用既有 URL/token 驗證，token 放在 fragment 中，不進伺服器 access log。
+    base = urlsplit(settings.app_base_url.strip())
+    if settings.is_production and (base.scheme != "https" or not base.hostname
+                                  or base.username or base.password or base.fragment or base.query):
+        raise ValueError("正式環境的 APP_BASE_URL 必須是完整 HTTPS 網址")
     return password_reset.reset_link(settings.app_base_url, token).replace("/#/reset/", "/#/verify-email/")
 
 
@@ -42,7 +47,7 @@ def _limit(db, request, action: str, limit: int, window_seconds: int) -> None:
         db.commit()
 
 
-def request_verification(db, request, background, raw_email: str) -> dict:
+def request_verification(db, request, background, raw_email: str, language: str | None = None) -> dict:
     from app.models import EmailVerification, User
     try:
         email = password_reset.normalize_email(raw_email)
@@ -52,6 +57,12 @@ def request_verification(db, request, background, raw_email: str) -> dict:
     mode = settings.email_delivery_mode
     if mode == "unavailable":
         raise errors.service_unavailable("信箱驗證寄信服務尚未設定，請管理者設定寄件服務")
+    try:
+        # Validate configuration before account lookup, so a bad deployment does
+        # not expose whether a requested email is registered.
+        verification_link("x" * 43)
+    except ValueError:
+        raise errors.service_unavailable("信箱驗證網址設定有誤，請管理者設定正式網站的 HTTPS 網址") from None
     answer = {"ok": True, "message": GENERIC_MESSAGE, "delivery": "email"}
     if mode == "demo":
         answer.update(message=DEMO_MESSAGE, delivery="demo")
@@ -68,6 +79,15 @@ def request_verification(db, request, background, raw_email: str) -> dict:
         return answer
     token = password_reset.new_token()
     link = verification_link(token)
+    if mode == "email":
+        subject, text, html = verification_message(user.display_name, link, language or user.language or "zh-TW")
+        try:
+            # Confirm provider acceptance before reporting success or starting a resend cooldown.
+            mailer.send_mail(user.email, subject, text, html, to_name=user.display_name)
+        except (mailer.MailNotConfigured, mailer.MailError, ValueError) as exc:
+            db.rollback()
+            logging.getLogger("fambudget").warning("信箱驗證寄送失敗：%s", exc.__class__.__name__)
+            raise errors.service_unavailable("驗證信暫時無法寄出，請稍後再試或聯絡管理者檢查寄信服務") from None
     # 重新寄發會撤銷舊連結；使用與過期採同一個通用錯誤訊息。
     crud.save(EmailVerification, {"used_at": now}, where={"user_id": user.id, "used_at__isnull": True}, db=db)
     crud.save(EmailVerification, {"user_id": user.id, "token_hash": password_reset.hash_token(token),
@@ -79,18 +99,6 @@ def request_verification(db, request, background, raw_email: str) -> dict:
             raise errors.service_unavailable("正式環境未設定寄信服務")
         answer["demoVerificationUrl"] = link
         return answer
-    recipient, name = user.email, user.display_name
-    subject = "驗證你的家庭記帳信箱"
-    text = f"{name}，請在 {TOKEN_MINUTES} 分鐘內開啟下方連結驗證信箱。連結只能使用一次。\n\n{link}\n\n若不是你申請的，請忽略此信。"
-    html = f'<p>{escape(name)}，請驗證你的家庭記帳信箱：</p><p><a href="{escape(link, quote=True)}">驗證信箱</a></p><p>連結 {TOKEN_MINUTES} 分鐘內有效，只能使用一次。若不是你申請的，請忽略此信。</p>'
-
-    def send():
-        try:
-            mailer.send_mail(recipient, subject, text, html, to_name=name)
-        except (mailer.MailNotConfigured, mailer.MailError, ValueError) as exc:
-            # 不記 email、token、連結、HTTP 回覆或任何憑證。
-            logging.getLogger("fambudget").warning("信箱驗證寄送失敗：%s", exc.__class__.__name__)
-    background.add_task(send)
     return answer
 
 

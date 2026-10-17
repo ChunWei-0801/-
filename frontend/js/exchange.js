@@ -19,19 +19,24 @@
     var known = COMMON_NAMES[code];
     return known || [namesZH ? namesZH.of(code) : code, namesEN ? namesEN.of(code) : code];
   }
-  function label(code) { var n = name(code); return code + ' · ' + n[0] + ' / ' + n[1]; }
+  function label(code) {
+    var n = name(code);
+    if (global.I18n) { var local = global.I18n.currencyName(code); return code + ' · ' + local + (global.I18n.language() === 'en' || local === n[1] ? '' : ' / ' + n[1]); }
+    return code + ' · ' + n[0] + ' / ' + n[1];
+  }
   function timeLabel(value, precision) {
-    if (precision === 'day') return value + '（來源提供日期，未提供精確時間）';
+    if (precision === 'day') return value + ' (' + (global.I18n ? global.I18n.translate('僅提供日期') : '僅提供日期') + ')';
     var date = new Date(value);
-    return isNaN(date.getTime()) ? value : date.toLocaleString('zh-TW', { hour12: false }) + '（本機時間）';
+    return isNaN(date.getTime()) ? value : date.toLocaleString(global.I18n ? global.I18n.language() : 'zh-TW', { hour12: false });
   }
   function displayAmount(value) {
     var parts = String(value).split('.');
+    if (global.I18n) return global.I18n.number(Number(value), { minimumFractionDigits: (parts[1] || '').length, maximumFractionDigits: (parts[1] || '').length });
     return parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (parts.length > 1 ? '.' + parts[1] : '');
   }
   function displayRate(value) {
     // Display rounding never feeds back into the Decimal API or ledger note.
-    return Number(value).toLocaleString('en-US', { maximumSignificantDigits: 10, useGrouping: false });
+    return Number(value).toLocaleString(global.I18n ? global.I18n.language() : 'en-US', { maximumSignificantDigits: 10, useGrouping: false });
   }
   function escape(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
@@ -91,7 +96,7 @@
     function invalidate() { currentQuote = null; $('result').hidden = true; error(''); }
     function fillCurrencies() {
       var query = search.value.trim().toLocaleLowerCase();
-      var filtered = codes.filter(function (code) { return label(code).toLocaleLowerCase().indexOf(query) >= 0; });
+      var filtered = codes.filter(function (code) { var names = name(code); return (label(code) + ' ' + names.join(' ')).toLocaleLowerCase().indexOf(query) >= 0; });
       function fill(select, selected) {
         var shown = filtered.slice();
         if (shown.indexOf(selected) < 0 && codes.indexOf(selected) >= 0) shown.unshift(selected);
@@ -217,6 +222,12 @@
         $('status').textContent = '換算未完成。';
       }).finally(function () { if (alive(id)) setBusy(false); });
     });
+    function languageUpdate() {
+      if (!root.isConnected) { global.removeEventListener('fambudget:languagechange', languageUpdate); return; }
+      if (codes.length) fillCurrencies();
+      if (currentQuote) paintResult(currentQuote);
+    }
+    global.addEventListener('fambudget:languagechange', languageUpdate);
     loadRates(false);
     return root;
   }
