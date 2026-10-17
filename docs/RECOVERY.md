@@ -54,7 +54,9 @@ Codex 環境 UI 顯示部分儲存／發布失敗，但部分秘密設定已生�
 
 目前 Render 的 owners/users/postgres/blueprints API 被 Cloudflare 阻擋（HTTP 403），無法從本執行環境列出 workspace 或直接建立資料庫；沒有更動原環境或嘗試規避安全檢查。已準備官方 Blueprint 部署入口，使用獨立日期命名的免費服務與免費資料庫，啟動自動遷移、初始化分類，不建立示範帳號。
 
-[在 Render 建立免費復原測試站](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FChunWei-0801%2F-%2Ftree%2Frecovery%2Fhousehold-20261017)
+[Render 官方 Blueprint 儲存庫選擇頁](https://dashboard.render.com/select-repo?type=iac)
+
+快捷部署網址被 Render 解析成錯誤的 `ChunWei-0801/tree`，因此改用官方手動清單：先連接 GitHub 並授權 `ChunWei-0801/-`，選該儲存庫按 Connect，在下一頁獨立選 Branch `recovery/household-20261017`、Blueprint Path `render.yaml`。正確的公開儲存庫及修復分支已透過 GitHub API 與 git ls-remote 核對存在；不要將錯誤 404 當作原始碼遺失，也不需重建金鑰。
 
 建立時只需填寫兩個 runtime 值：BREVO_API_KEY（真實完整金鑰）及 MAIL_FROM（Brevo 已驗證寄件信箱）。JWT 由 Render 產生、資料庫自動連接、APP_BASE_URL 未指定時自動採 Render 官方 RENDER_EXTERNAL_URL，不需先猜部署網址。
 
