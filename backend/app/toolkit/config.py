@@ -34,6 +34,8 @@ pydantic-settings 的做法是：把所有設定寫成一個類別的欄位，
 ⚠️ 前端要連哪個後端，不在這裡：改 `frontend/index.html` 的 `<meta name="api-base">`。
 """
 
+import os
+
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -101,8 +103,10 @@ class Settings(BaseSettings):
     mail_from: str = Field(default="", description="寄件信箱。一定要先在 Brevo 的 Senders 驗證過，不然信會被拒絕。")
     mail_from_name: str = Field(default="家庭記帳", description="收件人看到的寄件人名稱。")
     app_base_url: str = Field(
-        default="http://localhost:5174",
-        description="前端網址。重設密碼信裡的連結會長成 <這個網址>/#/reset/<token>。本機改成 http://localhost:5174。",
+        # Render supplies its canonical public URL in the process environment.
+        # Never derive verification links from client-controlled Host headers.
+        default_factory=lambda: os.environ.get("RENDER_EXTERNAL_URL", "").strip() or "http://localhost:5174",
+        description="前端網址；APP_BASE_URL 優先，未設定時使用 Render 的 RENDER_EXTERNAL_URL，本機預設 http://localhost:5174。",
     )
     require_email_verification: bool | None = Field(
         default=None,

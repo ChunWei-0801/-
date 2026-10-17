@@ -45,3 +45,19 @@
 截至本紀錄，未建立正式服務、未取得正式可測試網址、未寄出正式驗證信。Render API 回覆 401、Brevo API 回覆 401 Key not found；尚無法讀取正式資料庫或服務現況。工作環境已提供安全變數，但服務仍拒絕其授權，需要使用者在安全設定更新。沒有用開發展示驗證網址或靜態展示網站替代。
 
 正式驗收需在實際部署完成後，確認 HTTPS 首頁、readyz、未驗證帳號不能登入、信件實際送達並能使用一次、登入後記帳與照片在重新登入後保留，再對正式資料庫做私有備份及隔離還原。免費資源的期限、休眠與備份保存規則以 Render 當時方案為準；本次尚未建立或收費任何資源。
+
+## 後續實測更新：寄信已實收、改用官方部署頁
+
+2026-10-17 臺灣時間 22:32，更新後 Render 金鑰成功讀取服務列表（HTTP 200），Brevo 正式寄送測試信回覆 HTTP 201，事件回報 delivered；使用者已確認收件匣收到實際郵件。這是寄信連線實測，不冒充已部署網站的完整驗證連結流程。Brevo 受限金鑰的帳號設定讀取為 403，不代表寄信被拒絕，實際 Transactional email 已成功。
+
+Codex 環境 UI 顯示部分儲存／發布失敗，但部分秘密設定已生效，不能一概認定全部金鑰未保存。畫面另有 MAILFORM／MAIL_FROM 名稱不一致；正式寄件地址可直接填在新 Render 服務的 MAIL_FROM，不必先修復 Codex 的同名參數才能部署。
+
+目前 Render 的 owners/users/postgres/blueprints API 被 Cloudflare 阻擋（HTTP 403），無法從本執行環境列出 workspace 或直接建立資料庫；沒有更動原環境或嘗試規避安全檢查。已準備官方 Blueprint 部署入口，使用獨立日期命名的免費服務與免費資料庫，啟動自動遷移、初始化分類，不建立示範帳號。
+
+[在 Render 建立免費復原測試站](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FChunWei-0801%2F-%2Ftree%2Frecovery%2Fhousehold-20261017)
+
+建立時只需填寫兩個 runtime 值：BREVO_API_KEY（真實完整金鑰）及 MAIL_FROM（Brevo 已驗證寄件信箱）。JWT 由 Render 產生、資料庫自動連接、APP_BASE_URL 未指定時自動採 Render 官方 RENDER_EXTERNAL_URL，不需先猜部署網址。
+
+目前安全環境僅提供限指定服務使用的秘密代理值，無匯出實際秘密的工具；不可將代理佔位值誤存為 Render 的應用程式密鑰。因此完整 Brevo 金鑰需在 Render 官方部署表單直接填寫。相關官方設定：[Render 環境變數](https://render.com/docs/configure-environment-variables)。
+
+免費 Render PostgreSQL 目前每個 workspace 限一個、容量 1GB、30 天到期，未升級時寬限 14 天後刪除，且無平台自動備份；本次先供免費驗收，長期資料保存仍需在期限內另安排持續方案與私有備份。若免費額度已被占用，保留原資料庫並停止，不自動升級或刪除舊資源。[官方免費限制](https://render.com/docs/free)

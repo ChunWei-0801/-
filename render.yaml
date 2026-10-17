@@ -3,14 +3,14 @@
 # 在自己的 Render 帳號選 ChunWei-0801/- 建立 Blueprint；保存檔案不等於部署。
 # 服務名稱可能被其他使用者占用，可在建立前改名。前端不依賴固定子網域。
 databases:
-  - name: fambudget-recovery-db
+  - name: fambudget-recovery-db-20261017
     plan: free
     databaseName: fambudget
     user: fambudget
 
 services:
   - type: web
-    name: fambudget-recovery
+    name: fambudget-recovery-20261017
     runtime: python
     branch: recovery/household-20261017
     autoDeployTrigger: "off"
@@ -27,21 +27,17 @@ services:
         value: "true"
       - key: DATABASE_URL
         fromDatabase:
-          name: fambudget-recovery-db
+          name: fambudget-recovery-db-20261017
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
-      # 填自己的正式網址；正式信箱驗證需同時設定寄件服務。
-      - key: APP_BASE_URL
-        sync: false
+      # 正式驗證連結自動使用 Render 的 RENDER_EXTERNAL_URL；不需要預先猜網址。
       # 同源前端不需要跨域。另部署前端時才填該前端的完整 origin。
       - key: ALLOWED_ORIGINS
         value: ""
       # 模型未設定時前端明確標示規則備援，沒有微調模型或假資料。
       - key: MODEL_BASE_URL
         value: ""
-      - key: MODEL_API_KEY
-        sync: false
       - key: BREVO_API_KEY
         sync: false
       - key: MAIL_FROM
