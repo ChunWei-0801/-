@@ -22,6 +22,7 @@ from app.guards import block_admin, visible_scope
 from app.models import Advice, Category, Guardianship, SavingsGoal, User
 from app.schemas.advice import AdviceItem, GenerateIn
 from app.services import analytics
+from app.models.lifestyle import LifestylePreferences
 from app.services.llm import advice, client
 from app.toolkit import crud, errors, money, period, profile
 from app.toolkit.config import settings
@@ -112,6 +113,7 @@ def list_advices(me: User, scope: str | None = None, db: Session = Depends(get_d
             from app.routers._stub import not_ready, stub
             from app.schemas.advice import AdviceItem, GenerateIn
             from app.services import analytics
+            from app.models.lifestyle import LifestylePreferences
             from app.services.llm import advice, client
             from app.toolkit import crud, errors, money, period, profile
             from app.toolkit.config import settings
@@ -297,6 +299,7 @@ def generate_advices(body: GenerateIn, me: User, db: Session = Depends(get_db)):
             from app.routers._stub import not_ready, stub
             from app.schemas.advice import AdviceItem, GenerateIn
             from app.services import analytics
+            from app.models.lifestyle import LifestylePreferences
             from app.services.llm import advice, client
             from app.toolkit import crud, errors, money, period, profile
             from app.toolkit.config import settings
@@ -478,7 +481,9 @@ def generate_advices(body: GenerateIn, me: User, db: Session = Depends(get_db)):
     # 3. 使用者自己填的理財習慣：只當背景，標示成「資料，不是指令」
     finance = {"style": me.finance_style, "goals": me.finance_goals or [],
                "habits": me.finance_habits or [], "note": me.finance_note or ""}
-    block = profile.to_prompt_block(finance, catalog.FINANCE_STYLES, catalog.FINANCE_GOALS, catalog.FINANCE_HABITS)
+    preferences = db.get(LifestylePreferences, me.id)
+    block = profile.to_prompt_block(finance, catalog.FINANCE_STYLES, catalog.FINANCE_GOALS, catalog.FINANCE_HABITS,
+                                    preferences.custom_habits if preferences else ())
 
     # 4. 叫模型寫成句子；沒設定、叫不動、還沒做好都回 503（前端會用同一批數字頂著）
     try:

@@ -1,5 +1,5 @@
-// Record the real JSON/multipart/binary adapters used by app.js, media.js and
-// memories.js. These endpoints have no browser-only mock implementation.
+// Record the real JSON/multipart/binary adapters used by app.js, media.js,
+// memories.js and life-features.js. These endpoints have no mock fallback.
 // Explicit scenarios must cover every supplemental API.mediaRoutes entry.
 const assert = require('node:assert/strict');
 const path = require('node:path');
@@ -50,8 +50,10 @@ global.fetch = async (url, options = {}) => {
 require(path.join(root, 'frontend/js/data.js'));
 require(path.join(root, 'frontend/js/api.js'));
 require(path.join(root, 'frontend/js/media.js'));
+require(path.join(root, 'frontend/js/life-features.js'));
 const API = window.API;
 const media = window.MediaTools;
+const life = window.LifeAPI;
 const out = {};
 let imageBlob;
 const createObjectURL = URL.createObjectURL.bind(URL);
@@ -65,8 +67,8 @@ async function record(route, call) {
   assert.equal(requests.length, 1, 'Each media scenario must send exactly its own request: ' + route);
   out[route] = [{fn:declarations[0][0], adapter:'media', request:requests[0], response}];
 }
-async function image(url) {
-  const objectURL = await media.imageURL(url);
+async function image(url, bridge = media.imageURL) {
+  const objectURL = await bridge(url);
   // The browser consumes a private response Blob, rather than a public URL.
   assert.ok(objectURL.startsWith('blob:'));
   assert.ok(imageBlob instanceof Blob);
@@ -95,6 +97,31 @@ async function image(url) {
   await record('PUT /api/memories/wall-background', () => media.json('/api/memories/wall-background', {method:'PUT', body:multipart()}));
   await record('DELETE /api/memories/wall-background', () => media.json('/api/memories/wall-background', {method:'DELETE'}));
   await record('GET /api/memories/wall-background/image', () => image('/api/memories/wall-background/image'));
+  await record('GET /api/lifestyle/preferences', () => life.request('GET', '/preferences'));
+  await record('PUT /api/lifestyle/preferences', () => life.request('PUT', '/preferences', {
+    birthDate:'1990-10-18', timezone:'Asia/Taipei', smokingEnabled:true, calculatorEnabled:true,
+    shortcuts:[{id:'health',visible:true},{id:'smoking',visible:false},{id:'savings-game',visible:true}],
+    customHabits:[{id:'custom-weekly-coins',name:'每週存零錢'}], hiddenHabitIds:['rent']
+  }));
+  await record('GET /api/lifestyle/birthdays', () => life.request('GET', '/birthdays?date=2026-10-18'));
+  await record('GET /api/lifestyle/health', () => life.request('GET', '/health?year=2026&month=10'));
+  // The date belongs to the route; daily measurement and smoking forms do not duplicate it in JSON.
+  await record('PUT /api/lifestyle/health/{entry_date}', () => life.request('PUT', '/health/2026-10-18',
+    {heightCm:170.5,weightKg:65.25}));
+  await record('DELETE /api/lifestyle/health/{entry_date}', () => life.request('DELETE', '/health/2026-10-18'));
+  await record('GET /api/lifestyle/smoking/settings', () => life.request('GET', '/smoking/settings'));
+  await record('PUT /api/lifestyle/smoking/settings', () => life.request('PUT', '/smoking/settings', {monthlyLimit:20}));
+  await record('GET /api/lifestyle/smoking', () => life.request('GET', '/smoking?month=2026-10'));
+  await record('PUT /api/lifestyle/smoking/{entry_date}', () => life.request('PUT', '/smoking/2026-10-18',
+    {boughtPacks:2,smokedPacks:1}));
+  await record('GET /api/lifestyle/jar', () => life.request('GET', '/jar'));
+  await record('PUT /api/lifestyle/jar', () => life.request('PUT', '/jar',
+    {name:'旅行小恐龍',targetAmount:10000,savedAmount:1250.5,shape:'photo'}));
+  // Server-provided full image paths must use the same authenticated binary bridge as suffixes.
+  await record('GET /api/lifestyle/jar/image', () => image('/api/lifestyle/jar/image', life.imageURL));
+  await record('PUT /api/lifestyle/jar/image', () => life.request('PUT', '/jar/image',
+    {image:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6xkAAAAASUVORK5CYII='}));
+  await record('DELETE /api/lifestyle/jar/image', () => life.request('DELETE', '/jar/image'));
   assert.deepEqual(Object.keys(out).sort(), Object.values(API.mediaRoutes).map(entry => entry[0]).sort(),
     'Every supplemental route needs an explicit request scenario');
   process.stdout.write(JSON.stringify({sent:out, auth}));

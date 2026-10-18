@@ -11,8 +11,9 @@
 from __future__ import annotations
 
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.schemas.appearance import AppearancePreferences, Language
+from app.schemas.lifestyle import CalendarDate, CustomHabit, HabitId, PreferencesPatch
 
 
 class RegisterIn(BaseModel):
@@ -72,6 +73,7 @@ class ProfilePatchIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     displayName: str | None = None
     birthYear: int | None = None
+    birthDate: CalendarDate | None = None
     theme: str | None = None
     appearance: AppearancePreferences | None = None
     language: Language | None = None
@@ -88,6 +90,17 @@ class FinanceIn(BaseModel):
     goals: list[str] = []
     habits: list[str] = []
     note: str = ""
+    customHabits: list[CustomHabit] | None = Field(default=None, max_length=100)
+    hiddenHabitIds: list[HabitId] | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def validate_habit_preferences(self):
+        # Share duplicate-ID and explicit-null rules with the settings API.
+        PreferencesPatch.model_validate({
+            field: getattr(self, field)
+            for field in ("customHabits", "hiddenHabitIds") if field in self.model_fields_set
+        })
+        return self
 
 
 class SuspendIn(BaseModel):

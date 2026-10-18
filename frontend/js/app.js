@@ -454,7 +454,10 @@
     profile: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1.5A5.5 5.5 0 0 1 10.5 13h3a5.5 5.5 0 0 1 5.5 5.5V20"/>',
     guide: '<path d="M12 6.5S10 5 7 5H4v13h3c3 0 5 1.5 5 1.5S14 18 17 18h3V5h-3c-3 0-5 1.5-5 1.5z"/><path d="M12 6.5v13"/>',
     theme: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',
-    out: '<path d="M14 4h5v16h-5"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>'
+    out: '<path d="M14 4h5v16h-5"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
+    goal: '<path d="M4 9h16v11H4zM8 5h8M12 2v3M9 13h6"/><circle cx="12" cy="16" r="2"/>',
+    lungs: '<path d="M12 3v8M12 7c-2-5-6-3-8 4-2 7 0 10 4 8l4-3 4 3c4 2 6-1 4-8-2-7-6-9-8-4"/>',
+    calculator: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 10h1m6 0h1M8 14h1m6 0h1M8 18h1m6 0h1"/>'
   };
 
   /* 常用功能：原本側欄的東西都在這裡。
@@ -486,7 +489,8 @@
       { href: '#/appearance', label: '主題與背景', icon: 'theme' },
       { id: 'logout', label: '登出', icon: 'out', tone: 'out' }
     ];
-    return '<section class="qk"><div class="qk__h"><h2 class="qk__t">常用功能</h2></div>' +
+    if (global.LifeFeatures) tiles = global.LifeFeatures.orderTiles(tiles);
+    return '<section class="qk"><div class="qk__h"><h2 class="qk__t">常用功能</h2><button class="btn btn--sm" type="button" data-life-shortcuts>調整常用</button></div>' +
       '<nav class="dgrid" aria-label="功能">' + tiles.filter(Boolean).map(tile).join('') + '</nav></section>';
   }
 
@@ -647,6 +651,7 @@
           : todayCard(today, fam);
 
         $view.innerHTML = h + '</div>';
+        if (global.Wellness) global.Wellness.celebrate($view.querySelector('.page'));
         animate();
 
         /* 有人邀請你、或是你還沒有家庭，放在最上面——這是現在唯一要你決定的事。
@@ -1040,10 +1045,10 @@
               esc(x.id) + '"' + picked(x.id, 'goals') + '><b>' + esc(x.name) + '</b></label>';
           }).join('') + '</div></div>' +
 
-        '<div class="finf__g"><span class="finf__k">固定的財務安排</span>' +
+        '<div class="finf__g"><span class="finf__k">固定的財務安排</span><button class="btn btn--sm" type="button" data-life-habits>新增或移除習慣</button>' +
           '<div class="finf__o finf__o--row">' + d.habits.map(function (x) {
             return '<label class="pick pick--sm"><input type="checkbox" name="finHabit" value="' +
-              esc(x.id) + '"' + picked(x.id, 'habits') + '><b>' + esc(x.name) + '</b></label>';
+              esc(x.id) + '"' + picked(x.id, 'habits') + '><b' + (x.id.indexOf('custom-') === 0 ? ' data-i18n-skip' : '') + '>' + esc(x.name) + '</b></label>';
           }).join('') + '</div></div>' +
 
         '<label class="fld"><span>還有什麼是我們該知道的（選填，200 字）</span>' +
@@ -1553,6 +1558,7 @@
         '<div class="card">' + (d.byCat.length ? donut(d.byCat, d.expense) : emptyState('這個月還沒有支出', '')) + '</div>';
 
       $view.innerHTML = h + '</div>';
+      if (global.LifeFeatures) global.LifeFeatures.enhanceStats($view, rows);
     }
   }
 
@@ -3355,9 +3361,6 @@
             '<form class="grid-form" id="profF">' +
               '<label class="fld"><span>名字</span>' +
                 '<input type="text" id="pfName" value="' + esc(u.name) + '" required></label>' +
-              '<label class="fld"><span>出生年份</span>' +
-                '<input type="number" id="pfYear" min="1900" max="' + new Date().getFullYear() + '" ' +
-                  'value="' + (u.birthYear || '') + '" placeholder="例如 1974"></label>' +
               '<label class="fld fld--wide"><span>Email</span>' +
                 '<input type="email" value="' + esc(u.email || '') + '" disabled></label>' +
               '<div class="form__act"><button class="btn btn--go btn--sm" type="submit">儲存</button></div>' +
@@ -3385,6 +3388,7 @@
               '<input type="number" min="0" inputmode="numeric" data-goal="' + esc(u.id) + '" ' +
                 'value="' + (u.savingsGoal || 0) + '" aria-label="每月存款目標"></label>' +
             '<div class="plan__h">只有你自己能設定。改完離開欄位就會存好</div>' +
+            '<a class="btn btn--go" href="#/savings-game">打開我的存錢筒 →</a>' +
           '</div>' +
           '<div class="card card--flush" id="alertBox">' + skeleton(2) + '</div>' +
           foldHead('bud', '每月預算', '設定') +
@@ -3395,6 +3399,7 @@
       '<section class="card settings-shortcuts"><h2>更多設定</h2><a href="#/appearance">主題與背景 →</a><a href="#/settings">帳號與系統設定 →</a><a href="#/tutorial">使用教學與導覽 →</a></section>' +
       '</div>';
       $view.innerHTML = h;
+      if (global.Wellness) global.Wellness.mountProfile($view.querySelector('.duo__c'), global.LifeFeatures && global.LifeFeatures.prefs());
       foldRestore();
       paintAlerts();
       paintSessions();
@@ -3779,6 +3784,7 @@
       '<a class="card settings-link" href="#/memories"><span>🧩</span><h2>記帳小天地</h2><p>設定拼圖照片、目標片數與自己的成就牆。</p></a></nav>' +
       '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和帳本名稱會保留原文。</p>' + languageSelector() + '</section>' +
       '<section class="card"><h2>帳號安全</h2><p class="flow-help">可在個人資料檢查登入中的裝置，並登出其他裝置。</p><a class="btn" href="#/profile">管理登入裝置</a> <button class="btn btn--danger" id="logout">登出</button></section></div>';
+    if (global.LifeFeatures) global.LifeFeatures.mountSettings($view);
   }
   function vTutorial() {
     head('使用教學', '從第一筆記帳開始，慢慢建立自己的財務生活。');
@@ -3813,13 +3819,20 @@
   var mediaObserver = new MutationObserver(function () { enhanceMedia(); });
   mediaObserver.observe($view, { childList: true, subtree: true });
   global.FamBudgetUI = { navigate: function (route) { location.hash = '#/' + route; }, toast: toast, refresh: paint, head: head };
+  function vLifePage(moduleName, title) {
+    head(title, ''); $view.innerHTML = '<div class="page life-feature-slot"></div>';
+    var mod = global[moduleName];
+    if (!mod) { $view.firstChild.textContent = '頁面正在更新，請重新整理。'; return; }
+    mod.mount($view.firstChild, ME && ME.user);
+  }
 
   /* ---------- 路由 ---------- */
   var ROUTES = { '': vHome, entry: vEntry, stats: vStats,
-                 advice: vAdvice, members: vMembers,
+               ice: vAdvice, members: vMembers,
                  login: vLogin, register: vRegister, profile: vProfile,
                  member: vMember, groups: vGroups, admin: vAdmin,
-                 setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange, appearance: vAppearance, settings: vSettings, tutorial: vTutorial, memories: vMemories };
+                 setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange, appearance: vAppearance, settings: vSettings, tutorial: vTutorial, memories: vMemories,
+                 'savings-game': function(){vLifePage('SavingsGame','我的存錢筒');}, health:function(){vLifePage('Wellness','身體紀錄與 BMI');}, smoking:function(){vLifePage('SmokingTracker','抽菸紀錄');}, reports:function(){vLifePage('FinancialReports','我的日／月／年報表');} };
 
   var OPEN = ['login', 'register', 'forgot'];      // 沒登入也能看的頁（登入了就送回總覽）
   /* 登入與否都能開：信裡的重設連結可能在「還登入著」的瀏覽器上點開，不能把人送走 */
@@ -3860,7 +3873,8 @@
         if (!admin && !m.user.onboardedAt && page !== 'setup') { location.hash = '#/setup'; return; }
         /* 分類（含家庭自訂）先拿到，記帳、統計的下拉才完整。
            ⚠️ 拿不到就照實空著——用到分類的地方會自己顯示是哪一支還沒做。 */
-        return (admin || CATS.length ? Promise.resolve() : loadCats().catch(function () {}))
+        return (global.LifeFeatures ? global.LifeFeatures.setAccount(m.user) : Promise.resolve())
+          .then(function(){return admin || CATS.length ? Promise.resolve() : loadCats().catch(function () {});})
           .then(render);
       }).catch(function (e) {
         if (requestedHash !== location.hash) return;
@@ -3875,6 +3889,7 @@
 
       function render() {
         if (requestedHash !== location.hash) return;
+        if (global.LifeFeatures) global.LifeFeatures.beforeRoute(a.loggedIn);
         document.body.classList.add('login-background-on');
         if (appearanceOriginalTheme && page !== 'appearance') { applyTheme(appearanceOriginalTheme); appearanceOriginalTheme = null; }
         if (global.LoginBackground) { global.LoginBackground.unmount(); global.LoginBackground.sync(); global.LoginBackground.ready(); }
@@ -5088,11 +5103,9 @@
 
     if (f.id === 'profF') {
       e.preventDefault();
-      var y = document.getElementById('pfYear').value;
       busy(f, true, '儲存中…');
       API.updateProfile({
-        displayName: document.getElementById('pfName').value,
-        birthYear: y === '' ? null : Number(y)
+        displayName: document.getElementById('pfName').value
       }).then(function () {
         busy(f, false);
         paintWho();

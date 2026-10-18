@@ -24,3 +24,8 @@ __all__ = ["User", "UserSession", "PasswordReset", "EmailVerification", "Family"
 TABLES = {"users": User, "sessions": UserSession, "password_resets": PasswordReset, "email_verifications": EmailVerification, "families": Family, "family_members": FamilyMember, "family_invites": FamilyInvite, "guardianships": Guardianship, "allowances": Allowance, "notifications": Notification, "audit_logs": AuditLog, "categories": Category, "accounts": Account, "transactions": Transaction, "nlp_parses": NlpParse, "groups": Group, "group_members": GroupMember, "budgets": Budget, "savings_goals": SavingsGoal, "alert_rules": AlertRule, "advices": Advice}
 __all__ += ["TransactionPhoto", "PuzzleSettings", "PuzzleGame", "PuzzleEarning"]
 TABLES.update({"transaction_photos": TransactionPhoto, "puzzle_settings": PuzzleSettings, "puzzle_games": PuzzleGame, "puzzle_earnings": PuzzleEarning})
+
+from app.models.lifestyle import LifestylePreferences, HealthEntry, SmokingSettings, SmokingEntry, SavingsJar  # noqa: F401, E402
+
+__all__ += ["LifestylePreferences", "HealthEntry", "SmokingSettings", "SmokingEntry", "SavingsJar"]
+TABLES.update({"lifestyle_preferences": LifestylePreferences, "health_entries": HealthEntry, "smoking_settings": SmokingSettings, "smoking_entries": SmokingEntry, "savings_jars": SavingsJar})

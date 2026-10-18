@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 89 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 104 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>89 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>104 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">89 ROUTES · 4 MODULES</div>
+    <div class="mono">104 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -467,6 +467,21 @@
     { n: 93, o: 'm2', m: 'PUT', p: '/api/memories/wall-background', a: '本人', d: "設定成就牆背景照片", note: "multipart file；可自由更換自己的成就牆背景，不改既有拼圖快照。", body: "multipart/form-data: file", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
     { n: 94, o: 'm2', m: 'DELETE', p: '/api/memories/wall-background', a: '本人', d: "移除成就牆背景照片", note: "清除牆面背景，不刪除已完成成就。", res: "實際回應欄位請見同站 /openapi.json 與 /docs；此頁不提供虛構帳務資料。" },
     { n: 95, o: 'm2', m: 'GET', p: '/api/memories/wall-background/image', a: '本人', d: "自己的成就牆背景", note: "Private JPEG bytes；無背景時404，沒有公開圖片網址。", res: "圖片bytes（JPEG）" },
+    { n: 96, o: 'm1', m: 'GET', p: '/api/lifestyle/preferences', a: '本人', d: "我的生活偏好", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 97, o: 'm1', m: 'PUT', p: '/api/lifestyle/preferences', a: '本人', d: "更新我的生活偏好", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 98, o: 'm1', m: 'GET', p: '/api/lifestyle/birthdays', a: '本人', d: "今日家人生日", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 99, o: 'm1', m: 'GET', p: '/api/lifestyle/health', a: '本人', d: "我的身高體重紀錄", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 100, o: 'm1', m: 'PUT', p: '/api/lifestyle/health/{entry_date}', a: '本人', d: "保存當日身高體重", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 101, o: 'm1', m: 'DELETE', p: '/api/lifestyle/health/{entry_date}', a: '本人', d: "移除自己的當日測量", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 102, o: 'm1', m: 'GET', p: '/api/lifestyle/smoking/settings', a: '本人', d: "我的每月吸菸上限", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 103, o: 'm1', m: 'PUT', p: '/api/lifestyle/smoking/settings', a: '本人', d: "設定每月吸菸上限", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 104, o: 'm1', m: 'GET', p: '/api/lifestyle/smoking', a: '本人', d: "我的每月買菸與吸菸紀錄", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 105, o: 'm1', m: 'PUT', p: '/api/lifestyle/smoking/{entry_date}', a: '本人', d: "保存當日買菸與吸菸包數", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 106, o: 'm1', m: 'GET', p: '/api/lifestyle/jar', a: '本人', d: "我的存錢筒", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 107, o: 'm1', m: 'PUT', p: '/api/lifestyle/jar', a: '本人', d: "更新存錢筒名稱外型與金額", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 108, o: 'm1', m: 'PUT', p: '/api/lifestyle/jar/image', a: '本人', d: "儲存私人存錢筒照片", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 109, o: 'm1', m: 'GET', p: '/api/lifestyle/jar/image', a: '本人', d: "讀取自己的存錢筒照片", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 110, o: 'm1', m: 'DELETE', p: '/api/lifestyle/jar/image', a: '本人', d: "移除自己的存錢筒照片", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
     { n: 66, o: 'sys', m: 'GET', p: '/healthz', a: '公開',
       d: '健康檢查（Render 用）' },
     { n: 67, o: 'sys', m: 'GET', p: '/docs', a: '公開',

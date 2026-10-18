@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app import catalog
 from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
 from app.guards import guest_only, login_required, token_required, visible_scope
 from app.models import (
     AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -131,6 +132,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -277,6 +279,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
             "emailVerified": False, "role": None, "familyId": None,
             "theme": user.theme or "paper", "onboardedAt": None,
             **_appearance_fields(user),
+            **birthday_fields(user, db),
         }}
 
     # 5. 註冊完直接登入：寫一列 sessions（只存 refresh token 的指紋）
@@ -311,6 +314,7 @@ def register(body: RegisterIn, request: Request, db: Session = Depends(get_db)):
             "joined": user.created_at.date().isoformat(),
             "theme": "paper",
             **_appearance_fields(user),
+            **birthday_fields(user, db),
             "onboardedAt": None,
             "savingsGoal": 0,
             "isPlatformAdmin": False,
@@ -399,6 +403,7 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -552,6 +557,7 @@ def login(body: LoginIn, request: Request, db: Session = Depends(get_db)):
             "joined": user.created_at.date().isoformat(),
             "theme": user.theme or "paper",
             **_appearance_fields(user),
+            **birthday_fields(user, db),
             "onboardedAt": onboarded.isoformat() if onboarded else None,
             "savingsGoal": goal or 0,
             "isPlatformAdmin": user.is_platform_admin,
@@ -629,6 +635,7 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -810,6 +817,7 @@ def logout(
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -921,6 +929,7 @@ def logout_all(me: User, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1042,6 +1051,7 @@ def get_me(me: User, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1157,6 +1167,7 @@ def get_me(me: User, db: Session = Depends(get_db)):
             "joined": me.created_at.date().isoformat(),
             "theme": me.theme or "paper",
             **_appearance_fields(me),
+        **birthday_fields(me, db),
             "onboardedAt": onboarded.isoformat() if onboarded else None,
             "savingsGoal": goal or 0,
             "isPlatformAdmin": me.is_platform_admin,
@@ -1252,6 +1263,7 @@ def update_me(body: ProfilePatchIn, me: User, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1361,6 +1373,8 @@ def update_me(body: ProfilePatchIn, me: User, db: Session = Depends(get_db)):
             raise errors.unprocessable("出生年份不合理")
         changes["birth_year"] = body.birthYear
 
+    changes.update(profile_birthday_change(me, body, db))
+
     # 3. 主題只收清單裡的
     if "theme" in sent:
         try:
@@ -1409,6 +1423,7 @@ def update_me(body: ProfilePatchIn, me: User, db: Session = Depends(get_db)):
         "joined": me.created_at.date().isoformat(),
         "theme": me.theme or "paper",
         **_appearance_fields(me),
+        **birthday_fields(me, db),
         "onboardedAt": onboarded.isoformat() if onboarded else None,
         "savingsGoal": goal or 0,
         "isPlatformAdmin": me.is_platform_admin,
@@ -1494,6 +1509,7 @@ def change_password(
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1652,6 +1668,7 @@ def request_password_reset(body: PasswordResetIn, background: BackgroundTasks, d
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1827,6 +1844,7 @@ def confirm_password_reset(
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -1971,6 +1989,7 @@ def get_finance(me: User, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2024,12 +2043,18 @@ def get_finance(me: User, db: Session = Depends(get_db)):
             "note": me.finance_note or "",
         }
 
+    preferences = preferences_for(db, me.id)
+    db.commit()
+
     # 2. 連同三份選項清單一起回
     return {
         "finance": finance,
         "styles": catalog.FINANCE_STYLES,
         "goals": catalog.FINANCE_GOALS,
-        "habits": catalog.FINANCE_HABITS,
+        "habits": habit_options(preferences),
+        "allHabits": habit_options(preferences, include_hidden=True),
+        "customHabits": preferences.custom_habits or [],
+        "hiddenHabitIds": preferences.hidden_habit_ids or [],
     }
 
 
@@ -2104,6 +2129,7 @@ def set_finance(body: FinanceIn, me: User, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2149,12 +2175,17 @@ def set_finance(body: FinanceIn, me: User, db: Session = Depends(get_db)):
         6. 前端改成連你的後端（frontend/index.html 的 api-base），個人化設定第二步勾幾個選項，個人資料頁看得到
         7. 自動檢查：在 backend/ 底下跑 pytest tests/routes -k "set_finance and 你的"，要全部通過
     """
+    preferences = preferences_for(db, me.id)
+    preference_fields = body.model_dump(exclude_unset=True, mode="json")
+    if {"customHabits", "hiddenHabitIds"} & preference_fields.keys():
+        save_habit_preferences(preferences, me, preference_fields)
+
     # 1. 只收清單裡的 id（從清單出發挑，不認得的自然進不來）；說明洗過
     styles = [s["id"] for s in catalog.FINANCE_STYLES]
     finance = {
         "style": body.style if body.style in styles else None,
         "goals": [g["id"] for g in catalog.FINANCE_GOALS if g["id"] in body.goals],
-        "habits": [h["id"] for h in catalog.FINANCE_HABITS if h["id"] in body.habits],
+        "habits": [h["id"] for h in habit_options(preferences) if h["id"] in body.habits],
         "note": profile.clean_note(body.note),
     }
 
@@ -2240,6 +2271,7 @@ def verify_password(body: VerifyPasswordIn, me: User, db: Session = Depends(get_
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2364,6 +2396,7 @@ def list_sessions(me: User, payload: dict = Depends(current_token_payload), db: 
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2509,6 +2542,7 @@ def upload_avatar(body: AvatarIn, me: User, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2615,6 +2649,7 @@ def delete_avatar(me: User, db: Session = Depends(get_db)):
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2688,6 +2723,7 @@ def request_email_verification(body: EmailVerificationRequestIn, request: Reques
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,
@@ -2749,6 +2785,7 @@ def confirm_email_verification(body: EmailVerificationConfirmIn, request: Reques
 
             from app import catalog
             from app.services.appearance import presentation_fields as _appearance_fields, save_preferences, normalize_avatar
+            from app.services.lifestyle import birthday_fields, habit_options, preferences_for, profile_birthday_change, save_habit_preferences
             from app.guards import guest_only, login_required, token_required, visible_scope
             from app.models import (
                 AuditLog, Family, FamilyMember, GroupMember, Guardianship, PasswordReset, SavingsGoal, User, UserSession,

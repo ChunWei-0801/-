@@ -19,6 +19,7 @@ from app.ownership import MEMBERS, all_routes
 from sync_schema import load_schema
 
 FILES = [
+    "README.md", "backend/README.md",
     "docs/01-tech-stack-and-api.md", "docs/02-前後端串接契約.md",
     *["frontend/docs/%s.html" % p for p in
       ("index", "api", "restful", "fastapi", "files", "guide", "model")],
@@ -46,6 +47,7 @@ def render(src, total, screens, tables):
         n = len(member.routes)
         src = re.sub(re.escape(member.domain) + r" · \d+ 支", "%s · %d 支" % (member.domain, n), src)
         src = re.sub(r'(\| \*\*' + re.escape(member.domain) + r'\*\* \|[^\n]*\| )\d+ 支', lambda m: m.group(1) + str(n) + " 支", src)
+        src = re.sub(r"(\| " + re.escape(member.domain) + r" \|[^\n]*\| )\d+ 支", lambda m: m.group(1) + str(n) + " 支", src)
         # The FastAPI domain table puts the file list and count on separate
         # lines. Match complete HTML rows using the owned router folder.
         folders = {str(Path(f).parent) + "/" for f in member.files if f.startswith("app/routers/")}

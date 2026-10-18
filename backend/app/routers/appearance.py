@@ -22,7 +22,7 @@ router = APIRouter(tags=["個人設定"])
 OWNER = "認證"
 
 
-def normalize_background(value):
+def normalize_background(value, *, preserve_alpha=False):
     """Decode actual raster pixels, orient and resize; reject SVG and disguised files."""
     try:
         prefix, data = value.split(",", 1)
@@ -37,10 +37,18 @@ def normalize_background(value):
                 if source.format not in {"JPEG", "PNG", "WEBP"} or source.width * source.height > 40_000_000:
                     raise ValueError
                 source.load()
-                image = ImageOps.exif_transpose(source).convert("RGB")
+                oriented = ImageOps.exif_transpose(source)
+                has_alpha = preserve_alpha and ("A" in oriented.getbands() or "transparency" in oriented.info)
+                image = oriented.convert("RGBA" if has_alpha else "RGB")
+                # PNG may otherwise forward metadata from image.info, including
+                # EXIF. A cutout only needs pixels and its transparency mask.
+                image.info.clear()
                 image.thumbnail((1920, 1920))
                 result = BytesIO()
-                image.save(result, format="JPEG", quality=86, optimize=True)
+                if has_alpha:
+                    image.save(result, format="PNG", optimize=True)
+                else:
+                    image.save(result, format="JPEG", quality=86, optimize=True)
                 return result.getvalue()
     except (ValueError, binascii.Error, UnidentifiedImageError, OSError,
             Image.DecompressionBombError, Image.DecompressionBombWarning):

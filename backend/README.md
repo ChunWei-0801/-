@@ -69,7 +69,7 @@ backend/
 │   │   ├── family.py · roles.py · ledger.py · alerts.py · notify.py
 │   │   └── period.py · money.py · images.py · profile.py · theme.py
 │   │
-│   ├── models/            ← 資料庫長什麼樣（SQLAlchemy，20 張表，跟 data.js 的 schema 逐欄對齊）
+│   ├── models/            ← 資料庫長什麼樣（SQLAlchemy，30 張表，跟 data.js 的 schema 逐欄對齊）
 │   ├── schemas/           ← API 收什麼（Pydantic），欄位名字跟前端送的一樣
 │   ├── routers/           ← 路由。**一個領域一個資料夾，開自己那一個就好**
 │   │                        每個資料夾裡都有 README.md，寫你那一塊怎麼開發
@@ -80,7 +80,7 @@ backend/
 │   │   └── _stub.py         共用：@stub 與 not_ready()（還沒做的回 501）
 │   └── services/          ← 加總與模型：analytics、llm/（client、parse、advice）、permission、evaluation
 │
-├── alembic/               ← 資料庫結構的版本控制（versions/ 第一版就是 20 張表）
+├── alembic/               ← 資料庫結構的版本控制（versions/ 第一版就是 30 張表）
 ├── alembic.ini            ← ⚠️ 只能有英文（Windows 的 alembic 用 cp950 讀它）
 ├── tests/                 ← pytest；fixtures/ 放測試用的一家人與假後端
 ├── tools/                 ← sync_spec.py、sync_schema.py、sync_mindmap.py、sync_devguide.py：文件從程式產生
@@ -196,9 +196,9 @@ def dissolve_family(me: User, db: Session = Depends(get_db)):
 
 | 領域 | 資料夾 | 路由 |
 |---|---|---|
-| 認證 | `app/routers/auth/` | 19 支 |
-| 記帳 | `app/routers/ledger/` | 19 支 |
-| 數字 | `app/routers/analytics/` | 11 支 |
+| 認證 | `app/routers/auth/` | 39 支 |
+| 記帳 | `app/routers/ledger/` | 31 支 |
+| 數字 | `app/routers/analytics/` | 13 支 |
 | 家庭 | `app/routers/access/` | 21 支 |
 
 路由屬於哪個領域寫在 `app/ownership.py`，`python -m app.ownership` 會印出各領域的完成度、檢查有沒有路由沒歸屬。

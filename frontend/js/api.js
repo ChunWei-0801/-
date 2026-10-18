@@ -3167,7 +3167,22 @@
     memoryAchievements: ['GET /api/memories/achievements', '記帳'],
     saveMemoryWallBackground: ['PUT /api/memories/wall-background', '記帳'],
     deleteMemoryWallBackground: ['DELETE /api/memories/wall-background', '記帳'],
-    memoryWallBackground: ['GET /api/memories/wall-background/image', '記帳']
+    memoryWallBackground: ['GET /api/memories/wall-background/image', '記帳'],
+    lifestylePreferences: ['GET /api/lifestyle/preferences', '認證'],
+    updateLifestylePreferences: ['PUT /api/lifestyle/preferences', '認證'],
+    familyBirthdays: ['GET /api/lifestyle/birthdays', '認證'],
+    healthEntries: ['GET /api/lifestyle/health', '認證'],
+    saveHealthEntry: ['PUT /api/lifestyle/health/{entry_date}', '認證'],
+    deleteHealthEntry: ['DELETE /api/lifestyle/health/{entry_date}', '認證'],
+    smokingSettings: ['GET /api/lifestyle/smoking/settings', '認證'],
+    updateSmokingSettings: ['PUT /api/lifestyle/smoking/settings', '認證'],
+    smokingEntries: ['GET /api/lifestyle/smoking', '認證'],
+    saveSmokingEntry: ['PUT /api/lifestyle/smoking/{entry_date}', '認證'],
+    savingsJar: ['GET /api/lifestyle/jar', '認證'],
+    updateSavingsJar: ['PUT /api/lifestyle/jar', '認證'],
+    savingsJarImage: ['GET /api/lifestyle/jar/image', '認證'],
+    saveSavingsJarImage: ['PUT /api/lifestyle/jar/image', '認證'],
+    deleteSavingsJarImage: ['DELETE /api/lifestyle/jar/image', '認證']
   };
 
   /* 畫面一定會讀的欄位。少了任何一個，畫面會在很後面的地方壞掉（讀不到 undefined 的 map），

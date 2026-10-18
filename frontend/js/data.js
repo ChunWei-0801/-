@@ -265,6 +265,32 @@ window.DATA = {
              ['finance_note', 'TEXT', '補充說明，最多 200 字。⚠️ 組 prompt 時標示成資料，不是指令（toolkit/profile.py）'],
              ['created_at', 'TIMESTAMPTZ', ''], ['last_login_at', 'TIMESTAMPTZ', '']] },
 
+    { t: 'lifestyle_preferences', label: '生活偏好', note: '本人完整生日、選配工具、常用排序及自訂習慣；生日提醒只給同家庭姓名與月日',
+      cols: [['user_id', 'BIGINT', 'PK, FK → users'], ['birth_date', 'DATE', '完整生日，可留空；舊出生年不會被猜成某一天'],
+             ['timezone', 'TEXT', '日界線及生日判斷時區'], ['smoking_enabled', 'BOOLEAN', '吸菸紀錄開關；關閉仍保留歷史'],
+             ['calculator_enabled', 'BOOLEAN', '浮動工程計算機開關'], ['shortcuts', 'JSONB', '常用項目的 id、順序及顯示狀態'],
+             ['custom_habits', 'JSONB', '本人自訂理財習慣 id 及名稱'], ['hidden_habit_ids', 'JSONB', '不顯示的預設或自訂理財習慣 id'],
+             ['updated_at', 'TIMESTAMPTZ', '']] },
+
+    { t: 'health_entries', label: '每日身高體重', note: '僅本人可見的實際測量；BMI 依每筆身高體重計算，不填補不存在的日子',
+      cols: [['id', 'BIGSERIAL', 'PK'], ['user_id', 'BIGINT', 'FK → users。UNIQUE (user_id, entry_date)'],
+             ['entry_date', 'DATE', '測量日期'], ['height_cm', 'NUMERIC(5,2)', '身高公分'], ['weight_kg', 'NUMERIC(6,2)', '體重公斤'],
+             ['created_at', 'TIMESTAMPTZ', ''], ['updated_at', 'TIMESTAMPTZ', '']] },
+
+    { t: 'smoking_settings', label: '每月吸菸上限', note: '僅本人可見；每月共用上限設定，零代表尚未設定數值',
+      cols: [['user_id', 'BIGINT', 'PK, FK → users'], ['monthly_limit', 'INT', '每月設定包數；肺部顏色是紀錄比例，不是健康檢查']] },
+
+    { t: 'smoking_entries', label: '每日買菸與吸菸', note: '購買與實際吸菸分開記錄；月份更新保留歷史',
+      cols: [['id', 'BIGSERIAL', 'PK'], ['user_id', 'BIGINT', 'FK → users。UNIQUE (user_id, entry_date)'],
+             ['entry_date', 'DATE', '紀錄日期'], ['bought_packs', 'INT', '今天購買的包數'], ['smoked_packs', 'INT', '今天實際抽的包數'],
+             ['created_at', 'TIMESTAMPTZ', ''], ['updated_at', 'TIMESTAMPTZ', '']] },
+
+    { t: 'savings_jars', label: '私人存錢筒', note: '手動保存目標與已存金額；依比例填滿預設造型或自己的照片',
+      cols: [['user_id', 'BIGINT', 'PK, FK → users'], ['name', 'TEXT', '願望名稱'], ['target_amount', 'NUMERIC(15,2)', '目標金額'],
+             ['saved_amount', 'NUMERIC(15,2)', '手動記錄的實際已存金額'], ['shape', 'TEXT', 'pig／dinosaur／heart／photo'],
+             ['photo_bytes', 'BYTEA', '本人私有的正規化照片，與資料庫一起備份'], ['photo_mime', 'TEXT', '照片實際格式'],
+             ['updated_at', 'TIMESTAMPTZ', '']] },
+
     { t: 'savings_goals', label: '每月存款目標', note: '★ 註冊後的個人化設定第一步就填。改過的值保留歷史，不覆蓋',
       cols: [['id', 'BIGSERIAL', 'PK'], ['user_id', 'BIGINT', 'FK → users'],
              ['group_id', 'BIGINT', 'FK → groups。NULL = 不分帳本的整體目標'],

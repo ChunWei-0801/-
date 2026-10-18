@@ -1,0 +1,33 @@
+/* Fixed to the viewport, independent of the current app page. */
+.floating-calculator, .floating-calculator *, .floating-calculator-launcher { box-sizing: border-box; }
+.floating-calculator[hidden], .floating-calculator-launcher[hidden] { display: none !important; }
+.floating-calculator { position: fixed; z-index: 180; left: 8px; top: 8px; width: min(354px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow: auto; overscroll-behavior: contain; color: var(--ink, #173c32); background: var(--card, #fff); border: 1px solid var(--accent-line, #bfd9d1); border-radius: var(--r-panel, 16px); box-shadow: var(--shadow-pop, 0 12px 38px #173c3230); font-family: var(--sans, sans-serif); line-height: 1.4; }
+.floating-calculator__header { display: flex; align-items: stretch; min-height: 44px; border-bottom: 1px solid var(--accent-line, #bfd9d1); background: var(--accent-wash, #e6f0ec); }
+.floating-calculator__handle { flex: 1; min-width: 0; display: flex; gap: 10px; align-items: center; padding: 10px 12px; cursor: grab; user-select: none; touch-action: none; }
+.floating-calculator__handle > span { font-size: 23px; line-height: 1; color: var(--accent, #1b6b5a); }
+.floating-calculator__handle strong { font-size: 14px; }
+.floating-calculator.is-dragging .floating-calculator__handle { cursor: grabbing; }
+.floating-calculator__header > button { width: 44px; border: 0; border-left: 1px solid var(--accent-line, #bfd9d1); border-radius: 0; color: var(--accent, #1b6b5a); background: transparent; font-size: 24px; }
+.floating-calculator__body { padding: 12px; }
+.floating-calculator__label { display: block; font-size: 12px; margin-bottom: 5px; color: var(--ink-soft, #4e535a); }
+.floating-calculator .floating-calculator__input { display: block; width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line-2, #dad3c6); border-radius: var(--r-input, 12px); background: var(--sunk, #f1eee6); color: var(--ink, #173c32); font: 16px/1.4 var(--code, monospace); }
+.floating-calculator__result { display: block; min-height: 42px; overflow-wrap: anywhere; padding: 8px 2px 4px; color: var(--accent, #1b6b5a); font-size: 22px; font-weight: 700; text-align: right; }
+.floating-calculator__result.is-error { color: var(--down, #be4239); font-size: 13px; text-align: left; }
+.floating-calculator__meta { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 12px; }
+.floating-calculator__meta > span { overflow-wrap: anywhere; }
+.floating-calculator button { cursor: pointer; font-family: inherit; }
+.floating-calculator__meta > button { min-width: 52px; min-height: 32px; padding: 5px 10px; border: 1px solid var(--accent-line, #bfd9d1); border-radius: var(--r-pill, 999px); color: var(--accent, #1b6b5a); background: var(--accent-wash, #e6f0ec); font-size: 12px; font-weight: 700; }
+.floating-calculator__memory, .floating-calculator__scientific, .floating-calculator__keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 7px; }
+.floating-calculator__memory button, .floating-calculator__scientific button, .floating-calculator__keys button { min-width: 0; min-height: 38px; padding: 6px 2px; border: 1px solid var(--line, #e7e2d8); border-radius: var(--r-sm, 10px); background: var(--card-3, #f7f4ee); color: var(--ink, #173c32); font-size: 14px; font-weight: 600; transition: background .12s ease; }
+.floating-calculator__memory button, .floating-calculator__scientific button { min-height: 32px; font-size: 12px; background: var(--card-2, #fcfaf6); }
+.floating-calculator__keys button[data-calc-value="/"], .floating-calculator__keys button[data-calc-value="*"], .floating-calculator__keys button[data-calc-value="-"], .floating-calculator__keys button[data-calc-value="+"] { background: var(--accent-wash, #e6f0ec); color: var(--accent, #1b6b5a); }
+.floating-calculator__keys .is-equals { grid-column: 1 / -1; color: var(--on-accent, #fff); background: var(--accent, #1b6b5a); border-color: var(--accent, #1b6b5a); }
+.floating-calculator__keys .is-clear { color: var(--down, #be4239); }
+.floating-calculator button:hover { filter: brightness(.96); }
+.floating-calculator button:active { filter: brightness(.9); }
+.floating-calculator button:focus-visible, .floating-calculator__handle:focus-visible, .floating-calculator__input:focus-visible, .floating-calculator-launcher:focus-visible { outline: 3px solid var(--accent, #1b6b5a); outline-offset: 2px; }
+.floating-calculator__help { margin: 10px 0 0; font-size: 11px; line-height: 1.55; color: var(--ink-soft, #4e535a); }
+.floating-calculator-launcher { position: fixed; z-index: 179; right: max(16px, env(safe-area-inset-right)); bottom: calc(88px + env(safe-area-inset-bottom)); display: inline-flex; align-items: center; gap: 7px; max-width: calc(100vw - 32px); min-height: 44px; padding: 9px 14px; border: 1px solid var(--accent-line, #bfd9d1); border-radius: var(--r-pill, 999px); background: var(--accent, #1b6b5a); color: var(--on-accent, #fff); box-shadow: var(--shadow-card, 0 4px 16px #173c3230); font: 13px/1.4 var(--sans, sans-serif); cursor: pointer; }
+.floating-calculator-launcher > span:first-child { font-size: 22px; line-height: 1; }
+@media (max-height: 650px) { .floating-calculator__scientific { grid-template-columns: repeat(8, minmax(0, 1fr)); } .floating-calculator__scientific button { font-size: 10px; } .floating-calculator__body { padding: 8px; } .floating-calculator__help { margin-top: 6px; } }
+@media (prefers-reduced-motion: reduce) { .floating-calculator button { transition: none; } }

@@ -1,4 +1,5 @@
 """Restore real private photo bytes and reject corrupt or unsafe backups."""
+from contextlib import closing
 from importlib.util import module_from_spec, spec_from_file_location
 import json
 from pathlib import Path
@@ -18,12 +19,16 @@ class PrivateBackupTests(unittest.TestCase):
         self.source = self.root / "source.sqlite"
         self.key = b"a-private-test-key-of-at-least-32-bytes"
         self.private = self.root / "backups"
-        with sqlite3.connect(self.source) as connection:
+        # sqlite3's transaction context does not close its connection. Close
+        # explicitly so a later cyclic GC cannot checkpoint this fixture's WAL
+        # in the middle of the byte-for-byte source-preservation assertion.
+        with closing(sqlite3.connect(self.source)) as connection:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, avatar BLOB)")
             connection.execute("CREATE TABLE photos (id INTEGER PRIMARY KEY, image BLOB)")
             connection.execute("INSERT INTO users VALUES (?, ?, ?)", (1, "private@example.test", b"avatar-photo"))
             connection.execute("INSERT INTO photos VALUES (?, ?)", (1, bytes(range(256))))
+            connection.commit()
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -45,7 +50,7 @@ class PrivateBackupTests(unittest.TestCase):
         self.assertEqual(report["inventory"]["tables"]["photos"]["photo_bytes"], 256)
         self.assertEqual(before, self.source.read_bytes())
         self.assertEqual(restored.stat().st_mode & 0o777, 0o600)
-        with sqlite3.connect(restored) as connection:
+        with closing(sqlite3.connect(restored)) as connection:
             self.assertEqual(connection.execute("SELECT image FROM photos").fetchone()[0], bytes(range(256)))
 
     def test_wal_committed_photo_is_included(self):
@@ -58,7 +63,7 @@ class PrivateBackupTests(unittest.TestCase):
             manifest = backup.sqlite_backup(self.source, self.private, self.key)
             restored = self.root / "restore" / "wal.sqlite"
             backup.sqlite_restore(manifest, restored, self.key)
-            with sqlite3.connect(restored) as copy:
+            with closing(sqlite3.connect(restored)) as copy:
                 self.assertEqual(copy.execute("SELECT image FROM photos WHERE id=2").fetchone()[0], b"committed-in-wal")
         finally:
             connection.close()
