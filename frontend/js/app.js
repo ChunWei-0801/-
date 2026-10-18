@@ -3828,7 +3828,7 @@
 
   /* ---------- 路由 ---------- */
   var ROUTES = { '': vHome, entry: vEntry, stats: vStats,
-               ice: vAdvice, members: vMembers,
+                 advice: vAdvice, members: vMembers,
                  login: vLogin, register: vRegister, profile: vProfile,
                  member: vMember, groups: vGroups, admin: vAdmin,
                  setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange, appearance: vAppearance, settings: vSettings, tutorial: vTutorial, memories: vMemories,
