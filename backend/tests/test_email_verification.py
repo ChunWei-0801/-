@@ -1,11 +1,13 @@
 """信箱驗證的真實 API 流程與正式環境限制，不呼叫外部寄信服務。"""
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("JWT_SECRET", "email-verification-tests-more-than-32-characters")
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -133,6 +135,70 @@ def test_production_requests_do_not_enumerate_and_confirmation_enables_login(ema
     assert login.status_code == 200 and login.json()["user"]["emailVerified"] is True
     already = email_api.post(REQUEST, json={"email": "verify@example.com"})
     assert already.json() == unknown.json() and len(sent) == 1
+
+
+def test_unrelated_members_verify_their_own_addresses_and_keep_private_ledgers(email_api, monkeypatch):
+    """Local production-config API proof; Brevo HTTP acceptance is mocked, not live delivery."""
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "brevo_api_key", "test-only-key")
+    monkeypatch.setattr(settings, "mail_from", "sender@example.com")
+    monkeypatch.setattr(settings, "app_base_url", "https://budget.example.com")
+    addresses = ("new.member+one@example.org", "another.member@example.net")
+    messages = []
+
+    def accept_message(request):
+        assert str(request.url) == mailer.API_URL
+        messages.append(json.loads(request.content))
+        return httpx.Response(201, json={"messageId": "local-mocked-provider-acceptance"})
+
+    send_mail = mailer.send_mail
+    with httpx.Client(transport=httpx.MockTransport(accept_message)) as provider:
+        monkeypatch.setattr(mailer, "send_mail", lambda *args, **kwargs: send_mail(
+            *args, **kwargs, client=provider))
+        accounts = [register(email_api, address.upper()) for address in addresses]
+        assert len({account["user"]["id"] for account in accounts}) == 2
+        for address, account in zip(addresses, accounts):
+            assert account["verificationRequired"] is True
+            assert account["user"]["email"] == address
+            assert "accessToken" not in account and "refreshToken" not in account
+            assert email_api.post("/api/auth/login", json={
+                "email": address, "password": "test1234",
+            }).status_code == 403
+            requested = email_api.post(REQUEST, json={"email": address})
+            assert requested.status_code == 200 and requested.json()["delivery"] == "email"
+            assert "demoVerificationUrl" not in requested.json()
+
+    assert [message["to"][0]["email"] for message in messages] == list(addresses)
+    links = [message["textContent"].split("/#/verify-email/", 1)[1].split()[0]
+             for message in messages]
+    assert links[0] != links[1]
+    assert crud.count(UserSession) == 0
+    assert email_api.post(CONFIRM, json={"token": links[0]}).json()["email"] == addresses[0]
+    assert crud.get(User, where={"email": addresses[1]}).email_verified_at is None
+    assert email_api.post("/api/auth/login", json={
+        "email": addresses[1], "password": "test1234",
+    }).status_code == 403
+    assert email_api.post(CONFIRM, json={"token": links[1]}).json()["email"] == addresses[1]
+
+    headers = []
+    ledgers = []
+    for address, account in zip(addresses, accounts):
+        logged_in = email_api.post("/api/auth/login", json={"email": address, "password": "test1234"})
+        assert logged_in.status_code == 200
+        headers.append(auth(logged_in.json()))
+        me = email_api.get("/api/auth/me", headers=headers[-1]).json()["user"]
+        assert me["id"] == account["user"]["id"] and me["email"] == address
+        created = email_api.post("/api/groups", headers=headers[-1], json={"name": "My private ledger"})
+        assert created.status_code == 201
+        ledgers.append(created.json())
+
+    for index, own_headers in enumerate(headers):
+        listed = email_api.get("/api/groups", headers=own_headers)
+        assert listed.status_code == 200
+        assert [ledger["id"] for ledger in listed.json()["groups"]] == [ledgers[index]["id"]]
+        other_id = ledgers[1 - index]["id"]
+        assert email_api.get("/api/transactions", headers=own_headers,
+                             params={"groupId": other_id}).status_code == 403
 
 
 def test_daily_send_limit_and_confirmation_attempt_limit(email_api):
