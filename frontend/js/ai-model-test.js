@@ -11,7 +11,7 @@
       if(!node.dataset.actualResult){node.textContent=text(item[1]);}
     });
   }
-  function status(value, failed) { ui.modelStatus.textContent = text(value); ui.modelStatus.classList.toggle('error',!!failed); }
+  function status(value, failed) { ui.modelStatus.textContent = text(value); ui.modelStatus.classList.toggle('error',!!failed); if(!failed)delete ui.modelStatus.dataset.errorCode; }
   function ready() { return api && api.getStatus().loaded; }
   function controls() {
     ui.modelLoad.disabled = running || ready(); ui.modelCancel.disabled = !running;
@@ -28,7 +28,12 @@
     if(running)return;
     var mine=++generation; controller=new AbortController(); running=true; controls();
     try { await work(mine,controller.signal); }
-    catch(error) { if(mine===generation){ui.modelOutput.textContent='';status((error.code||'AI_ERROR')+'：'+error.message,true);} }
+    catch(error) { if(mine===generation){
+      ui.modelOutput.textContent='';
+      var deviceFailure=/^AI_(?:WEBGPU_UNAVAILABLE|GPU_UNAVAILABLE|WORKER_UNAVAILABLE|INSECURE_CONTEXT)$/.test(error.code||'');
+      var message=deviceFailure&&window.I18n?I18n.t('aiTrial.unsupported'):error.message;
+      status(message,true);ui.modelStatus.dataset.errorCode=error.code||'AI_ERROR';
+    } }
     finally {if(mine===generation){controller=null;running=false;ui.modelProgress.hidden=true;controls();}}
   }
   function measure(result) { return {model:result.model,elapsedMs:result.elapsedMs,usage:result.usage,finishReason:result.finishReason}; }

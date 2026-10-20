@@ -8,3 +8,13 @@ html[data-language="en"] .dtile__t, html[data-language="es"] .dtile__t { overflo
 html[data-language="en"] .sec__t, html[data-language="es"] .sec__t { white-space: normal; }
 html[data-language="en"] .tabbar__i > span:last-child, html[data-language="es"] .tabbar__i > span:last-child { font-size: .66rem; }
 @media (max-width: 440px) { .language-control { gap: .35rem; } .language-control select { min-width: 8rem; } }
+/* Translated header labels share a narrow row with settings and the avatar. */
+@media (max-width: 560px) {
+  .appbar__in { gap: 6px; }
+  .appbar__brand { min-width: 0; flex: 1 1 0; }
+  .appbar__brand .brand__zh, .appbar__brand .brand__en { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .appbar__sp { display: none; }
+  .appbar__home { flex: 0 0 40px; min-width: 40px; margin-left: 0; padding: 0; justify-content: center; }
+  .appbar__home span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .appbar__docs, .appbar__profile { flex-shrink: 0; }
+}
