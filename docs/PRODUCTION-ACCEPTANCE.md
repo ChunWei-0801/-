@@ -1,8 +1,8 @@
 # Production acceptance handoff
 
-The deployed application source is `91892b5f42f1dcd637cb4a3ead88025ac9a765e8` at
+The deployed application source is `cf0dcdca3ddb70f804335bd7131599d043c3517e` at
 `https://fambudget-recovery-20261017.onrender.com` (Render reports live on
-2026-10-20, with the draft-generation repair live at 21:31:59 Asia/Taipei). The opt-in browser-local model trial is `/ai-test.html`, and the
+2026-10-20, with the source-grounded repair live at 21:59:18 Asia/Taipei). The opt-in browser-local model trial is `/ai-test.html`, and the
 authenticated trial is `/#/ai`; see `FREE-LLM.md` and `WORKLOG-20261020.md`.
 Deployment status does not establish full production acceptance. The original
 acceptance checks and all eight lifestyle features' online interactions remain
@@ -146,3 +146,14 @@ two-purchase input at `/ai-test.html?v=168`. The repair passed 38 local
 controller/UI/API checks and 12 actual WASM schema checks with a synthetic
 tokenizer; real model output on the user's device remains pending. Do not mark
 the earlier failed trial as a pass or infer model accuracy from these checks.
+
+Resource version 169 is now live from `cf0dcdca3ddb70f804335bd7131599d043c3517e`
+(Render deployment `dep-dbbn6p8n74is73d8jvd0`, 2026-10-20 21:59:18 Asia/Taipei).
+It uses model-quoted source fields and readable classification labels, then
+mechanically validates/maps them to canonical drafts. The UI exposes raw output
+and mapped drafts separately, and compares actual synthetic outputs without
+correcting them. All 49 local contract/UI checks, 19 actual WASM schema checks
+(synthetic tokenizer) and full GitHub CI passed. The new user-device retest at
+`/ai-test.html?v=169` is pending; the v168 semantic failure remains the last
+observed device result. Production account/mail/photo/mobile acceptance and
+production database backup/restore remain incomplete.
