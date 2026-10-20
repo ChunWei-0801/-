@@ -226,7 +226,15 @@ def test_前端送的主體與查詢參數_後端的模型都收得下(sent):
     for key, rows in sent.items():
         v, p = key.split(" ", 1)
         dep = routes[(v, p)].dependant
-        queries = {q.alias or q.name for q in dep.query_params}
+        queries = set()
+        for query in dep.query_params:
+            model = query.field_info.annotation
+            if inspect.isclass(model) and issubclass(model, BaseModel):
+                # FastAPI Query models expose one dependant parameter while
+                # OpenAPI expands their validated fields into URL parameters.
+                queries.update(field.alias or name for name, field in model.model_fields.items())
+            else:
+                queries.add(query.alias or query.name)
         for row in rows:
             req = row["request"]
             for part in filter(None, req["url"].partition("?")[2].split("&")):
@@ -307,6 +315,17 @@ def test_mock_回的每一筆都過得了逐筆檢查(sent):
             "advices", "notifications", "audit", "adminUsers", "nlpParseBatch"]
     empty = [f for f in must if not lists.get(f)]
     assert not empty, "這幾支在 mock 走過時清單是空的，逐筆檢查等於沒跑：%s" % empty
+
+
+def test_ai_grounding_mock_reports_unavailable_without_fabricated_data(sent):
+    for path in ("/api/ai-local/context", "/api/ai-local/knowledge"):
+        rows = sent["GET " + path]
+        assert len(rows) == 1
+        assert rows[0]["response"]["status"] == 503
+        assert "ERROR" in rows[0]["response"]
+        assert "fallback" not in rows[0]["response"]
+        assert rows[0]["request"]["method"] == "GET"
+        assert rows[0]["request"]["url"].startswith(path + "?")
 
 
 def test_每一支的路徑參數都有宣告_文件頁試打得了():

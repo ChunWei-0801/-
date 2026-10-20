@@ -223,6 +223,7 @@ MEMBERS: list[Member] = [
         scope=(
             "負責所有「算出來的東西」，以及把那些數字講成人話。\n"
             "屬於他的：月年統計、預算、每月存款目標、階段性提醒的門檻、財務建議。\n"
+            "瀏覽器 AI 的唯讀工具提供精確帳務證據與本機教學檢索，不執行模型或建立交易。\n"
             "**整個系統只有這裡加總錢** —— 模型不算，前端只做衍生（結餘、比例、預算百分比）。\n"
             "  GET /api/stats、GET /api/savings-goal 已經拿掉：前端從 summary、savings-goals 自己取。\n"
             "每月存款目標可以**分群組設定**：不帶 groupId 是整體目標，帶了就是那個群組自己的目標。\n"
@@ -245,6 +246,8 @@ MEMBERS: list[Member] = [
             ("POST", "/api/advices/generate"),
             ("GET", "/api/exchange/rates"),
             ("POST", "/api/exchange/convert"),
+            ("GET", "/api/ai-local/context"),
+            ("GET", "/api/ai-local/knowledge"),
         ],
         files=[
             "app/routers/analytics/__init__.py",
@@ -261,6 +264,9 @@ MEMBERS: list[Member] = [
             "app/routers/analytics/exchange.py",
             "app/schemas/exchange.py",
             "app/services/exchange.py",
+            "app/routers/ai_local.py",
+            "app/schemas/ai_local.py",
+            "app/services/ai_local.py",
         ],
         shared=[
             "app/services/analytics.py",

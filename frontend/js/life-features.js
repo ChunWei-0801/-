@@ -1,8 +1,8 @@
 (function (global) {
   'use strict';
   var account = null, prefs = {}, prefsError = null, revision = 0, pending = null;
-  var defaultIds = ['quick-entry','entry','manual-entry','exchange','groups','stats','advice','members','profile','savings-game','health','memories','smoking','calculator','settings','appearance','logout'];
-  var labels = ['記一筆','收支明細','手動記帳','國際匯率換算','帳本','統計','財務建議','家庭成員','個人資料與目標','我的存錢筒','身體紀錄與 BMI','記帳小天地','抽菸紀錄','活動計算機','設定與使用教學','主題與背景','登出'];
+  var defaultIds = ['quick-entry','entry','manual-entry','exchange','groups','stats','advice','ai','members','profile','savings-game','health','memories','smoking','calculator','settings','appearance','logout'];
+  var labels = ['記一筆','收支明細','手動記帳','國際匯率換算','帳本','統計','財務建議','免費 AI 試用','家庭成員','個人資料與目標','我的存錢筒','身體紀錄與 BMI','記帳小天地','抽菸紀錄','活動計算機','設定與使用教學','主題與背景','登出'];
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function message(e) { return e && e.message || '儲存失敗，請稍後重試。'; }
   function notify(s, bad) { if (global.FamBudgetUI) global.FamBudgetUI.toast(s, bad ? 'err' : 'ok'); }

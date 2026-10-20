@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#16493f">
+  <meta name="title-i18n" content="aiTest.documentTitle">
+  <title>免費模型測試 · 家庭記帳</title>
+  <link rel="stylesheet" href="css/tokens.css?v=167">
+  <link rel="stylesheet" href="css/ai-assistant.css?v=167">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f2f7ef;color:#163f35;font:16px/1.65 system-ui,sans-serif}main{max-width:850px;margin:auto;padding:24px 18px 64px}a{color:#17634f}h1{line-height:1.35}section{margin:20px 0;padding:22px;background:#fff;border:1px solid #d9e5d4;border-radius:18px}button,select,textarea{font:inherit}button{padding:10px 16px;border:1px solid #a6c6b6;border-radius:10px;background:#e8f1df;color:#16493f;cursor:pointer}button:disabled{opacity:.5;cursor:default}textarea{display:block;width:100%;min-height:110px;padding:12px;border:1px solid #a6c6b6;border-radius:10px;margin:10px 0;resize:vertical}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:15px;background:#f2f7ef;border-radius:10px}progress{width:100%}.actions{display:flex;gap:10px;flex-wrap:wrap}.note{color:#4a6659}.error{color:#a12e29}[hidden]{display:none!important}.badge{display:inline-block;padding:3px 12px;background:#e7efd6;border-radius:20px}
+  </style>
+</head>
+<body>
+<main>
+  <a href="/">← 家庭記帳</a>
+  <div id="modelLanguage"></div>
+  <p class="badge">免費開源模型 · 自己的裝置運算</p>
+  <h1>先試試這台裝置的 AI</h1>
+  <p>這裡會真正載入 Qwen 模型產生回覆。無須帳號，不會寫入帳務或寄信；完整功能可在登入後的「設定 → 免費 AI 試用」使用。</p>
+  <section>
+    <h2>開始之前</h2>
+    <p>首次模型下載約 290 MB，建議使用 Wi-Fi。需要支援 WebGPU 的瀏覽器及約 1 GB 可用 GPU 記憶體，部分手機無法執行。沒有付費 API，也不會自動切換收費服務。</p>
+    <p>輸入與回覆只留在本頁記憶體；模型檔可能保留在瀏覽器快取。這是小型模型，結果仍需核對。</p>
+    <div class="actions"><button id="modelLoad">檢查並啟動模型</button><button id="modelCancel" disabled>取消</button><button id="modelUnload">卸載模型</button><button id="modelCache">清除模型下載快取</button></div>
+    <p id="modelStatus" role="status" aria-live="polite">模型尚未啟動</p>
+    <progress id="modelProgress" max="1" hidden></progress>
+  </section>
+  <section>
+    <h2>文字記帳草稿</h2>
+    <label for="modelInput">用自己的話描述消費</label>
+    <textarea id="modelInput" maxlength="1200" autocomplete="off">今天早餐65元，午餐120元。</textarea>
+    <div class="actions"><button id="modelRun" disabled>產生草稿</button><button id="modelBenchmark" disabled>執行兩筆合成範例檢查</button></div>
+    <p class="note">模型只能使用提供的分類；未知欄位應保留空白。這頁不提供入帳按鈕。</p>
+    <pre id="modelOutput" data-i18n-skip role="status">尚未產生回覆。</pre>
+  </section>
+  <section>
+    <h2>這次實際測量</h2>
+    <pre id="modelMetrics" data-i18n-skip>尚未完成真實推論，不顯示成功率。</pre>
+    <p class="note">範例檢查只代表這兩筆輸入的欄位比對結果，不代表所有情況的準確率。網站、寄信及正式資料庫備份有各自的驗收紀錄。</p>
+  </section>
+</main>
+<script src="js/i18n.js?v=167"></script>
+<script src="js/local-ai-engine.js?v=167"></script>
+<script src="js/ai-model-test.js?v=167"></script>
+</body>
+</html>

@@ -6,86 +6,122 @@
    本機開發不要改那個檔案，用網址切就好（見下面的 BASE）。
 
    ------------------------------------------------------------
-   後端契約（由 backend/tools/sync_spec.py 從 ownership.py 產生，不要手改）
-   每一支的完整形狀：docs/02-前後端串接契約.md；前端函式與路由的對照：本檔的 FN。
+   後端路由目錄（以 backend/app/ownership.py 為正本）
+   每一支的完整形狀：docs/02-前後端串接契約.md；前端函式與路由對照見本檔 FN。
 
-   認證（19 支）
-   POST   /api/auth/register                   註冊：名字、email、密碼
-   POST   /api/auth/login                      登入
-   POST   /api/auth/refresh                    用 refresh token 換新的 access token
-   POST   /api/auth/logout                     登出（撤銷這一台的 refresh token）
-   POST   /api/auth/logout-all                 登出所有裝置
-   GET    /api/auth/me                         我是誰
-   PATCH  /api/auth/password                   改密碼
-   POST   /api/auth/password-reset             忘記密碼：寄重設信
-   POST   /api/auth/password-reset/confirm     用信裡的 token 設新密碼
-   GET    /api/auth/me/finance                 我的理財習慣
-   PUT    /api/auth/me/finance                 改理財習慣
-   POST   /api/auth/verify-password            重大操作前再確認一次密碼
-   GET    /api/auth/sessions                   登入中的裝置
-   PATCH  /api/auth/me                         改個人資料、主題、個人化設定走完
-   PUT    /api/auth/me/avatar                  上傳大頭貼
-   DELETE /api/auth/me/avatar                  移除大頭貼
-   GET    /api/admin/users                     帳號清單（停權用）
-   POST   /api/admin/users/{user_id}/suspend   停權
-   DELETE /api/admin/users/{user_id}/suspend   解除停權
+   認證（39 支）
+   POST   /api/auth/register
+   POST   /api/auth/login
+   POST   /api/auth/refresh
+   POST   /api/auth/logout
+   POST   /api/auth/logout-all
+   GET    /api/auth/me
+   PATCH  /api/auth/password
+   POST   /api/auth/password-reset
+   POST   /api/auth/password-reset/confirm
+   POST   /api/auth/email-verification/request
+   POST   /api/auth/email-verification/confirm
+   GET    /api/auth/me/finance
+   PUT    /api/auth/me/finance
+   POST   /api/auth/verify-password
+   GET    /api/auth/sessions
+   PATCH  /api/auth/me
+   PUT    /api/auth/me/avatar
+   DELETE /api/auth/me/avatar
+   GET    /api/auth/me/appearance-image
+   POST   /api/auth/me/appearance-image
+   DELETE /api/auth/me/appearance-image
+   GET    /api/lifestyle/preferences
+   PUT    /api/lifestyle/preferences
+   GET    /api/lifestyle/birthdays
+   GET    /api/lifestyle/health
+   PUT    /api/lifestyle/health/{entry_date}
+   DELETE /api/lifestyle/health/{entry_date}
+   GET    /api/lifestyle/smoking/settings
+   PUT    /api/lifestyle/smoking/settings
+   GET    /api/lifestyle/smoking
+   PUT    /api/lifestyle/smoking/{entry_date}
+   GET    /api/lifestyle/jar
+   PUT    /api/lifestyle/jar
+   PUT    /api/lifestyle/jar/image
+   GET    /api/lifestyle/jar/image
+   DELETE /api/lifestyle/jar/image
+   GET    /api/admin/users
+   POST   /api/admin/users/{user_id}/suspend
+   DELETE /api/admin/users/{user_id}/suspend
 
-   記帳（19 支）
-   GET    /api/transactions                     收支明細
-   POST   /api/transactions                     手動新增一筆
-   PATCH  /api/transactions/{tx_id}             修改一筆
-   DELETE /api/transactions/{tx_id}             刪除一筆
-   DELETE /api/transactions                     一次刪多筆
-   POST   /api/nlp/parse                        單句解析（不寫入）
-   POST   /api/nlp/parse-batch                  段落解析（不寫入）
-   POST   /api/nlp/confirm                      單筆確認後寫入
-   POST   /api/nlp/confirm-batch                批次確認後一次寫入
-   GET    /api/categories                       分類（系統預設＋我們家自訂）
-   POST   /api/categories                       新增家庭自訂分類
-   GET    /api/groups                           我加入的帳本
-   POST   /api/groups                           開一本帳
-   PATCH  /api/groups/{gid}                     改名稱、顏色、說明
-   DELETE /api/groups/{gid}                     封存；permanent=true 是移除
-   POST   /api/groups/{gid}/members             把家人加進這本帳
-   DELETE /api/groups/{gid}/members/{user_id}   把人移出這本帳
-   POST   /api/groups/{gid}/settle              結算活動帳本
-   PATCH  /api/groups/{gid}/notify              這本帳有動靜要不要通知我
+   記帳（31 支）
+   GET    /api/transactions
+   POST   /api/transactions
+   PATCH  /api/transactions/{tx_id}
+   DELETE /api/transactions/{tx_id}
+   DELETE /api/transactions
+   POST   /api/nlp/parse
+   POST   /api/nlp/parse-batch
+   POST   /api/nlp/confirm
+   POST   /api/nlp/confirm-batch
+   GET    /api/categories
+   POST   /api/categories
+   GET    /api/groups
+   POST   /api/groups
+   PATCH  /api/groups/{gid}
+   DELETE /api/groups/{gid}
+   POST   /api/groups/{gid}/members
+   DELETE /api/groups/{gid}/members/{user_id}
+   POST   /api/groups/{gid}/settle
+   PATCH  /api/groups/{gid}/notify
+   GET    /api/transactions/{transaction_id}/photos
+   POST   /api/transactions/{transaction_id}/photos
+   GET    /api/transaction-photos/{photo_id}/image
+   DELETE /api/transaction-photos/{photo_id}
+   GET    /api/memories
+   PATCH  /api/memories/settings
+   POST   /api/memories/puzzles
+   GET    /api/memories/puzzles/{game_id}/image
+   GET    /api/memories/achievements
+   PUT    /api/memories/wall-background
+   DELETE /api/memories/wall-background
+   GET    /api/memories/wall-background/image
 
-   數字（11 支）
-   GET    /api/summary            個人／家庭摘要
-   GET    /api/budgets            預算與已花
-   PUT    /api/budgets            設定預算（limit 0 = 拿掉）
-   PUT    /api/savings-goal       設定每月存款目標
-   GET    /api/savings-goals      整體＋各帳本的存款目標
-   GET    /api/alerts             我設的提醒門檻
-   POST   /api/alerts             新增門檻
-   PATCH  /api/alerts/{aid}       改門檻或暫停
-   DELETE /api/alerts/{aid}       刪門檻
-   GET    /api/advices            財務建議清單
-   POST   /api/advices/generate   產生這個月的建議
+   數字（15 支）
+   GET    /api/summary
+   GET    /api/budgets
+   PUT    /api/budgets
+   PUT    /api/savings-goal
+   GET    /api/savings-goals
+   GET    /api/alerts
+   POST   /api/alerts
+   PATCH  /api/alerts/{aid}
+   DELETE /api/alerts/{aid}
+   GET    /api/advices
+   POST   /api/advices/generate
+   GET    /api/exchange/rates
+   POST   /api/exchange/convert
+   GET    /api/ai-local/context
+   GET    /api/ai-local/knowledge
 
    家庭（21 支）
-   GET    /api/family                              家庭、成員、監管關係
-   POST   /api/family                              建立家庭（建立的人是家長）
-   DELETE /api/family                              解散家庭（唯一的家長）
-   POST   /api/family/invite                       產生邀請碼
-   POST   /api/family/join                         用邀請碼加入
-   GET    /api/family/lookup                       用完整 email 找人
-   GET    /api/family/invites                      收到的邀請、送出去的、邀請碼
-   POST   /api/family/invites                      用帳號邀請
-   POST   /api/family/invites/{invite_id}/accept   接受邀請
-   DELETE /api/family/invites/{invite_id}          婉拒或取消邀請
-   PATCH  /api/family/members/{user_id}            改角色
-   DELETE /api/family/members/{user_id}            家長移出子女；{user_id} 寫 me 是自己退出
-   GET    /api/guardianships                       監管關係（雙向可見）
-   POST   /api/guardianships                       開始照看（監管人一定是自己）
-   DELETE /api/guardianships/{gid}                 解除監管
-   GET    /api/notifications                       通知清單（輪詢）
-   PATCH  /api/notifications/{nid}                 一則標記已讀
-   PATCH  /api/notifications                       整批標記已讀
-   GET    /api/allowances                          我給每個被照看的人多少零用金
-   PUT    /api/allowance                           設定零用金
-   GET    /api/audit                               稽核紀錄
+   GET    /api/family
+   POST   /api/family
+   DELETE /api/family
+   POST   /api/family/invite
+   POST   /api/family/join
+   GET    /api/family/lookup
+   GET    /api/family/invites
+   POST   /api/family/invites
+   POST   /api/family/invites/{invite_id}/accept
+   DELETE /api/family/invites/{invite_id}
+   PATCH  /api/family/members/{user_id}
+   DELETE /api/family/members/{user_id}
+   GET    /api/guardianships
+   POST   /api/guardianships
+   DELETE /api/guardianships/{gid}
+   GET    /api/notifications
+   PATCH  /api/notifications/{nid}
+   PATCH  /api/notifications
+   GET    /api/allowances
+   PUT    /api/allowance
+   GET    /api/audit
 
    另外 GET /healthz（健康檢查）、GET /docs（自動文件）前端不會用到。
    ============================================================ */
@@ -1658,6 +1694,14 @@
       });
     },
 
+    aiLocalContext: function (f) {
+      return Promise.reject(oops('AI 財務證據需要連接實際後端；示範資料不冒充模型推論或正式帳務。', 503));
+    },
+
+    aiLocalKnowledge: function (f) {
+      return Promise.reject(oops('AI 教學檢索需要連接實際後端；示範模式不回傳虛構檢索結果。', 503));
+    },
+
     summary: function (f) {
       f = f || {};
       var s = load(), D = global.DATA;
@@ -2984,6 +3028,8 @@
     exchangeRates: function (f) { return req('/api/exchange/rates' + qs(f)); },
     exchangeConvert: function (p) { return req('/api/exchange/convert', { method: 'POST', body: p }); },
 
+    aiLocalContext:    function (f)     { return req('/api/ai-local/context' + qs(f)); },
+    aiLocalKnowledge:  function (f)     { return req('/api/ai-local/knowledge' + qs(f)); },
     summary:           function (f)     { return req('/api/summary' + qs(f)); },
     transactions:      function (f)     { return req('/api/transactions' + qs(f)); },
     nlpParse:          function (t)     { return req('/api/nlp/parse', { method: 'POST', body: { text: t } }); },
@@ -3110,6 +3156,8 @@
     settleGroup:        ['POST /api/groups/{gid}/settle', '記帳'],
     setGroupNotify:     ['PATCH /api/groups/{gid}/notify', '記帳'],
 
+    aiLocalContext:     ['GET /api/ai-local/context', '數字'],
+    aiLocalKnowledge:   ['GET /api/ai-local/knowledge', '數字'],
     summary:            ['GET /api/summary', '數字'],
     budgets:            ['GET /api/budgets', '數字'],
     setBudget:          ['PUT /api/budgets', '數字'],
@@ -3198,6 +3246,8 @@
     deleteTransactions: ['deleted'], nlpParse: ['out'], nlpParseBatch: ['items'],
     categories: ['categories'], groups: ['groups'], createGroup: ['id'],
     summary: ['income', 'expense', 'byCat', 'monthly', 'yearly'],
+    aiLocalContext: ['version', 'period', 'previousPeriod', 'scope', 'current', 'previous', 'comparison', 'categories', 'budgets', 'savings', 'coachFacts', 'transactions', 'dataPolicy', 'sources'],
+    aiLocalKnowledge: ['query', 'language', 'method', 'items', 'totalMatches', 'truncated'],
     budgets: ['budgets'], savingsGoals: ['goals'], alerts: ['alerts'],
     advices: ['advices'], generateAdvices: ['advices'],
     members: ['family', 'members', 'guardianships'], invites: ['received', 'sent', 'codes'],
@@ -3214,6 +3264,7 @@
      後面加 ? = 可以是 null（但那一欄一定要在）。
      只列**畫面真的會讀**的欄位；後端多回欄位不算錯。 */
   var ROWS = {
+    aiLocalKnowledge: { items: { id: 's', title: 's', text: 's', sourceLink: 's', score: 'n' } },
     transactions: { transactions: { id: 's', user: 's', date: 'd', amount: 'n', kind: 's', cat: 's', source: 's' } },
     deleteTransactions: { deleted: 's' },
     nlpParseBatch: { items: { seq: 'n', span: 's', amount: 'n?', kind: 's', cat: 's?', conf: 'o', missing: 'a' } },

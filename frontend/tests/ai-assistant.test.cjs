@@ -1,0 +1,163 @@
+/* Contract fixture tests. These do not execute or evaluate the language model. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const test = require('node:test');
+const context = vm.createContext({console, Date, Intl});
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../js/ai-assistant.js'), 'utf8'), context);
+const tools = context.AIAssistant.testing;
+const categories = [{id:'1',name:'Food',kind:'expense'},{id:'2',name:'Salary',kind:'income'}];
+const groups = [{id:'5',name:'My ledger'}];
+const draft = (extra={}) => JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:'TWD',kind:'expense',category:'Food',merchant:'Shop',note:'',...extra}],warnings:[]});
+
+test('contract fixture: JSON drafts remain independently validated and require an authorized ledger', () => {
+  const {items} = tools.checkDraft(draft(), categories);
+  assert.equal(items[0].cat,'1');
+  assert.equal(tools.validateRows(items,categories,'5',groups),true);
+  assert.equal(tools.validateRows(items,categories,'',groups),false);
+  assert.equal(tools.validateRows(items,categories,'another-family',groups),false);
+  items[0].kind='income';
+  assert.equal(tools.validateRows(items,categories,'5',groups),false);
+});
+
+test('contract fixture: unknown and foreign currencies require manual TWD conversion', () => {
+  for (const currency of [null,'USD','JPY']) {
+    const {items} = tools.checkDraft(draft({currency}),categories);
+    assert.equal(items[0].amount,'');
+    assert.equal(items[0].originalAmount,'65');
+    assert.equal(tools.validateRows(items,categories,'5',groups),false);
+    items[0].amount='2015.00';
+    assert.equal(tools.validateRows(items,categories,'5',groups),false);
+    items[0].fxConfirmed=true;
+    assert.equal(tools.validateRows(items,categories,'5',groups),true);
+  }
+});
+
+test('contract fixture: invalid model output never becomes an invented draft', () => {
+  for (const invalid of ['breakfast 65','{}','{"items":[]}','{"items":[null]}',JSON.stringify({items:Array(11).fill({})})]) {
+    assert.throws(()=>tools.checkDraft(invalid,categories));
+  }
+  const {items}=tools.checkDraft(draft({date:null,amount:null,kind:null,category:null}),categories);
+  assert.equal(items[0].date,'');assert.equal(items[0].amount,'');assert.equal(items[0].kind,'');assert.equal(items[0].cat,'');
+  assert.equal(tools.validateRows(items,categories,'5',groups),false);
+});
+
+test('contract fixture: calendar and money validation prevents permissive Number coercion', () => {
+  for (const value of ['2026-02-29','2026-13-01','2026-10-32','2026-1-1',''])assert.equal(tools.validDate(value),false,value);
+  assert.equal(tools.validDate('2024-02-29'),true);
+  for (const value of ['0','-1','1e4','Infinity','1.234',' 65 ','0x10','1,000'])assert.equal(tools.validMoney(value),false,value);
+  assert.equal(tools.validMoney('65.50'),true);
+});
+
+test('contract fixture: local model receives exact facts without merchant, note, emails, or account records', () => {
+  const facts={period:'2026-10',previousPeriod:'2026-09',scope:'me',current:{income:'900719925474099.01',expense:'65.00',net:'900719925474034.01'},previous:{income:'0.00',expense:'0.00',net:'0.00'},comparison:{expenseDelta:'65.00'},transactions:{totalCount:100,truncated:true,items:[{id:'8',evidenceId:'tx:8',date:'2026-10-19',kind:'expense',amount:'65.00',categoryName:'Food a@example.com',merchant:'private merchant',note:'private health detail',includedInIncome:false}]},categories:{items:[]},sources:[{id:'tx:8',title:'Transaction'}],healthEntries:[{secret:'never'}],email:'never@example.com'};
+  const result=tools.contextForModel(facts), serialized=JSON.stringify(result);
+  assert.equal(result.current.income,'900719925474099.01');
+  assert.equal(result.transactions.totalCount,100);assert.equal(result.transactions.truncated,true);
+  for(const excluded of ['private merchant','private health detail','never@example.com','a@example.com','healthEntries'])assert.equal(serialized.includes(excluded),false,excluded);
+  assert.equal(serialized.includes('[email removed]'),true);
+});
+
+test('contract fixture: model and source URLs cannot inject navigation', () => {
+  for(const route of ['javascript:alert(1)','https://example.com','#/transactions/<svg>','#/admin','#/transactions?x=" onclick="bad','#/transactions?token=abc#bad'])assert.equal(tools.safeRoute(route),null,route);
+  assert.equal(tools.safeRoute('#/entry?period=2026-10'),'#/entry?period=2026-10');
+  assert.equal(tools.safeRoute('/api/ai-local/context?period=2026-10&scope=me'),'#/entry');
+  assert.equal(tools.safeRoute('/docs/tutorial.html#entry'),'#/tutorial');
+  assert.equal(tools.safeRoute('/#/profile'),'#/profile');
+  assert.equal(tools.scrub('mail user@example.com then save'),'mail [email removed] then save');
+});
+
+test('contract fixture: downloadable evaluation excludes input, ledger, answer, receipt, and raw errors', () => {
+  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],context:{privateLedger:'never'},rawInput:'private input',file:'private image'});
+  const json=JSON.stringify(data);
+  assert.equal(data.containsPrivateContent,false);assert.equal(data.modelRuns[0].usage.promptTokens,12);
+  for(const value of ['private question','private answer','privateLedger','private input','private image','secret'])assert.equal(json.includes(value),false,value);
+});
+
+test('contract fixture: OCR pins an actual worker and core; languages contain no image upload endpoint', () => {
+  assert.match(tools.ocr.script,/tesseract\.js@7\.0\.0/);
+  assert.match(tools.ocr.worker,/tesseract\.js@7\.0\.0\/dist\/worker\.min\.js$/);
+  assert.match(tools.ocr.core,/tesseract\.js-core@7\.0\.0$/);
+});
+
+let chromium;
+try { ({chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright')); } catch (_) {}
+test('browser contract fixture: explicit load, reviewed writes, help retrieval, rejected streaming, account isolation and 320px layout', {skip:!chromium}, async () => {
+  const executablePath=process.env.CHROMIUM_EXECUTABLE || (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+  const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox']});
+  try {
+    const page=await browser.newPage({viewport:{width:320,height:740}}), pageErrors=[];
+    page.on('pageerror', error=>pageErrors.push(error.message));
+    await page.route('http://ai-contract.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><main id="view"></main>'}));
+    await page.goto('http://ai-contract.test/');
+    await page.addStyleTag({path:path.join(__dirname,'../css/ai-assistant.css')});
+    await page.evaluate(() => {
+      // Explicit contract fixture: no network, model download, inference or quality claim.
+      window.__fixture={loadCalls:0,generationCalls:0,cancels:0,loaded:false,writes:[],requests:[],foreign:true,reject:false,defer:false,lastContext:null};
+      window.I18n={language:()=> 'en',t:(key,fallback)=>fallback};
+      window.LocalAI={getStatus:()=>({loaded:__fixture.loaded,phase:__fixture.loaded?'ready':'idle'}),checkSupport:async()=>({supported:true}),load:async({onProgress})=>{__fixture.loadCalls++;onProgress({progress:1,text:'Contract fixture loaded'});__fixture.loaded=true;},cancel:()=>{__fixture.cancels++;__fixture.loaded=false;},unload:()=>{__fixture.loaded=false;},clearSession:()=>{__fixture.loaded=false;},generate:async(options)=>{
+        if(!__fixture.loaded)throw new Error('Fixture model was unloaded');
+        __fixture.generationCalls++;__fixture.lastContext=options.context;
+        const result={text:options.task==='draft'?JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:__fixture.foreign?'USD':'TWD',kind:'expense',category:'1',merchant:'<img src=x onerror=alert(1)>',note:'fixture note',missingFields:[]}],warnings:[]}):'Explanation <img src=x onerror=alert(1)> [summary:2026-10]',model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:20,usage:{promptTokens:10,completionTokens:12},finishReason:'stop'};
+        if(__fixture.reject){options.onToken('REJECTED PROVISIONAL TEXT');throw new Error('AI_UNGROUNDED fixture rejection');}
+        if(__fixture.defer)return new Promise(resolve=>{__fixture.resolve=()=>resolve(result);});
+        return result;
+      }};
+      const facts=()=>({period:'2026-10',previousPeriod:'2026-09',scope:'me',current:{income:'10000.00',expense:'65.00',net:'9935.00'},previous:{income:'9000.00',expense:'50.00',net:'8950.00'},comparison:{expenseDelta:'15.00'},categories:{items:[]},budgets:{items:[]},savings:{goal:'1000.00',shortfall:'0.00'},transactions:{items:[{id:'8',evidenceId:'tx:8',date:'2026-10-19',kind:'expense',amount:'65.00',categoryName:'Food',merchant:'PRIVATE',note:'PRIVATE',sourceLink:'/api/ai-local/context?period=2026-10&scope=me'}],totalCount:1,returnedCount:1,offset:0,truncated:false,hasMore:false},sources:[{id:'summary:2026-10',title:'Monthly total',link:'/api/ai-local/context?period=2026-10&scope=me'}]});
+      window.API={mode:'http',categories:async()=>({categories:[{id:'1',name:'Food',kind:'expense'}]}),groups:async()=>({groups:[{id:'5',name:'My ledger'}]}),me:async()=>({user:{id:'one'}}),request:async(path,options={})=>{__fixture.requests.push(path);if(path.includes('/knowledge?'))return {method:'bm25',items:[{id:'help-entry',title:'Entry confirmation',text:'Review every draft before saving.',sourceLink:'/docs/tutorial.html#entry'}]};if(path.startsWith('/api/ai-local/context?'))return facts();if(path==='/api/nlp/confirm'){__fixture.writes.push(options.body);return {id:'100'};}throw new Error('Unexpected fixture request '+path);},nlpConfirmBatch:async(items)=>{__fixture.writes.push(items);return {created:items.length};}};
+    });
+    await page.addScriptTag({path:path.join(__dirname,'../js/ai-assistant.js')});
+    await page.evaluate(()=>{AIAssistant.setAccount({id:'one'});AIAssistant.render(document.querySelector('#view'));});
+    assert.equal(await page.evaluate(()=>__fixture.loadCalls),0,'mount never loads weights');
+    assert.equal(await page.locator('[data-ai-action="run"]').isDisabled(),true);
+    await page.locator('[data-ai-action="load"]').click();
+    await page.waitForFunction(()=>__fixture.loaded);
+    await page.locator('[data-ai-mode="ledger"]').click();
+    assert.equal(await page.evaluate(()=>__fixture.loaded),true,'idle tab change preserves loaded model');
+    await page.locator('[data-ai-action="facts"]').click();
+    await page.waitForFunction(()=>document.querySelector('.ait-facts').textContent.includes('TWD 10000.00'));
+    assert.equal(await page.evaluate(()=>__fixture.loaded),true,'retrieval preserves loaded model');
+    assert.equal(await page.evaluate(()=>__fixture.generationCalls),0,'facts are not fabricated inference');
+    await page.locator('[data-ai-mode="draft"]').click();
+    await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: breakfast USD 65');
+    await page.locator('[data-ai-action="run"]').click();
+    await page.waitForSelector('[data-ai-row]');
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'generation never writes');
+    assert.equal(await page.locator('[data-ai-field="amount"]').inputValue(),'','foreign amount is never auto-converted');
+    await page.locator('[data-ai-group]').selectOption('5');
+    await page.locator('[data-ai-approve]').check();
+    await page.locator('[data-ai-action="save"]').click();
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'invalid currency draft is blocked');
+    await page.locator('[data-ai-field="amount"]').fill('2015.00');
+    await page.locator('[data-ai-field="fxConfirmed"]').check();
+    await page.locator('[data-ai-approve]').check();
+    await page.locator('[data-ai-action="save"]').click();
+    await page.waitForFunction(()=>__fixture.writes.length===1);
+    const saved=await page.evaluate(()=>__fixture.writes[0]);
+    assert.equal(saved.amount,2015);assert.equal(saved.groupId,'5');assert.equal(saved.raw,'CONTRACT FIXTURE ONLY: breakfast USD 65');
+    assert.equal(await page.locator('.ait-output img').count(),0,'model HTML stays text or input values');
+    await page.locator('[data-ai-mode="help"]').click();
+    await page.locator('textarea').fill('PRIVATE QUESTION user@example.com — this must not be the search query');
+    await page.locator('[data-ai-action="run"]').click();
+    await page.waitForFunction(()=>__fixture.lastContext&&__fixture.lastContext.knowledge);
+    assert.equal(await page.evaluate(()=>Array.isArray(__fixture.lastContext.knowledge.items)),true,'worker receives knowledge object contract');
+    const search=await page.evaluate(()=>__fixture.requests.find(path=>path.includes('/knowledge?')));
+    assert.equal(search.includes('PRIVATE'),false);assert.equal(search.includes('user%40'),false);
+    assert.equal(await page.locator('.ait-answer img').count(),0,'generated HTML is escaped with textContent');
+    await page.evaluate(()=>{__fixture.reject=true;});
+    await page.locator('[data-ai-action="run"]').click();
+    await page.waitForFunction(()=>document.querySelector('.ait-status').textContent.includes('AI_UNGROUNDED'));
+    assert.equal(await page.locator('.ait-output').textContent(),'','rejected provisional output is removed');
+    await page.evaluate(()=>{__fixture.reject=false;__fixture.defer=true;});
+    await page.locator('[data-ai-action="run"]').click();
+    await page.waitForFunction(()=>typeof __fixture.resolve==='function');
+    await page.evaluate(()=>{AIAssistant.setAccount({id:'two'});__fixture.resolve();});
+    await page.waitForTimeout(30);
+    assert.equal(await page.locator('.ai-trial').count(),0,'account change removes old private DOM');
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),1,'stale generated result never writes');
+    await page.evaluate(()=>{AIAssistant.render(document.querySelector('#view'));});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'320px page has no horizontal overflow');
+    assert.deepEqual(pageErrors,[]);
+  } finally { await browser.close(); }
+});

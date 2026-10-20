@@ -477,6 +477,7 @@
       { nav: 'stats', label: '統計', icon: 'stats' },
       { nav: 'advice', label: '財務建議', icon: 'advice', tone: o.warn ? 'warn' : '',
         badge: o.warn ? o.warn + ' 則要注意' : '' },
+      { nav: 'ai', label: '免費 AI 試用', icon: 'advice' },
       /* ⚠️ 家庭那一支問不到（famOff）時一律寫「家庭成員」：寫「加入家庭」
          等於斷定他沒有家庭，而我們根本沒問到。 */
       { nav: 'members', label: !o.famOff && o.fm && o.fm.family === null ? '加入家庭' : '家庭成員',
@@ -3781,6 +3782,7 @@
       '<a class="card settings-link" href="#/profile"><span>👤</span><h2>個人資料與目標</h2><p>更換大頭貼、名字、存款目標、每月預算與登入裝置。</p></a>' +
       '<a class="card settings-link" href="#/appearance"><span>🎨</span><h2>主題與背景</h2><p>先瀏覽預覽，再套用配色、照片與顯示樣式。</p></a>' +
       '<a class="card settings-link" href="#/tutorial"><span>🧭</span><h2>使用教學與導覽</h2><p>了解各項功能，隨時重新開啟逐步操作導覽。</p></a>' +
+      '<a class="card settings-link" href="#/ai"><span>✨</span><h2>免費 AI 試用</h2><p>先試用裝置端模型、照片記帳與有依據的帳務問答。</p></a>' +
       '<a class="card settings-link" href="#/memories"><span>🧩</span><h2>記帳小天地</h2><p>設定拼圖照片、目標片數與自己的成就牆。</p></a></nav>' +
       '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和帳本名稱會保留原文。</p>' + languageSelector() + '</section>' +
       '<section class="card"><h2>帳號安全</h2><p class="flow-help">可在個人資料檢查登入中的裝置，並登出其他裝置。</p><a class="btn" href="#/profile">管理登入裝置</a> <button class="btn btn--danger" id="logout">登出</button></section></div>';
@@ -3810,6 +3812,11 @@
     if (global.Memories && global.Memories.render) global.Memories.render($view);
     else $view.innerHTML = '<div class="page"><div class="card">暫時無法載入小天地，請重新整理後再試。</div></div>';
   }
+  function vAI() {
+    head('免費 AI 家庭助理', '模型在你的裝置執行，先核對再記帳。');
+    if (global.AIAssistant) global.AIAssistant.render($view, { user: ME && ME.user });
+    else $view.innerHTML = '<div class="page"><div class="card">頁面正在更新，請重新整理。</div></div>';
+  }
   function enhanceMedia() {
     if (!global.TransactionMedia) return;
     global.TransactionMedia.mountRecordButtons($view);
@@ -3828,7 +3835,7 @@
 
   /* ---------- 路由 ---------- */
   var ROUTES = { '': vHome, entry: vEntry, stats: vStats,
-                 advice: vAdvice, members: vMembers,
+                 advice: vAdvice, ai: vAI, members: vMembers,
                  login: vLogin, register: vRegister, profile: vProfile,
                  member: vMember, groups: vGroups, admin: vAdmin,
                  setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange, appearance: vAppearance, settings: vSettings, tutorial: vTutorial, memories: vMemories,
@@ -3840,12 +3847,14 @@
 
   function paint() {
     var requestedHash = location.hash;
+    if (global.AIAssistant && !/^#\/ai(?:\/|$)/.test(requestedHash)) global.AIAssistant.cleanup();
     // #/member/U3/T1051 → ['member', 'U3', 'T1051']
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var page = parts[0];
     API.authState().then(function (a) {
       if (requestedHash !== location.hash) return;
       AUTH_LOGGED_IN = a.loggedIn;
+      if (!a.loggedIn && global.AIAssistant) global.AIAssistant.setAccount(null);
       if (ANY.indexOf(page) >= 0) { render(); return; }
       /* 登入閘。沒登入只能待在 login／register／forgot，
          登入了就別再讓他看登入頁。 */
@@ -3863,9 +3872,10 @@
          反過來，一般使用者打 #/admin 會拿到 403，直接送回首頁。
 
          ME 在登出時會清掉，所以這裡不會拿上一個人的身分來判斷。 */
-      (ME && ME.user ? Promise.resolve(ME) : API.me()).then(function (m) {
+      (ME && ME.user && page !== 'ai' ? Promise.resolve(ME) : API.me()).then(function (m) {
         if (requestedHash !== location.hash) return;
         ME = m;
+        if (global.AIAssistant) global.AIAssistant.setAccount(m.user);
         var admin = !!m.user.isPlatformAdmin;
         if (admin && page !== 'admin') { location.hash = '#/admin'; return; }
         if (!admin && page === 'admin') { location.hash = '#/'; return; }

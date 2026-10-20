@@ -48,6 +48,10 @@ async function rec(name, ...args) {
   // while retaining that unavailable result rather than inventing a quote.
   await rec('exchangeRates', { base: 'USD', refresh: false });
   await rec('exchangeConvert', { amount: '100.50', fromCurrency: 'USD', toCurrency: 'TWD' });
+  // The mock deliberately has no authoritative grounding corpus or ledger
+  // tool. Keep its explicit 503 while recording real authenticated GET shapes.
+  await rec('aiLocalContext', { period: '2026-09', scope: 'me', limit: 12, offset: 0 });
+  await rec('aiLocalKnowledge', { q: 'monthly budget', language: 'en', limit: 4 });
   const kid = await A.register({ name: '王小華', email: 'xiaohua@wang.tw', password: 'xiaohua-pass-1' });
   const mom = await A.register({ name: '陳美玲', email: 'meiling@wang.tw', password: 'meiling-pass-1' });
   await rec('logout');

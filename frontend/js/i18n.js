@@ -120,7 +120,8 @@
       var rendered = t(element.getAttribute('data-i18n'));
       if (element.textContent !== rendered) element.textContent = rendered;
     });
-    document.title = translate('家庭記帳與財務控管系統');
+    var titleKey = document.querySelector('meta[name="title-i18n"]');
+    document.title = titleKey ? t(titleKey.content) : translate('家庭記帳與財務控管系統');
   }
   function schedule() {
     if (scheduled) return;

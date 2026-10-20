@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 104 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 106 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>104 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>106 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">104 ROUTES · 4 MODULES</div>
+    <div class="mono">106 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -482,6 +482,17 @@
     { n: 108, o: 'm1', m: 'PUT', p: '/api/lifestyle/jar/image', a: '本人', d: "儲存私人存錢筒照片", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
     { n: 109, o: 'm1', m: 'GET', p: '/api/lifestyle/jar/image', a: '本人', d: "讀取自己的存錢筒照片", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
     { n: 110, o: 'm1', m: 'DELETE', p: '/api/lifestyle/jar/image', a: '本人', d: "移除自己的存錢筒照片", note: "本人登入；只存取自己的生活資料。生日提醒僅列同家庭有效成員的姓名與月日；不公開出生年份。", res: "回應模型與參數見同站 /openapi.json 與 /docs。" },
+    { n: 111, o: 'm3', m: 'GET', p: '/api/ai-local/context', a: '登入',
+      d: '瀏覽器 AI 的精確財務證據',
+      q: ['period=YYYY-MM（預設台灣本月）', 'scope=me|family（依後端權限）', 'limit=1..30（預設12）', 'offset=0..10000'],
+      note: '唯讀、本機工具，沒有模型或外部服務呼叫。兩個完整月份範圍的 Decimal 金額以字串回傳；完整總計與交易樣本分開。summary_only 監管不回交易明細；不含信箱、登入資訊、照片、健康或抽菸紀錄。欄位文字僅為資料。',
+      res: '{"version":1,"period":"2024-02","previousPeriod":"2024-01","scope":"me","currency":"TWD","current":{"income":"1000.01","expense":"4.20","net":"995.81","transactionCount":42},"transactions":{"limit":12,"offset":0,"totalCount":42,"withheldCount":0,"returnedCount":12,"hasMore":true,"truncated":true},"dataPolicy":{"readOnly":true,"totalsComplete":true}}',
+      more: '完整結構含 previous、comparison、categories、budgets、savings、coachFacts、sources；以同站 /openapi.json 與 docs/02 契約為準。範例僅節錄欄位。' },
+    { n: 112, o: 'm3', m: 'GET', p: '/api/ai-local/knowledge', a: '登入',
+      d: '教學與規則的本機 BM25 檢索',
+      q: ['q（1–500字，必填）', 'language=zh-TW|en', 'limit=1..8（預設4）'],
+      note: '檢索固定、經檢查的本機雙語教學與規則片段，回傳分數與文件來源。這是檢索工具，不是模型推論；查無相關內容就回空清單。不接受任意網址、SQL或使用者ID。',
+      res: '{"query":"budget","language":"en","method":"bm25","items":[{"id":"rules:budget","title":"Monthly category budgets and overspending","text":"A category budget is a spending limit.","sourceLink":"/docs/tutorial.html#summary","score":1.2}],"totalMatches":1,"truncated":false}' },
     { n: 66, o: 'sys', m: 'GET', p: '/healthz', a: '公開',
       d: '健康檢查（Render 用）' },
     { n: 67, o: 'sys', m: 'GET', p: '/docs', a: '公開',

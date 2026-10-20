@@ -39,7 +39,7 @@ LEGACY_MODULE_NAMES = {
     "app.routers.analytics.exchange", "app.routers.access.family",
     "app.routers.access.notifications",
 }
-PRODUCT_MODULE_NAMES = {"app.routers.memories", "app.routers.appearance", "app.routers.lifestyle"}
+PRODUCT_MODULE_NAMES = {"app.routers.memories", "app.routers.appearance", "app.routers.lifestyle", "app.routers.ai_local"}
 LEGACY_MODULES = [module for module in routers.ALL if module.__name__ in LEGACY_MODULE_NAMES]
 PRODUCT_MODULES = [module for module in routers.ALL if module.__name__ in PRODUCT_MODULE_NAMES]
 

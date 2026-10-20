@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RESTful API 說明書</title>
-<meta name="description" content="從零開始講 REST：網址是名詞、動作是方法、狀態碼是回應的一部分，並且誠實檢查本專案 104 支路由哪裡符合、哪裡故意不符合。">
+<meta name="description" content="從零開始講 REST：網址是名詞、動作是方法、狀態碼是回應的一部分，並且誠實檢查本專案 106 支路由哪裡符合、哪裡故意不符合。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -100,12 +100,12 @@ td.verdict-fix { color: var(--down); white-space: nowrap; }
         REST 不是技術，是一套<b>取名字的約定</b>。約定好之後，
         別人看到你的網址就猜得出它會做什麼——不用問你、不用翻文件。<br>
         這份文件會先用<b>圖書館</b>把概念講完，再回頭誠實檢查
-        我們自己的 104 支路由：哪些符合、哪些故意不符合、哪些可以改。
+        我們自己的 106 支路由：哪些符合、哪些故意不符合、哪些可以改。
       </p>
       <div class="hero__meta">
         <div class="mchip"><span>預計閱讀</span><b>25 分鐘</b></div>
         <div class="mchip"><span>前置知識</span><b>看過 FastAPI 說明書</b></div>
-        <div class="mchip"><span>本專案</span><b>104 支路由</b></div>
+        <div class="mchip"><span>本專案</span><b>106 支路由</b></div>
       </div>
     </header>
     <!-- 這一頁的重點：先講結論，細節在下面每一節 -->
@@ -520,19 +520,19 @@ DELETE /books/5
 
     <!-- ============ 08 ============ -->
     <section class="sec" id="ours">
-      <div class="sec__h"><span class="sec__n">08</span><h2>誠實檢查我們自己的 104 支</h2></div>
+      <div class="sec__h"><span class="sec__n">08</span><h2>誠實檢查我們自己的 106 支</h2></div>
       <p class="sec__lead">
         我把本專案的每一支路由都對上面的規則檢查過（清單跟 <code>backend/app/ownership.py</code> 一致，有測試對）。
-        結果是：<b>74 支裡有 36 支完全符合，38 支採用通用寫法或動作接口。</b>
+        結果是：<b>106 支裡有 60 支完全符合，46 支採用通用寫法或動作接口。</b>
       </p>
 
       <div class="note">
         <div class="note__k">這個數字不代表設計很差</div>
-        <p>其他 38 支裡，<b>17 支是業界通用做法、11 支是刻意的動作</b>，
-        真的可以改得更一致的是 10 支。下面逐類講。</p>
+        <p>其他 46 支裡，<b>19 支是業界通用做法、11 支是刻意的動作</b>，
+        真的可以改得更一致的是 16 支。下面逐類講。</p>
       </div>
 
-      <h3 class="sub">完全符合（36 支）</h3>
+      <h3 class="sub">完全符合（60 支）</h3>
       <p style="color:var(--ink-soft);max-width:64ch">網址是名詞、集合用複數、動作靠方法表達，照第 2～4 節寫的就是這些：</p>
       <div class="tw">
         <table>
@@ -553,7 +553,7 @@ DELETE /books/5
         </table>
       </div>
 
-      <h3 class="sub">第一類：業界通用，不用改（17 支）</h3>
+      <h3 class="sub">第一類：業界通用，不用改（19 支）</h3>
       <div class="tw">
         <table>
           <thead><tr><th>路由</th><th>嚴格說的問題</th><th>為什麼不改</th></tr></thead>
@@ -567,6 +567,9 @@ DELETE /books/5
             <tr><td class="rt">PATCH /api/auth/password<br>GET /api/auth/me/finance<br>PUT /api/auth/me/finance<br>PUT /api/auth/me/avatar<br>DELETE /api/auth/me/avatar<br>GET /api/summary<br>GET /api/family<br>POST /api/family<br>DELETE /api/family<br>PATCH /api/groups/{gid}/notify</td>
                 <td>用了單數名詞</td>
                 <td>這些是 <b>singleton resource</b>（單例資源）：一個人只有一組密碼、一份理財習慣、一張大頭貼，只屬於一個家庭，在一本帳裡只有一個通知開關。<b>單數在這種情況是正確的</b>，複數才奇怪。</td></tr>
+            <tr><td class="rt">GET /api/ai-local/context<br>GET /api/ai-local/knowledge</td>
+                <td>按目前帳號與查詢條件導出的唯讀資源</td>
+                <td><code>context</code> 是授權財務證據，<code>knowledge</code> 是教學檢索結果。以 GET 查詢，不執行模型、不建立交易，也不接受任意使用者ID或SQL。</td></tr>
             <tr><td class="rt">GET /api/family/lookup</td>
                 <td>網址有動詞</td>
                 <td>查詢類的慣例寫法（跟 <code>/search</code> 一樣）。它只讀、不建立任何東西，而且只收完整 email。</td></tr>
@@ -597,7 +600,7 @@ DELETE /books/5
         </table>
       </div>
 
-      <h3 class="sub">第三類：可以改得更一致（10 支）</h3>
+      <h3 class="sub">第三類：可以改得更一致（16 支）</h3>
       <p style="color:var(--ink-soft);max-width:64ch">
         改成下面的寫法之後<b>更清楚</b>，不是為了合規而合規：
       </p>
@@ -751,14 +754,14 @@ DELETE /books/5
       <div class="note">
         <div class="note__k">動工前先看這兩份</div>
         <p><a href="fastapi.html">FastAPI 說明書</a> —— 怎麼用程式把這些實作出來<br>
-        <a href="api.html">API 瀏覽</a> —— 本專案 104 支路由的完整清單<br>
+        <a href="api.html">API 瀏覽</a> —— 本專案 106 支路由的完整清單<br>
         還有 <code>docs/02-前後端串接契約.md</code> —— 每一支「我送什麼、你吐什麼」</p>
       </div>
     </section>
 
     <footer class="foot">
       <div>家庭記帳與財務控管系統 · RESTful API 說明書</div>
-      <div class="mono">104 ROUTES · 5 METHODS</div>
+      <div class="mono">106 ROUTES · 5 METHODS</div>
     </footer>
 
   </div>

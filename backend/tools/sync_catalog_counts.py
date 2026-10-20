@@ -50,7 +50,9 @@ def render(src, total, screens, tables):
         src = re.sub(r"(\| " + re.escape(member.domain) + r" \|[^\n]*\| )\d+ 支", lambda m: m.group(1) + str(n) + " 支", src)
         # The FastAPI domain table puts the file list and count on separate
         # lines. Match complete HTML rows using the owned router folder.
-        folders = {str(Path(f).parent) + "/" for f in member.files if f.startswith("app/routers/")}
+        # A standalone router is not ownership of every router subdirectory.
+        folders = {str(Path(f).parent) + "/" for f in member.files
+                   if f.startswith("app/routers/") and Path(f).parent != Path("app/routers")}
         def table_row(match):
             row = match.group(0)
             if any(folder.removeprefix("app/") in row for folder in folders):

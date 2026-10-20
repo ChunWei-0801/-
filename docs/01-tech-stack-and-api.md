@@ -37,13 +37,13 @@
 
 | 用 React 的好處 | 對本專案的實際影響 |
 |---|---|
-| 元件化、狀態管理 | 目前二十四個畫面已經寫完，重寫是純成本 |
+| 元件化、狀態管理 | 目前二十五個畫面已經寫完，重寫是純成本 |
 | 生態系豐富 | 我們沒有要用第三方 UI 套件 |
 | 履歷加分 | 冠文已有 React 經驗，其他三人沒有 |
 
 | 用原生的代價 | 實際狀況 |
 |---|---|
-| 沒有元件複用 | 二十四個畫面規模還撐得住，函式化就夠 |
+| 沒有元件複用 | 二十五個畫面規模還撐得住，函式化就夠 |
 | 手寫 DOM 操作 | 已經封裝在 `app.js` 的 render 函式裡 |
 | 沒有型別檢查 | 用 `js/api.js` 這一層集中管住資料形狀 |
 
@@ -153,7 +153,7 @@ final_project/
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
 │   │   ├── models/              30 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             104 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             106 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **104 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **106 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -455,7 +455,7 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 |---|---|---|
 | **認證** | `backend/app/routers/auth/` | 39 支 |
 | **記帳** | `backend/app/routers/ledger/` | 31 支 |
-| **數字** | `backend/app/routers/analytics/` | 13 支 |
+| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py` | 15 支 |
 | **家庭** | `backend/app/routers/access/` | 21 支 |
 
 路由屬於哪個領域，寫在 `backend/app/ownership.py`（`python -m app.ownership` 會印出各領域的完成度）。
@@ -523,3 +523,12 @@ python -m http.server 5174 --directory frontend
 | 108 | PUT | `/api/lifestyle/jar/image` | 認證 | 本人 | 儲存私人存錢筒照片。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
 | 109 | GET | `/api/lifestyle/jar/image` | 認證 | 本人 | 讀取自己的存錢筒照片。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
 | 110 | DELETE | `/api/lifestyle/jar/image` | 認證 | 本人 | 移除自己的存錢筒照片。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
+
+## 4-10　瀏覽器 AI 的唯讀證據工具
+
+| # | 方法 | 路徑 | 領域 | 權限 | 用途 |
+|---|---|---|---|---|---|
+| 111 | GET | `/api/ai-local/context` | 數字 | 登入 | `period=YYYY-MM`、`scope=me\|family`、`limit=1..30`、`offset=0..10000`。兩個月份的完整授權收支、分類比較、每月預算／目標、分頁交易證據。金額均為 Decimal 字串；summary_only 不回明細。 |
+| 112 | GET | `/api/ai-local/knowledge` | 數字 | 登入 | `q` 1..500字、`language=zh-TW\|en`、`limit=1..8`。本機雙語教學／規則的 BM25 檢索，附分數和來源；查無結果回空清單。 |
+
+兩支工具皆沿用登入、停權與平台管理員守衛，只讀資料，不執行模型、不呼叫外部服務、不寫入模型產生的交易。詳細欄位與權限見 `docs/02-前後端串接契約.md` 和執行中服務的 `/openapi.json`。
