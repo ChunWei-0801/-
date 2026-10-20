@@ -69,11 +69,11 @@ test('contract fixture: model and source URLs cannot inject navigation', () => {
 });
 
 test('contract fixture: downloadable evaluation excludes input, ledger, answer, receipt, and raw errors', () => {
-  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],failedMeasurements:[{task:'draft',model:'local-model',elapsedMs:42,usage:{completion_tokens:6,privateText:'secret'},attempts:2,errorCode:'AI_NO_DRAFT',rawOutput:'private model output',message:'private raw error'}],context:{privateLedger:'never'},rawInput:'private input',file:'private image'});
+  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],failedMeasurements:[{task:'draft',model:'local-model',elapsedMs:42,usage:{completion_tokens:6,privateText:'secret'},attempts:2,errorCode:'AI_NO_DRAFT',rawOutput:'private model output',message:'private raw error'}],context:{privateLedger:'never'},rawInput:'private input',rawModelOutput:'private raw extraction',file:'private image'});
   const json=JSON.stringify(data);
   assert.equal(data.containsPrivateContent,false);assert.equal(data.modelRuns[0].usage.promptTokens,12);
   assert.equal(data.failedRuns[0].errorCode,'AI_NO_DRAFT');assert.equal(data.failedRuns[0].attempts,2);
-  for(const value of ['private question','private answer','privateLedger','private input','private image','private model output','private raw error','secret'])assert.equal(json.includes(value),false,value);
+  for(const value of ['private question','private answer','privateLedger','private input','private image','private model output','private raw error','private raw extraction','secret'])assert.equal(json.includes(value),false,value);
 });
 
 test('contract fixture: OCR pins an actual worker and core; languages contain no image upload endpoint', () => {
@@ -102,6 +102,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
         __fixture.generationCalls++;__fixture.lastContext=options.context;
         if(__fixture.draftFailure){const error=new Error('The model did not produce usable draft items.');error.code='AI_NO_DRAFT';error.details={rawOutput:'{"items":[],"warnings":["<img src=x onerror=alert(1)>"]}',elapsedMs:42,model:'CONTRACT FIXTURE — NOT INFERENCE',finishReason:'stop',usage:{completion_tokens:6},attempts:2};throw error;}
         const result={text:options.task==='draft'?JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:__fixture.foreign?'USD':'TWD',kind:'expense',category:'1',merchant:'<img src=x onerror=alert(1)>',note:'fixture note',missingFields:[]}],warnings:[]}):'Explanation <img src=x onerror=alert(1)> [summary:2026-10]',model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:20,usage:{promptTokens:10,completionTokens:12},finishReason:'stop'};
+        if(options.task==='draft')result.rawModelOutput='{"items":[{"sourceText":"MODEL SOURCE FIXTURE","amountText":"65","classification":"支出｜Food"}],"warnings":[]}';
         if(__fixture.reject){options.onToken('REJECTED PROVISIONAL TEXT');throw new Error('AI_UNGROUNDED fixture rejection');}
         if(__fixture.defer)return new Promise(resolve=>{__fixture.resolve=()=>resolve(result);});
         return result;
@@ -135,6 +136,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: breakfast USD 65');
     await page.locator('[data-ai-action="run"]').click();
     await page.waitForSelector('[data-ai-row]');
+    assert.match(await page.locator('.ait-raw').textContent(),/MODEL SOURCE FIXTURE/,'review preserves the actual model extraction, separately from canonical editable fields');
     assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'generation never writes');
     assert.equal(await page.locator('[data-ai-field="amount"]').inputValue(),'','foreign amount is never auto-converted');
     await page.locator('[data-ai-group]').selectOption('5');

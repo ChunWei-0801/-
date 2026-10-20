@@ -139,93 +139,195 @@ function runtimeHarness(text, options={}) {
   vm.runInContext(workerSource.replace('import(RUNTIME_URL)','Promise.resolve(self.__fakeRuntime)'),context);
   return{sent,calls,context,run:async request=>{sent.length=0;await self.onmessage({data:{id:1,...request}});return sent.at(-1);},load:async()=>self.onmessage({data:{id:0,type:'load',model:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC'}})};
 }
-const draftContext={today:'2026-10-19',timezone:'Asia/Taipei',categories:[{id:'food',name:'餐飲',kind:'expense'},{id:'fuel',name:'交通',kind:'expense'}]};
+const draftContext={today:'2026-10-19',timezone:'Asia/Taipei',categories:[{id:'food',name:'餐飲',kind:'expense'},{id:'fuel',name:'交通',kind:'expense'},{id:'salary',name:'薪資',kind:'income'}]};
 const draftItem={kind:'expense',amount:120,currency:'TWD',date:'2026-10-18',category:'food',merchant:null,note:'午餐',missingFields:['merchant']};
 const ledgerContext={period:'2026-10',previousPeriod:'2026-09',current:{income:'10000.00',expense:'1200.00',net:'8800.00'},previous:{income:'9000.00',expense:'1000.00',net:'8000.00'},comparison:{expenseDelta:'200.00'},sources:[{id:'summary:2026-10',title:'Month'},{id:'summary:2026-09',title:'Previous'}]};
 
-test('worker builds real-model JSON request for multi-entry drafts with explicit untrusted-data boundary',async()=>{
-  const h=runtimeHarness(JSON.stringify({items:[draftItem,{...draftItem,amount:800,category:'fuel',note:'加油'}],warnings:[]}));await h.load();
-  const reply=await h.run({type:'generate',task:'draft',input:'昨天午餐120元、加油800元',context:draftContext,language:'zh-TW'});
+// The following are source/mapping contract fixtures, never model-quality proof.
+const modelItem={sourceText:'午餐120元',amountText:'120',classification:'支出｜餐飲',dateText:'昨天',currency:'TWD',merchantText:null};
+const modelDraft=(items=[modelItem],warnings=[])=>JSON.stringify({items,warnings});
+async function extractFixture(text,input='昨天午餐120元',context=draftContext,options={}){
+  const h=runtimeHarness(text,options);await h.load();
+  const reply=await h.run({type:'generate',task:'draft',input,context,language:'zh-TW'});
+  return {h,reply,value:reply.type==='result'?JSON.parse(reply.result.text):null};
+}
+
+test('worker asks for verbatim source fields and readable labels, then keeps raw inference separate from mechanical mapping',async()=>{
+  const raw=modelDraft([modelItem,{...modelItem,sourceText:'加油800元',amountText:'800',classification:'支出｜交通'}]);
+  const {h,reply,value}=await extractFixture(raw,'昨天午餐120元、加油800元');
   assert.equal(reply.type,'result');const request=h.calls.requests[0];
-  assert.equal(request.response_format.type,'json_object');assert.equal(JSON.parse(request.response_format.schema).properties.items.maxItems,10);
-  assert.equal(request.max_tokens,640);assert.ok(request.messages[0].content.includes('Traditional Chinese'));
+  assert.equal(request.response_format.type,'json_object');const grammar=JSON.parse(request.response_format.schema);
+  assert.equal(grammar.properties.items.maxItems,10);assert.equal(request.max_tokens,640);
+  assert.ok(request.messages[0].content.includes('先逐字抄sourceText'));assert.ok(request.messages[0].content.includes('未發生、否定或提問不記帳'));
   assert.equal(request.messages.length,4);assert.equal(request.messages[2].role,'assistant');
-  assert.equal(JSON.parse(request.messages[2].content).items.length,2);
+  const example=JSON.parse(request.messages[2].content);
+  assert.equal(example.items.length,2);assert.deepEqual(example.items.map(i=>i.classification),['支出｜示例通勤','收入｜示例報酬']);
   assert.ok(request.messages.at(-1).content.includes('UNTRUSTED_DATA_JSON'));assert.ok(request.messages.at(-1).content.includes('2026-10-19'));
-  assert.ok(request.messages[0].content.includes('NEVER copy its purchases or amounts'));
-  const grammar=JSON.parse(request.response_format.schema);
-  assert.deepEqual(grammar.properties.items.items.properties.category.enum,['food','fuel',null]);
+  const data=JSON.parse(request.messages.at(-1).content.split('\n')[2]);
+  assert.ok(data.context.classifications.includes('支出｜餐飲'));assert.equal(JSON.stringify(data).includes('"id"'),false);
+  assert.deepEqual(grammar.properties.items.items.properties.classification.enum,[...data.context.classifications,null]);
+  assert.deepEqual(Object.keys(grammar.properties.items.items.properties).slice(0,3),['sourceText','amountText','classification']);
   assert.ok(grammar.properties.items.items.properties.currency.enum.includes('TWD'));
   assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
-  assert.equal(h.calls.resets,2);assert.equal(reply.result.finishReason,'stop');
+  assert.equal(reply.result.rawModelOutput,raw);assert.notEqual(reply.result.rawModelOutput,reply.result.text);
+  assert.deepEqual(value.items.map(i=>[i.amount,i.kind,i.category,i.date]),[[120,'expense','food','2026-10-18'],[800,'expense','fuel','2026-10-18']]);
+  assert.equal(reply.result.normalization.sourceEvidenceChecked,true);assert.equal(reply.result.normalization.classificationMapping,'lookup-only');
+  assert.equal(reply.result.normalization.requiresHumanReview,true);assert.equal(h.calls.resets,2);
 });
 
-test('an empty extraction gets one real-model repair pass; the last user input and no invented fallback decide the result',async()=>{
-  const h=runtimeHarness([JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[{...draftItem,amount:65,note:'早餐'},{...draftItem,amount:120,note:'午餐'}],warnings:[]})]);await h.load();
-  const reply=await h.run({type:'generate',task:'draft',input:'今天早餐65元，午餐120元。',context:draftContext,language:'zh-TW'});
+test('empty extraction gets one real-model repair pass without a rule-generated draft fallback',async()=>{
+  const raw=modelDraft([{...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'},{...modelItem,dateText:'今天'}]);
+  const {h,reply,value}=await extractFixture([modelDraft([]),raw],'今天早餐65元，午餐120元。');
   assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,2);assert.equal(h.calls.resets,3);
   assert.equal(reply.result.attempts,2);assert.equal(reply.result.usage.completion_tokens,20);
-  assert.deepEqual(JSON.parse(reply.result.text).items.map(item=>item.amount),[65,120]);
+  assert.deepEqual(value.items.map(item=>item.amount),[65,120]);assert.equal(reply.result.rawModelOutput,raw);
   assert.ok(h.calls.requests[1].messages[0].content.includes('AI_NO_DRAFT'));
-  assert.ok(h.calls.requests[1].messages[0].content.includes('Never invent a transaction'));
+  assert.ok(h.calls.requests[1].messages[0].content.includes('不可為了非空而虛構交易'));
   assert.ok(h.calls.requests[1].messages.at(-1).content.includes('今天早餐65元，午餐120元。'));
   for(const request of h.calls.requests)assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
 });
 
-test('repeated empty or meaningless model output remains a failed draft with private in-memory diagnostics',async()=>{
-  for(const text of [JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[{...draftItem,kind:null,amount:null,category:null,note:'unknown'}],warnings:[]})]){
-    const h=runtimeHarness(text);await h.load();
-    const reply=await h.run({type:'generate',task:'draft',input:'沒有交易 PRIVATE_INPUT',context:draftContext});
+test('repeated empty or entirely unknown output remains failed with only in-memory model diagnostics',async()=>{
+  for(const raw of [modelDraft([]),modelDraft([{...modelItem,sourceText:'資料不明',amountText:null,classification:null,dateText:null,currency:null}])]){
+    const {h,reply}=await extractFixture(raw,'資料不明 PRIVATE_INPUT');
     assert.equal(reply.type,'error');assert.equal(reply.error.code,'AI_NO_DRAFT');assert.equal(h.calls.requests.length,2);
-    assert.equal(reply.error.details.rawOutput,text);assert.equal(reply.error.details.attempts,2);
+    assert.equal(reply.error.details.rawOutput,raw);assert.equal(reply.error.details.attempts,2);
     assert.equal(reply.error.details.finishReason,'stop');assert.equal(reply.error.details.usage.total_tokens,60);
     assert.equal(JSON.stringify(reply.error.details).includes('PRIVATE_INPUT'),false);
   }
 });
 
-test('repair usage is absent when the runtime reports only one pass, and truncated drafts never retry',async()=>{
-  const text=[JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[draftItem],warnings:[]})];
+test('partial runtime usage never looks like a total and truncated drafts do not retry',async()=>{
   for(const usages of [[null,{completion_tokens:10}],[{completion_tokens:10},null]]){
-    const h=runtimeHarness(text,{usages});await h.load();
-    const reply=await h.run({type:'generate',task:'draft',input:'午餐120',context:draftContext});
+    const {reply}=await extractFixture([modelDraft([]),modelDraft()],undefined,undefined,{usages});
     assert.equal(reply.type,'result');assert.equal(reply.result.attempts,2);assert.equal(reply.result.usage,null);
   }
-  const truncated=runtimeHarness('{"items":[',{finishReason:'length'});await truncated.load();
-  const reply=await truncated.run({type:'generate',task:'draft',input:'午餐120',context:draftContext});
-  assert.equal(reply.error.code,'AI_TRUNCATED');assert.equal(reply.error.details.attempts,1);assert.equal(truncated.calls.requests.length,1);
+  const {h,reply}=await extractFixture('{"items":[',undefined,undefined,{finishReason:'length'});
+  assert.equal(reply.error.code,'AI_TRUNCATED');assert.equal(reply.error.details.attempts,1);assert.equal(h.calls.requests.length,1);
 });
 
-test('the deployed public breakfast/lunch case fits both extraction and repair prompt budgets',async()=>{
+test('the public breakfast/lunch fixture keeps a shared today prefix, quotes and prompt budgets',async()=>{
   const context={today:'2026-10-20',timezone:'Asia/Taipei',currency:'TWD',categories:[{id:'FOOD',name:'餐飲',kind:'expense'},{id:'TRANSIT',name:'交通',kind:'expense'},{id:'SALARY',name:'薪資',kind:'income'},{id:'OTHER',name:'其他',kind:'expense'}]};
-  const h=runtimeHarness([JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[{...draftItem,category:'FOOD',amount:65},{...draftItem,category:'FOOD',amount:120}],warnings:[]})]);await h.load();
-  const reply=await h.run({type:'generate',task:'draft',input:'今天早餐65元，午餐120元。',context,language:'zh-TW'});
+  const raw=modelDraft([{...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'},{...modelItem,dateText:'今天'}]);
+  const {h,reply,value}=await extractFixture([modelDraft([]),raw],'今天早餐65元，午餐120元。',context);
   assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,2);
+  assert.deepEqual(value.items.map(item=>[item.amount,item.kind,item.category,item.date]),[[65,'expense','FOOD','2026-10-20'],[120,'expense','FOOD','2026-10-20']]);
   for(const request of h.calls.requests){assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);assert.ok(request.messages.at(-1).content.includes('2026-10-20'));}
 });
 
-test('malformed output is repaired only once and a mismatched category kind remains invalid',async()=>{
-  const h=runtimeHarness(['{"wrong":[]}',JSON.stringify({items:[draftItem],warnings:[]})]);await h.load();
-  assert.equal((await h.run({type:'generate',task:'draft',input:'午餐120',context:draftContext})).type,'result');
-  assert.equal(h.calls.requests.length,2);
-  const mismatched=runtimeHarness(JSON.stringify({items:[{...draftItem,kind:'income'}],warnings:[]}));await mismatched.load();
-  const reply=await mismatched.run({type:'generate',task:'draft',input:'income120',context:draftContext});
-  assert.equal(reply.error.code,'AI_INVALID_DRAFT');assert.equal(mismatched.calls.requests.length,2);
+test('malformed extraction gets only one repair, unsupported labels never select a nearby category',async()=>{
+  const {h,reply}=await extractFixture(['{"wrong":[]}',modelDraft()]);
+  assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,2);
+  const invalid=await extractFixture(modelDraft([{...modelItem,classification:'收入｜餐飲'}]));
+  assert.equal(invalid.reply.error.code,'AI_INVALID_DRAFT');assert.equal(invalid.h.calls.requests.length,2);
 });
 
-test('draft grammar and few-shot categories use only the context retained under the byte budget',async()=>{
-  const context={...draftContext,categories:Array.from({length:40},(_,index)=>({id:'category-'+index,name:'很長的分類名稱'.repeat(4)+index,kind:'expense'}))};
-  const h=runtimeHarness(JSON.stringify({items:[{...draftItem,category:'category-0'}],warnings:[]}));await h.load();
-  const result=await h.run({type:'generate',task:'draft',input:'午餐120元',context});assert.equal(result.type,'result');
+test('category reorder and ID replacement do not change example meaning or classify by the first expense',async()=>{
+  const reordered={...draftContext,categories:[{id:901,name:'交通',kind:'expense'},{id:902,name:'薪資',kind:'income'},{id:903,name:'餐飲',kind:'expense'}]};
+  const first=await extractFixture(modelDraft()),second=await extractFixture(modelDraft(),undefined,reordered);
+  assert.equal(first.value.items[0].category,'food');assert.equal(second.value.items[0].category,'903');
+  assert.equal(first.h.calls.requests[0].messages[2].content,second.h.calls.requests[0].messages[2].content);
+  const lastData=h=>JSON.parse(h.calls.requests[0].messages.at(-1).content.split('\n')[2]);
+  assert.deepEqual(lastData(first.h).context.classifications,lastData(second.h).context.classifications);
+});
+
+test('same-kind duplicate labels remain unclassified while opposite-kind names resolve independently',async()=>{
+  const context={...draftContext,categories:[{id:'a',name:'餐飲',kind:'expense'},{id:'b',name:'餐飲',kind:'expense'},{id:'c',name:'餐飲',kind:'income'}]};
+  const first=await extractFixture(modelDraft(),undefined,context);
+  assert.equal(first.value.items[0].kind,'expense');assert.equal(first.value.items[0].category,null);
+  assert.ok(first.value.items[0].missingFields.includes('category'));
+  const income=await extractFixture(modelDraft([{...modelItem,sourceText:'收到補助120元',classification:'收入｜餐飲'}]),'昨天收到補助120元',context);
+  assert.equal(income.value.items[0].category,'c');assert.equal(income.value.items[0].kind,'income');
+});
+
+test('a real category named unclassified cannot collide with reserved manual-selection labels',async()=>{
+  const context={...draftContext,categories:[{id:'actual',name:'未分類',kind:'expense'}]};
+  const real=await extractFixture(modelDraft([{...modelItem,classification:'支出｜未分類'}]),undefined,context);
+  assert.equal(real.reply.type,'result');assert.equal(real.value.items[0].category,'actual');
+  const reserved=await extractFixture(modelDraft([{...modelItem,classification:'支出（未選分類）'}]),undefined,context);
+  assert.equal(reserved.reply.type,'result');assert.equal(reserved.value.items[0].kind,'expense');assert.equal(reserved.value.items[0].category,null);
+});
+
+test('truncation never turns an originally ambiguous label into a unique ID',async()=>{
+  const context={...draftContext,categories:Array.from({length:41},(_,i)=>({id:'x'+i,name:'餐飲',kind:'expense'}))};
+  const {reply,value}=await extractFixture(modelDraft(),undefined,context);
+  assert.equal(reply.type,'result');assert.equal(value.items[0].category,null);
+});
+
+test('the prompt retains only bounded human-readable labels and the grammar matches that exact retained list',async()=>{
+  const context={...draftContext,categories:Array.from({length:40},(_,index)=>({id:'category-'+index,name:'類別'+String(index).padStart(2,'0')+'很長的分類名稱'.repeat(4),kind:'expense'}))};
+  const label='支出｜'+context.categories[0].name.slice(0,40);
+  const {h,reply,value}=await extractFixture(modelDraft([{...modelItem,classification:label}]),'昨天午餐120元',context);
+  assert.equal(reply.type,'result');assert.equal(value.items[0].category,'category-0');
   const request=h.calls.requests[0],data=JSON.parse(request.messages.at(-1).content.split('\n')[2]);
-  const retained=data.context.categories.map(item=>item.id);
-  assert.ok(retained.length<40);assert.deepEqual(JSON.parse(request.response_format.schema).properties.items.items.properties.category.enum,[...retained,null]);
-  assert.ok(JSON.parse(request.messages[2].content).items.every(item=>item.category===null||retained.includes(item.category)));
+  assert.ok(data.context.classifications.length<42);
+  assert.deepEqual(JSON.parse(request.response_format.schema).properties.items.items.properties.classification.enum,[...data.context.classifications,null]);
+  assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
 });
 
-test('worker rejects invalid calendar dates, category/currency inventions, and malformed draft fields',async()=>{
-  const invalid=[{...draftItem,date:'2026-02-31'},{...draftItem,category:'made-up'},{...draftItem,currency:'XYZ'},{...draftItem,amount:-1},{...draftItem,extra:'unsafe'},{...draftItem,missingFields:[5]},{...draftItem,note:null}];
-  for(const item of invalid){const h=runtimeHarness(JSON.stringify({items:[item],warnings:[]}));await h.load();const result=await h.run({type:'generate',task:'draft',input:'lunch',context:draftContext});assert.equal(result.error?.code,'AI_INVALID_DRAFT');}
-  const h=runtimeHarness(JSON.stringify({items:[draftItem],warnings:[3]}));await h.load();assert.equal((await h.run({type:'generate',task:'draft',input:'lunch',context:draftContext})).error.code,'AI_INVALID_DRAFT');
+test('mixed income, expense and transit not present in the prompt normalize only the supplied model quotes',async()=>{
+  const raw=modelDraft([{...modelItem,sourceText:'買車票42元',amountText:'42',classification:'支出｜交通'},{...modelItem,sourceText:'收到薪資27100元',amountText:'27100',classification:'收入｜薪資'}]);
+  const {reply,value}=await extractFixture(raw,'昨天買車票42元，收到薪資27100元。');
+  assert.equal(reply.type,'result');assert.deepEqual(value.items.map(i=>[i.amount,i.kind,i.category]),[[42,'expense','fuel'],[27100,'income','salary']]);
+});
+
+test('identical amounts and repeated real phrases remain separate but reusing one amount quote is rejected',async()=>{
+  for(const [input,items] of [
+    ['今天咖啡50元，晚餐50元。',[{...modelItem,sourceText:'咖啡50元',amountText:'50',dateText:'今天'},{...modelItem,sourceText:'晚餐50元',amountText:'50',dateText:'今天'}]],
+    ['今天買水50元，買水50元。',Array(2).fill({...modelItem,sourceText:'買水50元',amountText:'50',dateText:'今天'})]
+  ]){
+    const {reply,value}=await extractFixture(modelDraft(items),input);assert.equal(reply.type,'result');assert.deepEqual(value.items.map(i=>i.amount),[50,50]);
+  }
+  const {reply}=await extractFixture(modelDraft(Array(2).fill(modelItem)));
+  assert.equal(reply.type,'error');assert.equal(reply.error.code,'AI_INVALID_DRAFT');
+});
+
+test('unknown amounts, classifications and date expressions remain null for manual review',async()=>{
+  const raw=modelDraft([{...modelItem,sourceText:'買午餐忘記金額',amountText:null,classification:'支出（未選分類）',dateText:'下週一'}]);
+  const {reply,value}=await extractFixture(raw,'下週一的紀錄：買午餐忘記金額');
+  assert.equal(reply.type,'result');assert.equal(value.items[0].amount,null);assert.equal(value.items[0].date,null);assert.equal(value.items[0].category,null);
+  assert.equal(value.items[0].kind,'expense');assert.ok(value.items[0].missingFields.includes('amount'));
+  const uncertain=await extractFixture(modelDraft([{...modelItem,classification:null}]));
+  assert.equal(uncertain.reply.type,'result');assert.equal(uncertain.value.items[0].kind,null);assert.equal(uncertain.value.items[0].category,null);
+});
+
+test('no-transaction and negated fixtures never cause the code to manufacture an entry',async()=>{
+  for(const input of ['今天沒有買午餐，也沒有任何交易。','如果明天搭車會花42元嗎？','今天心情很好']){
+    const {h,reply}=await extractFixture(modelDraft([]),input);assert.equal(reply.error.code,'AI_NO_DRAFT');assert.equal(h.calls.requests.length,2);
+  }
+});
+
+test('date words use the provided calendar and explicit ISO dates require actual source text',async()=>{
+  for(const [dateText,expected] of [['今天','2026-10-19'],['昨天','2026-10-18'],['前天','2026-10-17'],['2025-12-31','2025-12-31'],['下週一',null],['2026-02-31',null]]){
+    const {reply,value}=await extractFixture(modelDraft([{...modelItem,dateText}]),dateText+'午餐120元');
+    assert.equal(reply.type,'result');assert.equal(value.items[0].date,expected);
+  }
+  const rolled=await extractFixture(modelDraft([{...modelItem,dateText:'前天'}]),'前天午餐120元',{...draftContext,today:'2026-01-01'});
+  assert.equal(rolled.value.items[0].date,'2025-12-30');
+});
+
+test('only model-selected full numeric quotes are normalized; unsupported amount wording stays unknown',async()=>{
+  for(const [amountText,expected] of [['1,234.50',1234.5],['１２３．５０',123.5],['六十五',null],['1,23',null],['0',null]]){
+    const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText:'午餐'+amountText+'元',amountText}]),'昨天午餐'+amountText+'元');
+    assert.equal(reply.type,'result');assert.equal(value.items[0].amount,expected);
+  }
+});
+
+test('partial numeric substrings and partial source quotes cannot shrink actual amounts',async()=>{
+  for(const [input,sourceText,amountText] of [['昨天早餐65元','早餐65元','5'],['昨天早餐65元','5元','5'],['昨天午餐120.50元','午餐120.50元','120'],['昨天午餐1,200元','200元','200'],['昨天午餐-65元','65元','65'],['昨天午餐６５元','５元','５']]){
+    const {h,reply}=await extractFixture(modelDraft([{...modelItem,sourceText,amountText}]),input);
+    assert.equal(reply.type,'error',input);assert.equal(reply.error.code,'AI_INVALID_DRAFT',input);assert.equal(h.calls.requests.length,2);
+  }
+  const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText:'午餐120元'}]),'昨天午餐120元,晚餐尚未決定');
+  assert.equal(reply.type,'result');assert.equal(value.items[0].amount,120);
+  const dateAfterComma=await extractFixture(modelDraft([{...modelItem,sourceText:'早餐65',amountText:'65',dateText:'今天'}]),'今天早餐65,10月20日午餐120元');
+  assert.equal(dateAfterComma.reply.type,'result','comma followed by a date is not a thousands group');assert.equal(dateAfterComma.value.items[0].amount,65);
+});
+
+test('forged sources, merchants, dates, currencies and malformed source fields fail independent validation',async()=>{
+  const invalid=[{...modelItem,sourceText:'加油800元',amountText:'800'},{...modelItem,amountText:'800'},{...modelItem,merchantText:'不存在的店'},{...modelItem,dateText:'2026-02-31'},{...modelItem,currency:'XYZ'},{...modelItem,amountText:120},{...modelItem,extra:'unsafe'},{...modelItem,sourceText:null},{...modelItem,sourceText:''}];
+  for(const item of invalid){const {h,reply}=await extractFixture(modelDraft([item]));assert.equal(reply.error?.code,'AI_INVALID_DRAFT');assert.equal(h.calls.requests.length,2);}
+  const {reply}=await extractFixture(modelDraft([modelItem],[3]));assert.equal(reply.error.code,'AI_INVALID_DRAFT');
 });
 
 test('worker guards citation IDs and unsupported numeric assertions without treating citations as proof',async()=>{

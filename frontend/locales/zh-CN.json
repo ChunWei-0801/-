@@ -1237,7 +1237,24 @@
     "aiTest.busy": "另一项模型操作仍在执行，请先等待或取消。",
     "aiTest.failedMetrics": "操作未完成；以下是失败测量，不计为成功。",
     "aiTest.rawOutput": "查看模型原始回复（未通过草稿验证）",
-    "aiTest.rawOutputNotice": "原始回复只保留在本页，可能包含你的输入内容；请勿公开分享。"
+    "aiTest.rawOutputNotice": "原始回复只保留在本页，可能包含你的输入内容；请勿公开分享。",
+    "aiTest.technical": "技术资料与模型 JSON",
+    "aiTest.entryNumber": "第 {index} 笔草稿",
+    "aiTest.caseNumber": "示例 {index}",
+    "aiTest.passed": "通过",
+    "aiTest.notPassed": "未通过",
+    "aiTest.caseError": "执行失败",
+    "aiTest.caseRunning": "测试中…",
+    "aiTest.caseWaiting": "尚未执行",
+    "aiTest.missingEntry": "第 {index} 笔：缺少这笔草稿。",
+    "aiTest.extraEntry": "第 {index} 笔：多出这笔草稿。",
+    "aiTest.fieldDifference": "第 {index} 笔的{field}：应为“{expected}”，实际为“{actual}”。",
+    "aiTest.partialBenchmark": "已完成 {completed}／{total} 个示例；第 {index} 个执行失败，尚未完成全部检查。",
+    "aiTest.benchmarkProgress": "已完成 {completed}／{total} 个示例，请等待当前模型回复。",
+    "aiTest.benchmarkSummary": "{passed}／{total} 个示例通过。请核对各笔结果和列出的字段差异。",
+    "aiTest.draftMeasurement": "模型已回复，耗时 {seconds} 秒。请核对草稿的金额、收支与分类。",
+    "aiTest.benchmarkMismatch": "示例检查有未通过项目，请查看下方标出的字段差异；不能视为验收成功。",
+    "aiTest.mappedDraft": "以下为模型回复经字段映射后的草稿；仍须核对原文、金额、收支与分类。"
   },
   "sources": {}
 }

@@ -9,16 +9,17 @@ acceptance checks and all eight lifestyle features' online interactions remain
 pending. These two tools cover the original account/mail/photo/mobile acceptance
 scope, not the complete eight-feature online interaction checklist.
 
-The latest user-device check of `/ai-test.html` failed: after entering
-`今天早餐65元，午餐120元。`, the deployed page showed
-`The model did not produce usable draft items.` and the measurement remained
-incomplete. This newer screenshot/report supersedes the earlier brief reply
-that a draft was generated. Real LLM draft acceptance remains incomplete;
-worker fixes are in progress and require redeployment and a new device check.
-No accuracy, latency or successful-generation result is inferred from this run.
+The latest v168 user-device screenshot shows genuine Qwen model generation, but
+semantic acceptance failed: breakfast 65 was classified as income/SALARY and
+lunch 120 as expense/TRANSIT; synthetic case 1 reports `passed:false`. The user
+then explicitly reported that errors remain. Complete benchmark completion was
+not observed. Generation, schema validity, semantic field correctness and safe
+reviewed saving are separate evidence. This supersedes the earlier empty-draft
+failure and pending-retest notes. The next repair still needs deployment and a
+new real-device correctness check. No overall accuracy is inferred.
 
 The user saved and published the updated environment policy on 2026-10-19.
-The current task's observed runtime revision is 748 and still lacks the
+The current task's observed runtime revision is 752 and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.

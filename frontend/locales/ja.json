@@ -1237,7 +1237,24 @@
     "aiTest.busy": "別のモデル操作が実行中です。完了を待つか、先にキャンセルしてください。",
     "aiTest.failedMetrics": "操作は失敗しました。以下は失敗時の計測値で、成功には数えません。",
     "aiTest.rawOutput": "モデルの元の応答を確認（下書きの検証に失敗）",
-    "aiTest.rawOutputNotice": "元の応答はこのページだけに保持され、入力内容を含む場合があります。公開しないでください。"
+    "aiTest.rawOutputNotice": "元の応答はこのページだけに保持され、入力内容を含む場合があります。公開しないでください。",
+    "aiTest.technical": "技術情報とモデルの JSON",
+    "aiTest.entryNumber": "下書き {index}",
+    "aiTest.caseNumber": "例 {index}",
+    "aiTest.passed": "合格",
+    "aiTest.notPassed": "不合格",
+    "aiTest.caseError": "実行失敗",
+    "aiTest.caseRunning": "実行中…",
+    "aiTest.caseWaiting": "未実行",
+    "aiTest.missingEntry": "{index} 件目：下書きがありません。",
+    "aiTest.extraEntry": "{index} 件目：余分な下書きです。",
+    "aiTest.fieldDifference": "{index} 件目の{field}：期待値「{expected}」、実際「{actual}」。",
+    "aiTest.partialBenchmark": "{total} 例中 {completed} 例が完了。例 {index} の実行に失敗し、全体の検査は未完了です。",
+    "aiTest.benchmarkProgress": "{total} 例中 {completed} 例が完了。現在のモデルの応答を待っています。",
+    "aiTest.benchmarkSummary": "{total} 例中 {passed} 例が合格。各結果と表示された項目の違いを確認してください。",
+    "aiTest.draftMeasurement": "モデルは {seconds} 秒で応答しました。金額、収支区分、分類を確認してください。",
+    "aiTest.benchmarkMismatch": "不合格の例があります。下に示された項目の違いを確認してください。受け入れテストの成功とはみなしません。",
+    "aiTest.mappedDraft": "モデルの応答から項目を対応付けた下書きです。元の文章、金額、収支区分、分類を確認してください。"
   },
   "sources": {}
 }

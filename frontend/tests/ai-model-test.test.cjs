@@ -18,7 +18,7 @@ test('public-page failure messages are present in all six locales',()=>{
 
 let chromium;
 try {({chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright'));}catch(_){}
-test('browser contract fixture: rejected drafts remain local, localized, measurable and clear on retry, cancellation or unload',{skip:!chromium},async()=>{
+test('browser contract fixture: readable drafts, field mismatches and partial failures remain local and clear on cancellation',{skip:!chromium},async()=>{
   const executablePath=process.env.CHROMIUM_EXECUTABLE||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined);
   const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox']});
   try{
@@ -39,9 +39,17 @@ test('browser contract fixture: rejected drafts remain local, localized, measura
     await page.evaluate(()=>{
       // Explicit transport fixture. Never downloads weights or makes inference/quality claims.
       window.__modelFixture={loads:0,loaded:false,mode:'invalid',calls:0};
-      window.LocalAI={getStatus:()=>({loaded:__modelFixture.loaded,model:'CONTRACT FIXTURE — NOT INFERENCE'}),load:async()=>{__modelFixture.loads++;__modelFixture.loaded=true;},cancel:()=>{__modelFixture.loaded=false;},unload:()=>{__modelFixture.loaded=false;},clearCache:async()=>{__modelFixture.loaded=false;},generate:async()=>{
+      window.LocalAI={getStatus:()=>({loaded:__modelFixture.loaded,model:'CONTRACT FIXTURE — NOT INFERENCE'}),load:async()=>{__modelFixture.loads++;__modelFixture.loaded=true;},cancel:()=>{__modelFixture.loaded=false;},unload:()=>{__modelFixture.loaded=false;},clearCache:async()=>{__modelFixture.loaded=false;},generate:async(options)=>{
         __modelFixture.calls++;
-        const success={text:JSON.stringify({items:[{amount:65,kind:'expense',currency:'TWD',date:'2026-10-20',category:'FOOD'}],warnings:[]}),model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:12,usage:{promptTokens:4,completionTokens:5,totalTokens:9},finishReason:'stop'};
+        const success={text:JSON.stringify({items:[{amount:65,kind:'expense',currency:'TWD',date:options.context.today,category:'FOOD'}],warnings:[]}),model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:12,usage:{promptTokens:4,completionTokens:5,totalTokens:9},finishReason:'stop',rawModelOutput:'CONTRACT RAW MODEL OUTPUT — NOT INFERENCE',normalization:{version:'source-grounded-v1',mechanicalMapping:true,requiresHumanReview:true}};
+        if(__modelFixture.mode==='benchmarkWrong'||__modelFixture.mode==='benchmarkPartial'||__modelFixture.mode==='benchmarkDefer'){
+          if(options.input.includes('薪資')){
+            if(__modelFixture.mode==='benchmarkDefer')return new Promise(resolve=>{__modelFixture.resolve=()=>resolve(success);});
+            if(__modelFixture.mode==='benchmarkPartial'){const error=new Error('PRIVATE INPUT must not leak');error.code='AI_INVALID_DRAFT';error.details={rawOutput:'{"items":[]}',elapsedMs:55,model:'CONTRACT FIXTURE — NOT INFERENCE'};throw error;}
+            return {...success,text:JSON.stringify({items:[{amount:30000,kind:'income',currency:'TWD',date:options.context.today,category:'SALARY'}],warnings:[]})};
+          }
+          return {...success,text:JSON.stringify({items:[{amount:65,kind:__modelFixture.mode==='benchmarkWrong'?'income':'expense',currency:'TWD',date:options.context.today,category:__modelFixture.mode==='benchmarkWrong'?'SALARY':'FOOD'},{amount:120,kind:'expense',currency:'TWD',date:options.context.today,category:__modelFixture.mode==='benchmarkWrong'?'TRANSIT':'FOOD'}],warnings:[]})};
+        }
         if(__modelFixture.mode==='defer')return new Promise(resolve=>{__modelFixture.resolve=()=>resolve(success);});
         if(__modelFixture.mode==='success')return success;
         const error=new Error('PRIVATE INPUT must not leak through raw error messages');
@@ -78,12 +86,20 @@ test('browser contract fixture: rejected drafts remain local, localized, measura
       assert.equal(await page.locator('#modelStatus').textContent(),packs[language].messages['aiTest.invalidDraft']);
       assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs[language].messages['aiTest.rawOutput']);
       assert.equal(await page.locator('#modelRawOutput').textContent(),raw,'changing language never rewrites model content');
-      assert.ok((await page.locator('#modelMetrics').textContent()).startsWith(packs[language].messages['aiTest.failedMetrics']));
+      assert.equal(await page.locator('#modelMetricsSummary').textContent(),packs[language].messages['aiTest.failedMetrics']);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,language+' stays within 320px');
     }
     await page.evaluate(()=>{__modelFixture.mode='success';});
     await page.locator('#modelRun').click();
-    await page.waitForFunction(()=>document.querySelector('#modelOutput').textContent.includes('"amount": 65'));
+    await page.waitForSelector('[data-draft-index]');
+    assert.equal(await page.locator('#modelTechnical').evaluate(node=>node.open),false,'technical JSON starts folded');
+    assert.ok((await page.locator('[data-draft-index]').textContent()).includes('65'));
+    assert.equal((await page.locator('#modelOutput').textContent()).includes('"items"'),false,'drafts appear as readable cards, not raw JSON');
+    assert.ok((await page.locator('#modelOutput').textContent()).includes(packs.es.messages['aiTest.mappedDraft']));
+    const normalizedEvidence=JSON.parse(await page.locator('#modelMetrics').textContent());
+    assert.equal(normalizedEvidence.rawModelOutput,'CONTRACT RAW MODEL OUTPUT — NOT INFERENCE');
+    assert.equal(normalizedEvidence.normalizedDraft.items[0].amount,65);
+    assert.equal(normalizedEvidence.normalization.requiresHumanReview,true);
     assert.equal(await page.locator('#modelDiagnostics').isVisible(),false,'successful retry hides prior failure');
     assert.equal(await page.locator('#modelRawOutput').textContent(),'','successful retry clears rejected content');
     assert.equal((await page.locator('#modelMetrics').textContent()).includes('"status": "failed"'),false);
@@ -102,6 +118,47 @@ test('browser contract fixture: rejected drafts remain local, localized, measura
     assert.equal(await page.locator('#modelOutput').textContent(),'','cancelled late result is ignored');
     assert.equal(await page.locator('#modelMetrics').textContent(),'');
     assert.equal(await page.locator('#modelRawOutput').textContent(),'');
+    // Syntax-valid model fields can still be semantically wrong. Show every difference without repairing the output.
+    await page.locator('[data-language-select]').selectOption('zh-TW');
+    await page.locator('#modelLoad').click();
+    await page.waitForFunction(()=>!document.querySelector('#modelBenchmark').disabled);
+    await page.evaluate(()=>{__modelFixture.mode='benchmarkWrong';});
+    await page.locator('#modelBenchmark').click();
+    await page.waitForFunction(()=>document.querySelector('#modelStatus').dataset.errorCode==='AI_BENCHMARK_MISMATCH');
+    assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'failed');
+    assert.equal(await page.locator('[data-synthetic-case="2"]').getAttribute('data-case-state'),'passed');
+    const diffs=await page.locator('[data-synthetic-case="1"] .model-differences').textContent();
+    for(const expected of ['收入','支出','薪資','餐飲','交通'])assert.ok(diffs.includes(expected),expected+' difference is explicit');
+    assert.ok((await page.locator('#modelMetricsSummary').textContent()).startsWith('1／2'));
+    assert.equal(await page.locator('#modelTechnical').evaluate(node=>node.open),false);
+    assert.equal(await page.locator('[data-synthetic-case="1"] [data-draft-index="0"]').locator('dd').nth(1).textContent(),'收入','display does not silently correct wrong kind');
+    for(const language of languages){
+      await page.locator('[data-language-select]').selectOption(language);
+      await page.waitForFunction(language=>document.documentElement.lang===language,language);
+      assert.ok((await page.locator('[data-synthetic-case="1"]').textContent()).includes(packs[language].messages['aiTest.notPassed']));
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,language+' result cards stay within 320px');
+    }
+    // The second case fails to produce a draft: retain the completed first case and say where it stopped.
+    await page.evaluate(()=>{__modelFixture.mode='benchmarkPartial';});
+    await page.locator('#modelBenchmark').click();
+    await page.waitForFunction(()=>document.querySelector('[data-synthetic-case="2"]').dataset.caseState==='error');
+    assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'passed');
+    assert.equal(await page.locator('[data-synthetic-case="1"] [data-draft-index]').count(),2);
+    assert.equal(await page.locator('[data-synthetic-case="2"]').getAttribute('data-case-state'),'error');
+    const partial=JSON.parse(await page.locator('#modelMetrics').textContent());
+    assert.equal(partial.complete,false);assert.equal(partial.completed,1);assert.equal(partial.passed,1);assert.equal(partial.failure.usableDraft,false);
+    assert.ok((await page.locator('#modelMetricsSummary').textContent()).includes('1'));
+    assert.equal(await page.locator('#modelDiagnostics').isVisible(),true);
+    // Cancellation clears both completed partial results and a pending second case; late replies cannot reappear.
+    await page.evaluate(()=>{__modelFixture.mode='benchmarkDefer';delete __modelFixture.resolve;});
+    await page.locator('#modelBenchmark').click();
+    await page.waitForFunction(()=>typeof __modelFixture.resolve==='function');
+    assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'passed');
+    await page.locator('#modelCancel').click();
+    await page.evaluate(()=>__modelFixture.resolve());
+    await page.waitForTimeout(25);
+    assert.equal(await page.locator('[data-synthetic-case]').count(),0);assert.equal(await page.locator('#modelMetrics').textContent(),'');
+    assert.equal(await page.locator('#modelRawOutput').textContent(),'');assert.equal(await page.locator('#modelTechnical').isVisible(),false);
     await page.locator('#modelUnload').click();
     assert.equal(await page.locator('#modelInput').inputValue(),'');
     assert.equal(await page.locator('#modelDiagnostics').isVisible(),false);

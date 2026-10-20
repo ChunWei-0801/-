@@ -1237,7 +1237,24 @@
     "aiTest.busy": "Hay otra operación del modelo en curso. Espera o cancélala primero.",
     "aiTest.failedMetrics": "La operación falló. Estas mediciones registran un fallo, no un éxito.",
     "aiTest.rawOutput": "Ver la respuesta original del modelo (el borrador no superó la validación)",
-    "aiTest.rawOutputNotice": "La respuesta original solo permanece en esta página y puede contener tu texto. No la compartas públicamente."
+    "aiTest.rawOutputNotice": "La respuesta original solo permanece en esta página y puede contener tu texto. No la compartas públicamente.",
+    "aiTest.technical": "Detalles técnicos y JSON del modelo",
+    "aiTest.entryNumber": "Borrador {index}",
+    "aiTest.caseNumber": "Ejemplo {index}",
+    "aiTest.passed": "Superado",
+    "aiTest.notPassed": "No superado",
+    "aiTest.caseError": "Error de ejecución",
+    "aiTest.caseRunning": "En curso…",
+    "aiTest.caseWaiting": "Sin ejecutar",
+    "aiTest.missingEntry": "Movimiento {index}: falta este borrador.",
+    "aiTest.extraEntry": "Movimiento {index}: este borrador sobra.",
+    "aiTest.fieldDifference": "Movimiento {index}, {field}: se esperaba «{expected}»; se obtuvo «{actual}».",
+    "aiTest.partialBenchmark": "Completados {completed} de {total} ejemplos. El ejemplo {index} no se pudo ejecutar; la comprobación está incompleta.",
+    "aiTest.benchmarkProgress": "Completados {completed} de {total} ejemplos. Esperando la respuesta actual del modelo.",
+    "aiTest.benchmarkSummary": "{passed} de {total} ejemplos superados. Revisa cada resultado y las diferencias de campos indicadas.",
+    "aiTest.draftMeasurement": "El modelo respondió en {seconds} segundos. Revisa los importes, los tipos de movimiento y las categorías.",
+    "aiTest.benchmarkMismatch": "Hay ejemplos no superados. Revisa las diferencias de campos resaltadas abajo. Esto no constituye una prueba de aceptación satisfactoria.",
+    "aiTest.mappedDraft": "Estos borradores asignan campos de la respuesta del modelo. Comprueba igualmente el texto original, los importes, los tipos de movimiento y las categorías."
   },
   "sources": {}
 }

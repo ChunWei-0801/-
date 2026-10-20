@@ -1237,7 +1237,24 @@
     "aiTest.busy": "다른 모델 작업이 실행 중입니다. 기다리거나 먼저 취소하세요.",
     "aiTest.failedMetrics": "작업이 실패했습니다. 아래 측정값은 실패 기록이며 성공으로 계산하지 않습니다.",
     "aiTest.rawOutput": "모델 원본 응답 보기 (초안 검증 실패)",
-    "aiTest.rawOutputNotice": "원본 응답은 이 페이지에만 유지되며 입력 내용이 포함될 수 있습니다. 공개적으로 공유하지 마세요."
+    "aiTest.rawOutputNotice": "원본 응답은 이 페이지에만 유지되며 입력 내용이 포함될 수 있습니다. 공개적으로 공유하지 마세요.",
+    "aiTest.technical": "기술 정보와 모델 JSON",
+    "aiTest.entryNumber": "초안 {index}",
+    "aiTest.caseNumber": "예제 {index}",
+    "aiTest.passed": "통과",
+    "aiTest.notPassed": "미통과",
+    "aiTest.caseError": "실행 실패",
+    "aiTest.caseRunning": "실행 중…",
+    "aiTest.caseWaiting": "아직 실행하지 않음",
+    "aiTest.missingEntry": "항목 {index}: 이 초안이 누락되었습니다.",
+    "aiTest.extraEntry": "항목 {index}: 추가로 생성된 초안입니다.",
+    "aiTest.fieldDifference": "항목 {index}의 {field}: 예상 “{expected}”, 실제 “{actual}”.",
+    "aiTest.partialBenchmark": "예제 {total}개 중 {completed}개 완료. 예제 {index} 실행에 실패하여 전체 검사가 완료되지 않았습니다.",
+    "aiTest.benchmarkProgress": "예제 {total}개 중 {completed}개 완료. 현재 모델 응답을 기다리고 있습니다.",
+    "aiTest.benchmarkSummary": "예제 {total}개 중 {passed}개 통과. 각 결과와 표시된 필드 차이를 확인하세요.",
+    "aiTest.draftMeasurement": "모델이 {seconds}초 만에 응답했습니다. 금액, 수입·지출 구분, 분류를 확인하세요.",
+    "aiTest.benchmarkMismatch": "통과하지 못한 예제가 있습니다. 아래에 표시된 필드 차이를 확인하세요. 검수 성공으로 간주하지 않습니다.",
+    "aiTest.mappedDraft": "모델 응답의 필드를 연결한 초안입니다. 원문, 금액, 수입·지출 구분과 분류를 반드시 확인하세요."
   },
   "sources": {}
 }

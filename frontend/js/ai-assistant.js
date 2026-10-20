@@ -172,7 +172,7 @@
     if (input.length > 3000) return message(s,t('tooLong'),true);
     if (!ready()) return message(s,t('loadFirst'),true);
     var job=begin(s,'generating'), task=s.mode, context, result;
-    s.output.replaceChildren(); s.drafts=[]; s.review=null; s.rawInput=input; s.modelOutput='';
+    s.output.replaceChildren(); s.drafts=[]; s.review=null; s.rawInput=input; s.modelOutput=''; s.rawModelOutput='';
     try {
       if (task === 'draft') { context={today:today(),timezone:(global.Intl || Intl).DateTimeFormat().resolvedOptions().timeZone,categories:s.categories.map(function(c) { return {id:String(c.id),name:scrub(c.name),kind:c.kind}; })}; }
       else if (task === 'help') { var knowledge=await fetchKnowledge(s,job); if (!active(s,job)) return; if (!(knowledge.items || []).length) throw new Error(t('noSources')); context={knowledge:{items:knowledge.items.map(function(k) { return {id:k.id,title:k.title,text:k.text}; })}}; }
@@ -182,6 +182,7 @@
       result=await global.LocalAI.generate({task:task,input:scrub(input),context:context,language:lang(),signal:s.controller.signal,onToken:function(token) { if (active(s,job) && task !== 'draft') answer.textContent+=String(token); }});
       if (!active(s,job)) return;
       s.modelOutput=String(result.text || '');
+      s.rawModelOutput=typeof result.rawModelOutput==='string'?result.rawModelOutput.slice(0,12000):s.modelOutput;
       if (task === 'draft') { var draft=checkDraft(s.modelOutput,s.categories); s.drafts=draft.items; s.originalDrafts=JSON.parse(JSON.stringify(draft.items)); renderDrafts(s,draft.warnings); }
       else answer.textContent=s.modelOutput;
       s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length,rating:null});
@@ -190,7 +191,7 @@
       if (active(s,job)) {
         message(s,errorMessage(error),true); s.output.replaceChildren();
         var details=error && error.details;
-        if (details && typeof details.rawOutput==='string') s.modelOutput=details.rawOutput.slice(0,12000);
+        if (details && typeof details.rawOutput==='string') s.rawModelOutput=details.rawOutput.slice(0,12000);
         if (details) {
           var failed={task:task,model:typeof details.model==='string'?details.model:'',elapsedMs:Number.isFinite(details.elapsedMs)?details.elapsedMs:null,usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason:null,attempts:details.attempts,errorCode:/^AI_[A-Z_]+$/.test(error.code||'')?error.code:'AI_INFERENCE_FAILED'};
           s.failedMeasurements.push(failed);
@@ -202,7 +203,8 @@
   }
   function preserveRaw(s) {
     var details=el('details','ait-raw'); add(details,el('summary','',t('raw')),el('pre','',s.rawInput));
-    if (s.modelOutput) add(details,el('h3','',t('modelRaw')),el('p','ait-muted',testText('rawOutputNotice',t('unverified'))),el('pre','',s.modelOutput)); add(s.output,details,sourceLink('#/entry',t('manual')));
+    var rawModel=s.rawModelOutput||s.modelOutput;
+    if (rawModel) add(details,el('h3','',t('modelRaw')),el('p','ait-muted',testText('rawOutputNotice',t('unverified'))),el('pre','',rawModel)); add(s.output,details,sourceLink('#/entry',t('manual')));
   }
   function syncRows(s) {
     if (!s.review) return;
@@ -293,7 +295,7 @@
     if (s.imageURL) URL.revokeObjectURL(s.imageURL); s.file=file; s.imageURL=URL.createObjectURL(file); s.preview.src=s.imageURL; s.preview.hidden=false; s.imageName.textContent=file.name || t('imageSelected'); s.removeImage.hidden=false; refreshControls(s);
   }
   function removeImage(s) { if (s.imageURL) URL.revokeObjectURL(s.imageURL); s.imageURL=null; s.file=null; s.preview.removeAttribute('src'); s.preview.hidden=true; s.imageName.textContent=''; s.removeImage.hidden=true; refreshControls(s); }
-  function clearContent(s,announce) { abortJob(s,false); s.context=null; s.knowledge=null; s.rawInput=''; s.modelOutput=''; s.drafts=[]; s.originalDrafts=[]; s.groupId=''; s.photoRetry=null; s.input.value=''; s.output.replaceChildren(); s.review=null; removeImage(s); renderFacts(s); if (global.LocalAI && global.LocalAI.clearSession) global.LocalAI.clearSession(); refreshControls(s); if (announce) message(s,t('cleared')); }
+  function clearContent(s,announce) { abortJob(s,false); s.context=null; s.knowledge=null; s.rawInput=''; s.modelOutput=''; s.rawModelOutput=''; s.drafts=[]; s.originalDrafts=[]; s.groupId=''; s.photoRetry=null; s.input.value=''; s.output.replaceChildren(); s.review=null; removeImage(s); renderFacts(s); if (global.LocalAI && global.LocalAI.clearSession) global.LocalAI.clearSession(); refreshControls(s); if (announce) message(s,t('cleared')); }
   function changeMode(s,mode) {
     if (!/^(draft|ledger|coach|report|help)$/.test(mode) || s.busyKind==='saving') return;
     abortJob(s,false); s.mode=mode; s.drafts=[]; s.review=null; s.output.replaceChildren();
@@ -304,7 +306,7 @@
   function render(container,options) {
     cleanup(); if (!container) return;
     if (options) account=options.user || options.account || (options.id != null ? options : account);
-    var s={root:container,accountId:idOf(account),accountStamp:accountStamp(account),closed:false,job:0,mode:'draft',busy:false,categories:[],groups:[],drafts:[],originalDrafts:[],measurements:[],failedMeasurements:[],context:null,knowledge:null,file:null,imageURL:null,photoRetry:null,rawInput:'',modelOutput:''}; current=s; serial++;
+    var s={root:container,accountId:idOf(account),accountStamp:accountStamp(account),closed:false,job:0,mode:'draft',busy:false,categories:[],groups:[],drafts:[],originalDrafts:[],measurements:[],failedMeasurements:[],context:null,knowledge:null,file:null,imageURL:null,photoRetry:null,rawInput:'',modelOutput:'',rawModelOutput:''}; current=s; serial++;
     var wrap=el('div','ai-trial'); s.wrap=wrap; wrap.dataset.i18nSkip='';
     var header=el('header','ait-hero'); add(header,el('span','ait-badge',t('trial')),el('h1','',t('title')),el('p','ait-subtitle',t('subtitle')),el('p','ait-privacy',t('privacy')));
     var runtime=el('section','ait-runtime'); s.runtimeLabel=el('p','ait-runtime-label',ready()?t('ready'):t('idle')); s.runtimeLabel.setAttribute('role','status'); s.progress=el('progress','ait-progress'); s.progress.max=1; s.progress.hidden=true; s.progress.setAttribute('aria-label',t('loading'));
@@ -334,7 +336,7 @@
   function cleanup() {
     var s=current; if(!s)return; abortJob(s,false); s.closed=true; current=null;
     if(s.imageURL)URL.revokeObjectURL(s.imageURL); s.wrap.removeEventListener('click',s.click);s.wrap.removeEventListener('change',s.change);s.wrap.removeEventListener('input',s.inputChange);
-    s.input.value='';s.output.replaceChildren();s.facts.replaceChildren();s.wrap.remove();s.preview.removeAttribute('src');s.imageName.textContent='';s.drafts=[];s.originalDrafts=[];s.measurements=[];s.failedMeasurements=[];s.categories=[];s.groups=[];s.context=null;s.knowledge=null;s.rawInput='';s.modelOutput='';s.file=null;s.photoRetry=null;
+    s.input.value='';s.output.replaceChildren();s.facts.replaceChildren();s.wrap.remove();s.preview.removeAttribute('src');s.imageName.textContent='';s.drafts=[];s.originalDrafts=[];s.measurements=[];s.failedMeasurements=[];s.categories=[];s.groups=[];s.context=null;s.knowledge=null;s.rawInput='';s.modelOutput='';s.rawModelOutput='';s.file=null;s.photoRetry=null;
     if(global.LocalAI&&global.LocalAI.clearSession)global.LocalAI.clearSession();
   }
   function setAccount(user) { var old=accountStamp(account), next=accountStamp(user); if(old!==next)cleanup(); account=user||null; }

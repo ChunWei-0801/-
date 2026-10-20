@@ -1237,7 +1237,24 @@
     "aiTest.busy": "Another model operation is running. Wait for it or cancel it first.",
     "aiTest.failedMetrics": "Operation failed. These measurements record a failure, not a success.",
     "aiTest.rawOutput": "Inspect original model reply (draft validation failed)",
-    "aiTest.rawOutputNotice": "The original reply stays only on this page and may contain your input. Do not share it publicly."
+    "aiTest.rawOutputNotice": "The original reply stays only on this page and may contain your input. Do not share it publicly.",
+    "aiTest.technical": "Technical details and model JSON",
+    "aiTest.entryNumber": "Draft {index}",
+    "aiTest.caseNumber": "Example {index}",
+    "aiTest.passed": "Passed",
+    "aiTest.notPassed": "Not passed",
+    "aiTest.caseError": "Run failed",
+    "aiTest.caseRunning": "Running…",
+    "aiTest.caseWaiting": "Not run yet",
+    "aiTest.missingEntry": "Entry {index}: this draft is missing.",
+    "aiTest.extraEntry": "Entry {index}: this is an extra draft.",
+    "aiTest.fieldDifference": "Entry {index}, {field}: expected “{expected}”; got “{actual}”.",
+    "aiTest.partialBenchmark": "Completed {completed} of {total} examples. Example {index} failed to run; the full check is incomplete.",
+    "aiTest.benchmarkProgress": "Completed {completed} of {total} examples. Waiting for the current model reply.",
+    "aiTest.benchmarkSummary": "{passed} of {total} examples passed. Review every result and the listed field differences.",
+    "aiTest.draftMeasurement": "The model replied in {seconds} seconds. Review the amounts, entry kinds and categories.",
+    "aiTest.benchmarkMismatch": "Some example checks did not pass. Review the highlighted field differences below. This is not a successful acceptance test.",
+    "aiTest.mappedDraft": "These drafts map fields from the model reply. Still check the original text, amounts, entry kinds and categories."
   },
   "sources": {}
 }
