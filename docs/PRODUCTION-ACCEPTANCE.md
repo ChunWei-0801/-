@@ -1,9 +1,11 @@
 # Production acceptance handoff
 
-The deployed application source is `cf0dcdca3ddb70f804335bd7131599d043c3517e` at
+The deployed application source is `394b33e3108ed1c0c1946a7918d09fa1b4a6f748` at
 `https://fambudget-recovery-20261017.onrender.com` (Render reports live on
-2026-10-20, with the source-grounded repair live at 21:59:18 Asia/Taipei). The opt-in browser-local model trial is `/ai-test.html`, and the
-authenticated trial is `/#/ai`; see `FREE-LLM.md` and `WORKLOG-20261020.md`.
+2026-10-21 07:39:42 Asia/Taipei). Resource version 170 fixes locale startup and
+adds fixed validation diagnostics; it does not change model acceptance rules.
+The public trial is `/ai-test.html?v=170`, and the authenticated trial is
+`/#/ai`; see `FREE-LLM.md` and `WORKLOG-20261021.md`.
 Deployment status does not establish full production acceptance. The original
 acceptance checks and all eight lifestyle features' online interactions remain
 pending. These two tools cover the original account/mail/photo/mobile acceptance
@@ -164,3 +166,9 @@ not the raw model JSON. It also exposed untranslated diagnostic disclosure
 keys. See `WORKLOG-20261021.md` for the confirmed parser/translation readiness
 repair and fixed validation diagnostics. These changes do not establish a
 model-quality pass or a production database backup.
+
+The version 170 deployment `dep-dbbvmrdpkucs73d3gs9g` is live from the source
+above. The checks and real-browser CI jobs both passed in run 39516042343.
+The user was directed to the auto-expanded raw-output box on a failed draft.
+Actual raw model JSON is still missing; diagnosis and correct-draft acceptance
+remain pending. Preserve the earlier real runtime metrics and failed results.
