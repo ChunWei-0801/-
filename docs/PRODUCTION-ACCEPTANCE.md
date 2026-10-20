@@ -1,8 +1,8 @@
 # Production acceptance handoff
 
-The deployed application source is `ebb39397486f81d4fa067d5ef13babe853730e3b` at
+The deployed application source is `91892b5f42f1dcd637cb4a3ead88025ac9a765e8` at
 `https://fambudget-recovery-20261017.onrender.com` (Render reports live on
-2026-10-20). The opt-in browser-local model trial is `/ai-test.html`, and the
+2026-10-20, with the draft-generation repair live at 21:31:59 Asia/Taipei). The opt-in browser-local model trial is `/ai-test.html`, and the
 authenticated trial is `/#/ai`; see `FREE-LLM.md` and `WORKLOG-20261020.md`.
 Deployment status does not establish full production acceptance. The original
 acceptance checks and all eight lifestyle features' online interactions remain
@@ -137,3 +137,11 @@ recovery keys. Each was downloaded and restored in isolation, with full row and
 photo hashes verified; these are historical/test data, not production PostgreSQL.
 The newest QA snapshot verifies 31 tables, 415 rows and 11 photo blobs. Do not
 mark the production backup checkbox complete based on these successful drills.
+
+The repaired trial source is `91892b5f42f1dcd637cb4a3ead88025ac9a765e8`.
+Render deployment `dep-dbbmpobbc2fs73bn8e20` is live, and resource version 168
+versions both the controller and worker. The user was asked to retest the same
+two-purchase input at `/ai-test.html?v=168`. The repair passed 38 local
+controller/UI/API checks and 12 actual WASM schema checks with a synthetic
+tokenizer; real model output on the user's device remains pending. Do not mark
+the earlier failed trial as a pass or infer model accuracy from these checks.
