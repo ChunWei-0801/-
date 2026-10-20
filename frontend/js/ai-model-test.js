@@ -1,18 +1,18 @@
 /* Public, synthetic-only local-model acceptance page. No account or ledger API. */
 (function () {
   'use strict';
-  var api=window.LocalAI,controller=null,generation=0,running=false,failureDetails=null,statusValue=null,view=null;
+  var api=window.LocalAI,controller=null,generation=0,running=false,failureDetails=null,statusValue=null,view=null,languageReady=false;
   var ids=['modelLoad','modelCancel','modelUnload','modelCache','modelStatus','modelProgress','modelInput','modelRun','modelBenchmark','modelOutput','modelMetrics','modelMetricsSummary','modelTechnical','modelLanguage'];
   var ui={};ids.forEach(function(id){ui[id]=document.getElementById(id);});
   var diagnostics=document.createElement('details'),diagnosticTitle=document.createElement('summary'),diagnosticNotice=document.createElement('p'),diagnosticRaw=document.createElement('pre');
-  diagnostics.id='modelDiagnostics';diagnostics.hidden=true;diagnosticRaw.id='modelRawOutput';diagnosticRaw.setAttribute('data-i18n-skip','');
+  diagnostics.id='modelDiagnostics';diagnostics.className='model-diagnostics';diagnostics.hidden=true;diagnosticTitle.textContent='查看模型原始回覆（未通過草稿驗證）';diagnosticTitle.setAttribute('data-i18n','aiTest.rawOutput');diagnosticTitle.setAttribute('data-i18n-fallback',diagnosticTitle.textContent);diagnosticNotice.textContent='原始回覆只保留在本頁，可能包含你的輸入內容；請勿公開分享。';diagnosticNotice.setAttribute('data-i18n','aiTest.rawOutputNotice');diagnosticNotice.setAttribute('data-i18n-fallback',diagnosticNotice.textContent);diagnosticRaw.id='modelRawOutput';diagnosticRaw.setAttribute('data-i18n-skip','');
   diagnostics.append(diagnosticTitle,diagnosticNotice,diagnosticRaw);ui.modelOutput.insertAdjacentElement('afterend',diagnostics);
   function named(key,vars){return window.I18n&&I18n.t?I18n.t(key,vars):key;}
   function text(value){return window.I18n&&I18n.translate?I18n.translate(value):value;}
   function node(tag,value,className){var result=document.createElement(tag);if(value!==undefined)result.textContent=String(value);if(className)result.className=className;return result;}
   function localizePlaceholders(){
-    diagnosticTitle.textContent=named('aiTest.rawOutput');diagnosticNotice.textContent=named('aiTest.rawOutputNotice');
-    ui.modelTechnical.querySelector('summary').textContent=named('aiTest.technical');ui.modelTechnical.querySelector('.model-technical-notice').textContent=named('aiTest.rawOutputNotice');
+    // Translate after the stable ready promise; inline headings remain readable if a pack is missing.
+    if(window.I18n&&I18n.render){I18n.render(diagnostics);I18n.render(ui.modelTechnical);}
     if(statusValue)renderStatus();
     if(view||failureDetails)renderResults();
     else{if(!ui.modelOutput.dataset.actualResult)ui.modelOutput.textContent=text('尚未產生回覆。');if(!ui.modelMetrics.dataset.actualResult){ui.modelMetrics.textContent='';ui.modelMetricsSummary.textContent=text('尚未完成真實推論，不顯示成功率。');}}
@@ -91,10 +91,12 @@
       ui.modelMetricsSummary.textContent=named('aiTest.draftMeasurement',{seconds:(view.result.elapsedMs/1000).toFixed(2)});
       ui.modelMetrics.textContent=JSON.stringify({measurement:measure(view.result),rawModelOutput:view.result.rawModelOutput||view.result.text,normalizedDraft:view.value,normalization:view.result.normalization||null},null,2);
     }else if(failureDetails){ui.modelOutput.append(node('p',named(failureDetails.key),'error'));ui.modelMetricsSummary.textContent=named('aiTest.failedMetrics');ui.modelMetrics.textContent=JSON.stringify(failureDetails.measurement,null,2);}
-    diagnosticRaw.textContent=failureDetails&&failureDetails.rawOutput||'';diagnostics.hidden=!diagnosticRaw.textContent;
+    var rawFailure=failureDetails&&failureDetails.rawOutput||'',revealFailure=!!rawFailure&&diagnostics.hidden;
+    diagnosticRaw.textContent=rawFailure;diagnostics.hidden=!rawFailure;
+    if(revealFailure)diagnostics.open=true;
   }
   function ready(){return api&&api.getStatus().loaded;}
-  function controls(){ui.modelLoad.disabled=running||ready();ui.modelCancel.disabled=!running;ui.modelRun.disabled=ui.modelBenchmark.disabled=running||!ready();ui.modelCache.disabled=running;ui.modelInput.disabled=running;}
+  function controls(){ui.modelLoad.disabled=!languageReady||running||ready();ui.modelCancel.disabled=!running;ui.modelRun.disabled=ui.modelBenchmark.disabled=!languageReady||running||!ready();ui.modelCache.disabled=!languageReady||running;ui.modelInput.disabled=running;}
   function cancel(){generation++;if(controller)controller.abort();controller=null;if(api)api.cancel();running=false;ui.modelProgress.hidden=true;controls();}
   function context(){
     var parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(function(part){return [part.type,part.value];}));
@@ -109,7 +111,7 @@
       status('',true,key);ui.modelStatus.dataset.errorCode=code;
       if(kind==='draft'||kind==='benchmark'){
         var state=api&&api.getStatus?api.getStatus():{};
-        failureDetails={key:key,rawOutput:typeof details.rawOutput==='string'?details.rawOutput.slice(0,12000):'',measurement:{status:'failed',usableDraft:false,operation:kind,errorCode:code,model:typeof details.model==='string'?details.model.slice(0,120):state.model||null,elapsedMs:Number.isFinite(details.elapsedMs)&&details.elapsedMs>=0?details.elapsedMs:Math.round(performance.now()-started),usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason.slice(0,40):null,attempts:Number.isInteger(details.attempts)&&details.attempts>0?details.attempts:null}};
+        failureDetails={key:key,rawOutput:typeof details.rawOutput==='string'?details.rawOutput.slice(0,12000):'',measurement:{status:'failed',usableDraft:false,operation:kind,errorCode:code,model:typeof details.model==='string'?details.model.slice(0,120):state.model||null,elapsedMs:Number.isFinite(details.elapsedMs)&&details.elapsedMs>=0?details.elapsedMs:Math.round(performance.now()-started),usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason.slice(0,40):null,attempts:Number.isInteger(details.attempts)&&details.attempts>0?details.attempts:null,validation:details.validation||null}};
         if(view&&view.mode==='benchmark')view.cases[view.current].state='error';
         renderResults();
       }else clearResults();
@@ -136,6 +138,6 @@
   ui.modelUnload.onclick=function(){cancel();if(api)api.unload();ui.modelInput.value='';clearResults();status('模型已卸載，本頁輸入與回覆已清除。');};
   ui.modelCache.onclick=function(){operation(async function(){if(api)await api.clearCache();clearResults();status('模型下載快取已清除。');});};
   window.addEventListener('pagehide',function(){cancel();ui.modelInput.value='';clearResults();});controls();
-  if(window.I18n)Promise.resolve(I18n.ready).then(function(){ui.modelLanguage.innerHTML=I18n.renderLanguageSelect();localizePlaceholders();});
+  if(window.I18n)Promise.resolve(I18n.ready).then(function(){languageReady=true;ui.modelLanguage.innerHTML=I18n.renderLanguageSelect();localizePlaceholders();controls();});else{languageReady=true;controls();}
   window.addEventListener('fambudget:languagechange',localizePlaceholders);
 })();

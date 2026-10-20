@@ -106,17 +106,31 @@ test('controller versions the worker with its release and returns bounded diagno
   const h=controller({scriptURL:'https://budget.example/js/local-ai-engine.js?v=168'});t.after(()=>h.api.unload());await ready(h);
   assert.equal(h.workers[0].url,'https://budget.example/js/local-ai-worker.js?v=168');
   const pending=h.api.generate({task:'draft',input:'PRIVATE INPUT'});
-  h.workers[0].emit('error',{error:{code:'AI_NO_DRAFT',message:'No usable draft',details:{rawOutput:'x'.repeat(13000),model:'Qwen2.5',elapsedMs:42,finishReason:'stop',attempts:99,usage:{prompt_tokens:20,completion_tokens:10,total_tokens:30,privateInput:'DO NOT KEEP'},privateContext:'DO NOT KEEP'}}});
+  h.workers[0].emit('error',{error:{code:'AI_NO_DRAFT',message:'No usable draft',details:{rawOutput:'x'.repeat(13000),model:'Qwen2.5',elapsedMs:42,finishReason:'stop',attempts:99,usage:{prompt_tokens:20,completion_tokens:10,total_tokens:30,privateInput:'DO NOT KEEP'},validation:{reason:'AMOUNT_NOT_IN_SOURCE',rowIndex:1,field:'amountText',privateInput:'DO NOT KEEP'},privateContext:'DO NOT KEEP'}}});
   await assert.rejects(pending,error=>{
     assert.equal(error.code,'AI_NO_DRAFT');assert.equal(error.details.rawOutput.length,12000);
     assert.equal(error.details.attempts,2);assert.equal(error.details.elapsedMs,42);
     assert.equal(error.details.usage.total_tokens,30);assert.equal(error.details.usage.privateInput,undefined);
+    assert.equal(error.details.validation.reason,'AMOUNT_NOT_IN_SOURCE');assert.equal(error.details.validation.rowIndex,1);assert.equal(error.details.validation.field,'amountText');
+    assert.equal(error.details.validation.privateInput,undefined);
     assert.equal(error.details.privateContext,undefined);return true;
   });
   assert.equal(h.api.status().phase,'ready');
   assert.equal(Object.hasOwn(h.api.status().lastError,'details'),false);
   assert.equal(JSON.stringify(h.api.status()).includes('xxxx'),false);
   h.api.unload();assert.equal(h.api.status().lastError,null);
+});
+
+test('controller validation diagnostics accept only fixed reasons, fields and bounded row indexes',async()=>{
+  for(const [validation,expected] of [
+    [{reason:'AMOUNT_BOUNDARY',rowIndex:99,field:'PRIVATE_VALUE'},{reason:'AMOUNT_BOUNDARY'}],
+    [{reason:'PRIVATE_REASON',rowIndex:0,field:'amountText'},undefined]
+  ]){
+    const h=controller();await ready(h);const pending=h.api.generate({task:'draft',input:'private input'});
+    h.workers[0].emit('error',{error:{code:'AI_INVALID_DRAFT',message:'Invalid draft',details:{rawOutput:'{}',validation}}});
+    await assert.rejects(pending,error=>{assert.equal(JSON.stringify(error.details.validation),JSON.stringify(expected));return true;});
+    assert.equal(JSON.stringify(h.api.status()).includes('validation'),false);h.api.unload();
+  }
 });
 
 test('model cache clearing uses the same pinned worker and can be cancelled',async()=>{
@@ -328,6 +342,44 @@ test('forged sources, merchants, dates, currencies and malformed source fields f
   const invalid=[{...modelItem,sourceText:'加油800元',amountText:'800'},{...modelItem,amountText:'800'},{...modelItem,merchantText:'不存在的店'},{...modelItem,dateText:'2026-02-31'},{...modelItem,currency:'XYZ'},{...modelItem,amountText:120},{...modelItem,extra:'unsafe'},{...modelItem,sourceText:null},{...modelItem,sourceText:''}];
   for(const item of invalid){const {h,reply}=await extractFixture(modelDraft([item]));assert.equal(reply.error?.code,'AI_INVALID_DRAFT');assert.equal(h.calls.requests.length,2);}
   const {reply}=await extractFixture(modelDraft([modelItem],[3]));assert.equal(reply.error.code,'AI_INVALID_DRAFT');
+});
+
+test('source diagnostics distinguish absent source, detached amount and partial original numeric boundaries',async()=>{
+  for(const [item,reason,field] of [
+    [{...modelItem,sourceText:'不存在的早餐65元',amountText:'65'},'SOURCE_NOT_FOUND','sourceText'],
+    [{...modelItem,sourceText:'午餐'},'AMOUNT_NOT_IN_SOURCE','amountText'],
+    [{...modelItem,amountText:'20'},'AMOUNT_BOUNDARY','amountText'],
+    [{...modelItem,sourceText:'20元',amountText:'20'},'AMOUNT_BOUNDARY','amountText']
+  ]){
+    const {reply}=await extractFixture(modelDraft([item]));
+    assert.equal(reply.error.code,'AI_INVALID_DRAFT');
+    assert.deepEqual(JSON.parse(JSON.stringify(reply.error.details.validation)),{reason,field,rowIndex:0});
+  }
+});
+
+test('validation diagnostics identify reuse and date, merchant or classification failures in the actual row',async()=>{
+  const next={...modelItem,sourceText:'晚餐80元',amountText:'80'};
+  for(const [second,reason,field] of [
+    [modelItem,'EVIDENCE_REUSED','amountText'],
+    [{...next,dateText:'2026-10-20'},'DATE_QUOTE_NOT_FOUND','dateText'],
+    [{...next,merchantText:'PRIVATE_MERCHANT'},'MERCHANT_QUOTE_NOT_FOUND','merchantText'],
+    [{...next,classification:'PRIVATE_LABEL'},'CLASSIFICATION_NOT_ALLOWED','classification'],
+    [{...next,merchantText:''},'INVALID_SHAPE','merchantText']
+  ]){
+    const {reply}=await extractFixture(modelDraft([modelItem,second]),'昨天午餐120元，晚餐80元。');
+    assert.equal(reply.error.code,'AI_INVALID_DRAFT');
+    const detail=JSON.parse(JSON.stringify(reply.error.details.validation));
+    assert.deepEqual(detail,{reason,field,rowIndex:1});assert.equal(JSON.stringify(detail).includes('PRIVATE_'),false);
+  }
+});
+
+test('no-draft diagnostics keep empty and unusable output distinct without adding private content',async()=>{
+  const empty=await extractFixture(modelDraft([]));
+  assert.equal(empty.reply.error.code,'AI_NO_DRAFT');
+  assert.deepEqual(JSON.parse(JSON.stringify(empty.reply.error.details.validation)),{reason:'NO_TRANSACTIONS',field:'items'});
+  const unknown=await extractFixture(modelDraft([{...modelItem,sourceText:'資料不明',amountText:null,classification:null,dateText:null,currency:null}]),'資料不明');
+  assert.equal(unknown.reply.error.code,'AI_NO_DRAFT');
+  assert.deepEqual(JSON.parse(JSON.stringify(unknown.reply.error.details.validation)),{reason:'NO_USABLE_FIELDS',field:'items',rowIndex:0});
 });
 
 test('worker guards citation IDs and unsupported numeric assertions without treating citations as proof',async()=>{

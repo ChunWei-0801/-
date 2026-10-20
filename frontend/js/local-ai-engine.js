@@ -30,6 +30,14 @@
       if (value.usage && typeof value.usage[key] === 'number' && Number.isFinite(value.usage[key]) && value.usage[key] >= 0) usage[key] = value.usage[key];
     });
     if (Object.keys(usage).length) clean.usage = usage;
+    var validation = value.validation;
+    var reasons = ['SOURCE_NOT_FOUND','AMOUNT_NOT_IN_SOURCE','AMOUNT_BOUNDARY','EVIDENCE_REUSED','DATE_QUOTE_NOT_FOUND','MERCHANT_QUOTE_NOT_FOUND','INVALID_SHAPE','CLASSIFICATION_NOT_ALLOWED','NO_TRANSACTIONS','NO_USABLE_FIELDS'];
+    var fields = ['items','warnings','sourceText','amountText','classification','dateText','currency','merchantText','amount','kind','category','date','merchant','note','missingFields'];
+    if (validation && reasons.includes(validation.reason)) {
+      clean.validation = {reason:validation.reason};
+      if (Number.isInteger(validation.rowIndex) && validation.rowIndex >= 0 && validation.rowIndex < 10) clean.validation.rowIndex = validation.rowIndex;
+      if (fields.includes(validation.field)) clean.validation.field = validation.field;
+    }
     return Object.keys(clean).length ? clean : null;
   }
   function status() {

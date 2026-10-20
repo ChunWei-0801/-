@@ -9,9 +9,13 @@
   var STORAGE_KEY = 'fambudget.language';
   var packs = {}, sourceKeys = {}, reverseKeys = {}, templates = [], current = 'zh-TW';
   var textState = new WeakMap(), attrState = new WeakMap();
-  var observer = null, scheduled = false, serial = 0;
+  var observer = null, scheduled = false, serial = 0, loadingPacks = {};
+  // Export one stable promise before a later parser-loaded script can read it.
+  var resolveReady, ready = new Promise(function (resolve) { resolveReady = resolve; });
   var script = document.currentScript;
   var localeBase = script && script.src ? new URL('../locales/', script.src).href : 'locales/';
+  var resourceVersion = script && script.src ? new URL(script.src).searchParams.get('v') : null;
+  var unavailable = {'zh-TW':'文字暫時無法載入','zh-CN':'文字暂时无法加载',en:'Text temporarily unavailable',ja:'表示テキストを読み込めません',ko:'표시할 문구를 불러올 수 없습니다',es:'Texto temporalmente no disponible'};
   var excluded = 'script,style,textarea,noscript,code,pre,[data-i18n-skip],[translate="no"],[contenteditable="true"],.ava,.me__n,.mshare__n,.txr__raw,.btbl__span';
   function supported(value) {
     value = String(value || '').replace('_', '-');
@@ -61,15 +65,18 @@
       });
     });
   }
+  function lookup(key) {
+    return (packs[current] && packs[current].messages[key]) || (packs['zh-TW'] && packs['zh-TW'].messages[key]);
+  }
   function t(key, vars) {
     // Modules can pass t('key', 'Traditional Chinese fallback') before a named key is registered.
     if (typeof vars === 'string') {
-      var named = (packs[current] && packs[current].messages[key]) || (packs['zh-TW'] && packs['zh-TW'].messages[key]);
+      var named = lookup(key);
       return named || translate(vars);
     }
-    var fallback = packs['zh-TW'] && packs['zh-TW'].messages[key];
-    var value = (packs[current] && packs[current].messages[key]) || fallback;
-    return interpolate(value == null ? key : value, vars);
+    var value = lookup(key);
+    // A missing or unavailable pack must never expose implementation keys in the UI.
+    return interpolate(value == null ? unavailable[current] || unavailable.en : value, vars);
   }
   function translate(value, vars) {
     var raw = String(value == null ? '' : value), normalized = normalize(raw), key = sourceKeys[normalized] || reverseKeys[normalized];
@@ -86,7 +93,7 @@
   }
   function skip(element) { return !element || !!element.closest(excluded); }
   function applyText(node) {
-    if (skip(node.parentElement) || !node.nodeValue.trim()) return;
+    if (skip(node.parentElement) || node.parentElement.closest('[data-i18n]') || !node.nodeValue.trim()) return;
     var previous = textState.get(node);
     var source = previous && previous.rendered === node.nodeValue ? previous.source : node.nodeValue;
     var rendered = translate(source);
@@ -117,7 +124,9 @@
     root.querySelectorAll('[data-language-select]').forEach(function (select) { select.value = current; });
     root.querySelectorAll('[data-i18n]').forEach(function (element) {
       if (skip(element)) return;
-      var rendered = t(element.getAttribute('data-i18n'));
+      var key = element.getAttribute('data-i18n'), available = lookup(key);
+      // Keep readable inline fallback text when every loaded pack lacks this key.
+      var rendered = available || element.getAttribute('data-i18n-fallback') || element.textContent || t(key);
       if (element.textContent !== rendered) element.textContent = rendered;
     });
     var titleKey = document.querySelector('meta[name="title-i18n"]');
@@ -130,10 +139,17 @@
   }
   function load(code) {
     if (packs[code]) return Promise.resolve(packs[code]);
-    return fetch(localeBase + encodeURIComponent(code) + '.json', { credentials: 'same-origin' }).then(function (response) {
+    if (loadingPacks[code]) return loadingPacks[code];
+    var url = new URL(encodeURIComponent(code) + '.json', new URL(localeBase, document.baseURI));
+    if (resourceVersion) url.searchParams.set('v', resourceVersion);
+    loadingPacks[code] = fetch(url.href, { credentials: 'same-origin', cache: 'no-cache' }).then(function (response) {
       if (!response.ok) throw new Error('Language file unavailable: ' + code);
       return response.json();
-    }).then(function (pack) { packs[code] = pack; rebuildReverseKeys(); return pack; });
+    }).then(function (pack) {
+      if (!pack || pack.locale !== code || !pack.messages || typeof pack.messages !== 'object' || Array.isArray(pack.messages)) throw new Error('Language file invalid: ' + code);
+      packs[code] = pack; rebuildReverseKeys(); return pack;
+    }).finally(function () { delete loadingPacks[code]; });
+    return loadingPacks[code];
   }
   function setLanguage(code, options) {
     code = supported(code) || 'zh-TW';
@@ -149,7 +165,7 @@
       return current;
     }).catch(function (error) {
       // Existing UI remains usable; never turn a financial screen blank for a language download failure.
-      if (request === serial && packs['zh-TW']) { current = 'zh-TW'; prepareSources(packs['zh-TW']); document.documentElement.lang = current; render(); }
+      if (request === serial && packs['zh-TW']) { current = 'zh-TW'; prepareSources(packs['zh-TW']); document.documentElement.lang = current; document.documentElement.setAttribute('data-language', current); render(); }
       if (global.console) console.warn(error.message);
       return current;
     });
@@ -177,13 +193,13 @@
   global.I18n = {
     t: t, translate: translate, setLanguage: setLanguage, language: function () { return current; },
     number: number, date: date, currency: currency, currencyName: currencyName,
-    render: render, renderLanguageSelect: renderLanguageSelect, languages: LANGUAGES.slice()
+    render: render, renderLanguageSelect: renderLanguageSelect, languages: LANGUAGES.slice(), ready: ready
   };
   function start() {
     observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, characterData: true, subtree: true, attributes: true,
       attributeFilter: ['placeholder', 'title', 'aria-label', 'alt'] });
-    global.I18n.ready = setLanguage(current, { silent: true });
+    setLanguage(current, { silent: true }).then(resolveReady, function () { resolveReady(current); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
 })(window);

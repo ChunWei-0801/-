@@ -157,3 +157,10 @@ correcting them. All 49 local contract/UI checks, 19 actual WASM schema checks
 `/ai-test.html?v=169` is pending; the v168 semantic failure remains the last
 observed device result. Production account/mail/photo/mobile acceptance and
 production database backup/restore remain incomplete.
+
+The latest v169 device check rejected a draft with `AI_INVALID_DRAFT`. The user
+provided real runtime metrics (two attempts, 56,704 ms, finish reason stop), but
+not the raw model JSON. It also exposed untranslated diagnostic disclosure
+keys. See `WORKLOG-20261021.md` for the confirmed parser/translation readiness
+repair and fixed validation diagnostics. These changes do not establish a
+model-quality pass or a production database backup.

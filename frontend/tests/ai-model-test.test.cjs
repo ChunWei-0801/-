@@ -76,7 +76,7 @@ test('browser contract fixture: readable drafts, field mismatches and partial fa
     assert.match(failedMetrics,/"status": "failed"/);assert.match(failedMetrics,/"usableDraft": false/);assert.match(failedMetrics,/123.4/);assert.match(failedMetrics,/"attempts": 2/);assert.match(failedMetrics,/"completion_tokens": 3/);
     assert.equal(failedMetrics.includes('SECRET'),false);assert.equal(failedMetrics.includes('今天早餐'),false);
     assert.equal(await page.locator('#modelDiagnostics').isVisible(),true);
-    await page.locator('#modelDiagnostics summary').click();
+    assert.equal(await page.locator('#modelRawOutput').isVisible(),true,'failed output is expanded so a user can copy it without finding a hidden disclosure');
     const raw=await page.locator('#modelRawOutput').textContent();
     assert.match(raw,/<img src=x/);assert.equal(await page.locator('#modelDiagnostics img').count(),0,'raw model HTML remains text');
     assert.equal((await page.locator('body').textContent()).includes('PRIVATE INPUT'),false,'raw runtime error is hidden');
@@ -164,5 +164,97 @@ test('browser contract fixture: readable drafts, field mismatches and partial fa
     assert.equal(await page.locator('#modelDiagnostics').isVisible(),false);
     assert.deepEqual(await page.evaluate(()=>Object.keys(localStorage)),['fambudget.language'],'no draft or diagnostics persisted');
     assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
+  }finally{await browser.close();}
+});
+
+test('browser parser startup: stable ready promise waits for versioned locale packs before enabling model actions',{skip:!chromium},async()=>{
+  const executablePath=process.env.CHROMIUM_EXECUTABLE||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined);
+  const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox']});
+  try{
+    const html=fs.readFileSync(path.join(root,'ai-test.html'),'utf8');
+    const version=new URL(html.match(/src="(js\/i18n\.js\?[^\"]+)"/)[1],'http://parser-ai-contract.test').searchParams.get('v');
+    for(const language of languages){
+      const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[],requests=[];
+      page.on('pageerror',error=>errors.push(error.message));
+      let release;const localeGate=new Promise(resolve=>{release=resolve;});
+      await page.addInitScript(language=>{
+        localStorage.setItem('fambudget.language',language);
+        const original=window.fetch;window.__localeFetchOptions=[];
+        window.fetch=function(url,options){if(String(url).includes('/locales/'))__localeFetchOptions.push({url:String(url),cache:options&&options.cache,credentials:options&&options.credentials});return original.apply(this,arguments);};
+      },language);
+      await page.route('**/*',async route=>{
+        const url=new URL(route.request().url());
+        if(url.origin!=='http://parser-ai-contract.test')throw new Error('Unexpected parser fixture origin');
+        if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
+        const match=url.pathname.match(/^\/locales\/(zh-TW|zh-CN|en|ja|ko|es)\.json$/);
+        if(match){
+          requests.push(url);await localeGate;
+          // An old, unversioned HTTP-cache response would omit the new keys.
+          const pack=JSON.parse(JSON.stringify(packs[match[1]]));
+          if(url.searchParams.get('v')!==version){delete pack.messages['aiTest.rawOutput'];delete pack.messages['aiTest.technical'];}
+          return route.fulfill({contentType:'application/json',body:JSON.stringify(pack)});
+        }
+        if(url.pathname==='/js/i18n.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,'js/i18n.js'),'utf8')});
+        if(url.pathname==='/js/ai-model-test.js')return route.fulfill({contentType:'text/javascript',body:'window.__parserCapture={readyState:document.readyState,readyThen:typeof I18n.ready.then};\n'+fs.readFileSync(path.join(root,'js/ai-model-test.js'),'utf8')});
+        if(url.pathname==='/js/local-ai-engine.js')return route.fulfill({contentType:'text/javascript',body:`window.__parserModel={loads:0,loaded:false};window.LocalAI={getStatus:()=>({loaded:__parserModel.loaded,model:'PARSER CONTRACT FIXTURE — NOT INFERENCE'}),load:async()=>{__parserModel.loads++;__parserModel.loaded=true;},cancel:()=>{__parserModel.loaded=false;},generate:async()=>{const error=new Error('PRIVATE untranslated error');error.code='AI_INVALID_DRAFT';error.details={rawOutput:'{"items":[]}',elapsedMs:12};throw error;}};`});
+        if(url.pathname==='/css/tokens.css'||url.pathname==='/css/ai-assistant.css')return route.fulfill({contentType:'text/css',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
+        return route.abort();
+      });
+      await page.goto('http://parser-ai-contract.test/',{waitUntil:'domcontentloaded'});
+      assert.deepEqual(await page.evaluate(()=>__parserCapture),{readyState:'loading',readyThen:'function'},'actual parser reads an existing pending ready promise');
+      assert.equal(await page.locator('#modelLoad').isDisabled(),true,'locale loading does not enable a model operation');
+      assert.equal(await page.evaluate(()=>__parserModel.loads),0);
+      assert.equal((await page.locator('body').textContent()).includes('aiTest.'),false,'pending locale never exposes a translation key');
+      release();await page.evaluate(()=>I18n.ready);
+      await page.waitForFunction(()=>!document.querySelector('#modelLoad').disabled);
+      assert.equal(await page.locator('#modelTechnical summary').textContent(),packs[language].messages['aiTest.technical']);
+      assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs[language].messages['aiTest.rawOutput']);
+      assert.equal(await page.locator('[data-language-select]').inputValue(),language);
+      assert.equal(requests.length,language==='zh-TW'?1:2,'duplicate base-language loads share a request');
+      for(const request of requests)assert.equal(request.searchParams.get('v'),version,'locale URL inherits the script resource version');
+      for(const options of await page.evaluate(()=>__localeFetchOptions)){assert.equal(options.cache,'no-cache');assert.equal(options.credentials,'same-origin');}
+      await page.locator('#modelLoad').click();await page.locator('#modelRun').click();
+      await page.waitForFunction(()=>document.querySelector('#modelStatus').dataset.errorCode==='AI_INVALID_DRAFT');
+      assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs[language].messages['aiTest.rawOutput']);
+      assert.equal(await page.locator('#modelStatus').textContent(),packs[language].messages['aiTest.invalidDraft']);
+      assert.equal((await page.locator('body').textContent()).includes('aiTest.'),false);
+      assert.equal((await page.locator('body').textContent()).includes('PRIVATE untranslated'),false);
+      assert.deepEqual(errors,[]);await page.close();
+    }
+  }finally{await browser.close();}
+});
+
+test('browser parser startup: missing or unavailable packs keep readable headings and never leak keys',{skip:!chromium},async()=>{
+  const executablePath=process.env.CHROMIUM_EXECUTABLE||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined);
+  const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox']});
+  try{
+    const html=fs.readFileSync(path.join(root,'ai-test.html'),'utf8');
+    for(const scenario of ['missingSelectedKeys','missingAllKeys','unavailable']){
+      const page=await browser.newPage();
+      await page.addInitScript(()=>localStorage.setItem('fambudget.language','ja'));
+      await page.route('**/*',route=>{
+        const url=new URL(route.request().url());
+        if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
+        const match=url.pathname.match(/^\/locales\/(zh-TW|ja)\.json$/);
+        if(match){
+          if(scenario==='unavailable')return route.fulfill({status:503,contentType:'application/json',body:'{}'});
+          const pack=JSON.parse(JSON.stringify(packs[match[1]]));
+          if(scenario==='missingAllKeys'||match[1]==='ja'){delete pack.messages['aiTest.rawOutput'];delete pack.messages['aiTest.technical'];}
+          return route.fulfill({contentType:'application/json',body:JSON.stringify(pack)});
+        }
+        if(url.pathname==='/js/i18n.js'||url.pathname==='/js/ai-model-test.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
+        if(url.pathname==='/js/local-ai-engine.js')return route.fulfill({contentType:'text/javascript',body:'window.LocalAI={getStatus:()=>({loaded:false})};'});
+        return route.fulfill({contentType:'text/css',body:''});
+      });
+      await page.goto('http://missing-i18n-contract.test/');await page.evaluate(()=>I18n.ready);
+      await page.waitForFunction(()=>!document.querySelector('#modelLoad').disabled);
+      for(const selector of ['#modelDiagnostics summary','#modelTechnical summary']){
+        const label=await page.locator(selector).textContent();assert.ok(label.length>3);assert.equal(label.includes('aiTest.'),false);
+      }
+      assert.equal((await page.locator('body').textContent()).includes('aiTest.'),false);
+      const unknown=await page.evaluate(()=>I18n.t('aiTest.thisKeyDoesNotExist'));
+      assert.ok(unknown.length>3);assert.equal(unknown.includes('aiTest.'),false,'a missing arbitrary key falls back to a localized readable message');
+      await page.close();
+    }
   }finally{await browser.close();}
 });
