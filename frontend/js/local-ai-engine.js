@@ -3,7 +3,11 @@
   'use strict';
   var VERSION = '0.2.86';
   var script = typeof document !== 'undefined' && document.currentScript;
-  var workerURL = new URL('local-ai-worker.js', script && script.src || new URL('js/local-ai-engine.js', global.location && global.location.href || 'http://localhost/')).href;
+  var engineURL = new URL(script && script.src || new URL('js/local-ai-engine.js', global.location && global.location.href || 'http://localhost/'));
+  var workerLocation = new URL('local-ai-worker.js', engineURL);
+  // A new controller release must not reuse an older unversioned worker.
+  if (engineURL.searchParams.has('v')) workerLocation.searchParams.set('v', engineURL.searchParams.get('v'));
+  var workerURL = workerLocation.href;
   var models = {
     f16: {model:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',precision:'q4f16_1',estimatedDownloadBytes:290000000,estimatedVramMB:944.62},
     f32: {model:'Qwen2.5-0.5B-Instruct-q4f32_1-MLC',precision:'q4f32_1',estimatedDownloadBytes:290000000,estimatedVramMB:1060.2}
@@ -14,6 +18,20 @@
   function AIError(code, message) { this.name = 'LocalAIError'; this.code = code; this.message = message || code; if (Error.captureStackTrace) Error.captureStackTrace(this, AIError); }
   AIError.prototype = Object.create(Error.prototype); AIError.prototype.constructor = AIError;
   function error(code, message) { return new AIError(code, message); }
+  function diagnosticDetails(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    var clean = {}, usage = {};
+    if (typeof value.rawOutput === 'string') clean.rawOutput = value.rawOutput.slice(0,12000);
+    if (typeof value.model === 'string') clean.model = value.model.slice(0,120);
+    if (typeof value.finishReason === 'string') clean.finishReason = value.finishReason.slice(0,40);
+    if (typeof value.elapsedMs === 'number' && Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0) clean.elapsedMs = value.elapsedMs;
+    if (Number.isInteger(value.attempts) && value.attempts > 0) clean.attempts = Math.min(value.attempts,2);
+    ['prompt_tokens','completion_tokens','total_tokens','promptTokens','completionTokens','totalTokens'].forEach(function(key) {
+      if (value.usage && typeof value.usage[key] === 'number' && Number.isFinite(value.usage[key]) && value.usage[key] >= 0) usage[key] = value.usage[key];
+    });
+    if (Object.keys(usage).length) clean.usage = usage;
+    return Object.keys(clean).length ? clean : null;
+  }
   function status() {
     return Object.assign({library:'WebLLM',libraryVersion:VERSION,contextWindow:4096,cachedWeightsRetained:true,busy:!!active}, models.f16, selected || {}, state);
   }
@@ -54,7 +72,11 @@
         if (job.type === 'load') { dispose(); state.loaded = false; }
         state.phase = state.loaded ? 'ready' : 'error';
         state.lastError = {code:failure.code || 'AI_RUNTIME_FAILED',message:failure.message || 'Local inference failed.'};
-        settle(job, error(state.lastError.code, state.lastError.message)); return;
+        var rejected = error(state.lastError.code, state.lastError.message);
+        // Raw output is delivered only to this request's caller, never status or storage.
+        var details = diagnosticDetails(failure.details);
+        if (details) rejected.details = details;
+        settle(job, rejected); return;
       }
       if (message.type === 'result') {
         state.lastError = null;

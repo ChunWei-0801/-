@@ -1228,7 +1228,16 @@
     "aiTest.benchmarkComplete": "合成示例检查完成；结果仅适用于这两条输入。",
     "aiTest.cancelled": "已取消；没有写入任何数据。",
     "aiTest.unloaded": "模型已卸载，本页输入与回复已清除。",
-    "aiTest.cacheCleared": "模型下载缓存已清除。"
+    "aiTest.cacheCleared": "模型下载缓存已清除。",
+    "aiTest.invalidDraft": "模型已回复，但没有生成通过检查的记账草稿。输入仍保留，请重试；下方可展开原始回复帮助核对。",
+    "aiTest.noOutput": "模型没有生成可用回复。请重试，或缩短输入文字。",
+    "aiTest.incomplete": "模型回复尚未完成，没有可用草稿。请将消费分成较短的段落再重试。",
+    "aiTest.runtimeFailure": "本次操作未完成。请检查网络与设备资源，再重新加载模型；不会切换至付费服务。",
+    "aiTest.timeout": "本次操作超时，尚未生成可用草稿。请检查网络与设备资源，再重新加载模型。",
+    "aiTest.busy": "另一项模型操作仍在执行，请先等待或取消。",
+    "aiTest.failedMetrics": "操作未完成；以下是失败测量，不计为成功。",
+    "aiTest.rawOutput": "查看模型原始回复（未通过草稿验证）",
+    "aiTest.rawOutputNotice": "原始回复只保留在本页，可能包含你的输入内容；请勿公开分享。"
   },
   "sources": {}
 }

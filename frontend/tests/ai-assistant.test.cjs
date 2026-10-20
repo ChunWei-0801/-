@@ -69,10 +69,11 @@ test('contract fixture: model and source URLs cannot inject navigation', () => {
 });
 
 test('contract fixture: downloadable evaluation excludes input, ledger, answer, receipt, and raw errors', () => {
-  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],context:{privateLedger:'never'},rawInput:'private input',file:'private image'});
+  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],failedMeasurements:[{task:'draft',model:'local-model',elapsedMs:42,usage:{completion_tokens:6,privateText:'secret'},attempts:2,errorCode:'AI_NO_DRAFT',rawOutput:'private model output',message:'private raw error'}],context:{privateLedger:'never'},rawInput:'private input',file:'private image'});
   const json=JSON.stringify(data);
   assert.equal(data.containsPrivateContent,false);assert.equal(data.modelRuns[0].usage.promptTokens,12);
-  for(const value of ['private question','private answer','privateLedger','private input','private image','secret'])assert.equal(json.includes(value),false,value);
+  assert.equal(data.failedRuns[0].errorCode,'AI_NO_DRAFT');assert.equal(data.failedRuns[0].attempts,2);
+  for(const value of ['private question','private answer','privateLedger','private input','private image','private model output','private raw error','secret'])assert.equal(json.includes(value),false,value);
 });
 
 test('contract fixture: OCR pins an actual worker and core; languages contain no image upload endpoint', () => {
@@ -99,6 +100,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
       window.LocalAI={getStatus:()=>({loaded:__fixture.loaded,phase:__fixture.loaded?'ready':'idle'}),checkSupport:async()=>({supported:true}),load:async({onProgress})=>{__fixture.loadCalls++;onProgress({progress:1,text:'Contract fixture loaded'});__fixture.loaded=true;},cancel:()=>{__fixture.cancels++;__fixture.loaded=false;},unload:()=>{__fixture.loaded=false;},clearSession:()=>{__fixture.loaded=false;},generate:async(options)=>{
         if(!__fixture.loaded)throw new Error('Fixture model was unloaded');
         __fixture.generationCalls++;__fixture.lastContext=options.context;
+        if(__fixture.draftFailure){const error=new Error('The model did not produce usable draft items.');error.code='AI_NO_DRAFT';error.details={rawOutput:'{"items":[],"warnings":["<img src=x onerror=alert(1)>"]}',elapsedMs:42,model:'CONTRACT FIXTURE — NOT INFERENCE',finishReason:'stop',usage:{completion_tokens:6},attempts:2};throw error;}
         const result={text:options.task==='draft'?JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:__fixture.foreign?'USD':'TWD',kind:'expense',category:'1',merchant:'<img src=x onerror=alert(1)>',note:'fixture note',missingFields:[]}],warnings:[]}):'Explanation <img src=x onerror=alert(1)> [summary:2026-10]',model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:20,usage:{promptTokens:10,completionTokens:12},finishReason:'stop'};
         if(__fixture.reject){options.onToken('REJECTED PROVISIONAL TEXT');throw new Error('AI_UNGROUNDED fixture rejection');}
         if(__fixture.defer)return new Promise(resolve=>{__fixture.resolve=()=>resolve(result);});
@@ -120,6 +122,16 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.equal(await page.evaluate(()=>__fixture.loaded),true,'retrieval preserves loaded model');
     assert.equal(await page.evaluate(()=>__fixture.generationCalls),0,'facts are not fabricated inference');
     await page.locator('[data-ai-mode="draft"]').click();
+    await page.evaluate(()=>{__fixture.draftFailure=true;});
+    await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: breakfast TWD 65');
+    await page.locator('[data-ai-action="run"]').click();
+    await page.waitForFunction(()=>document.querySelector('.ait-output').textContent.includes('AI_NO_DRAFT'));
+    assert.equal(await page.locator('.ait-status').textContent(),'The model returned an incomplete draft format. The original is preserved below. Revise the input and retry, or enter it manually.');
+    assert.equal(await page.locator('textarea').inputValue(),'CONTRACT FIXTURE ONLY: breakfast TWD 65','failure preserves input for correction');
+    assert.equal(await page.locator('[data-ai-row]').count(),0,'failed generation creates no editable or savable fake entries');
+    assert.equal(await page.locator('.ait-output img').count(),0,'raw failed model output is inert text');
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'failure never writes accounting');
+    await page.evaluate(()=>{__fixture.draftFailure=false;});
     await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: breakfast USD 65');
     await page.locator('[data-ai-action="run"]').click();
     await page.waitForSelector('[data-ai-row]');

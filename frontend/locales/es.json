@@ -1228,7 +1228,16 @@
     "aiTest.benchmarkComplete": "Comprobación de ejemplos sintéticos terminada. Los resultados solo se aplican a estas dos entradas.",
     "aiTest.cancelled": "Operación cancelada. No se ha guardado ningún dato.",
     "aiTest.unloaded": "El modelo se ha retirado de la memoria y las entradas y respuestas de esta página se han borrado.",
-    "aiTest.cacheCleared": "Se ha borrado la caché del modelo descargado."
+    "aiTest.cacheCleared": "Se ha borrado la caché del modelo descargado.",
+    "aiTest.invalidDraft": "El modelo respondió, pero ningún borrador superó la validación. Tu texto se conserva. Reinténtalo o despliega la respuesta original para revisarla.",
+    "aiTest.noOutput": "El modelo no generó una respuesta utilizable. Reinténtalo o acorta el texto.",
+    "aiTest.incomplete": "La respuesta del modelo no terminó y no hay un borrador utilizable. Divide las compras en fragmentos más cortos y reinténtalo.",
+    "aiTest.runtimeFailure": "No se completó la operación. Comprueba la conexión y los recursos del dispositivo y vuelve a cargar el modelo. No se usará un servicio de pago.",
+    "aiTest.timeout": "La operación agotó el tiempo sin producir un borrador utilizable. Comprueba la conexión y los recursos del dispositivo y vuelve a cargar el modelo.",
+    "aiTest.busy": "Hay otra operación del modelo en curso. Espera o cancélala primero.",
+    "aiTest.failedMetrics": "La operación falló. Estas mediciones registran un fallo, no un éxito.",
+    "aiTest.rawOutput": "Ver la respuesta original del modelo (el borrador no superó la validación)",
+    "aiTest.rawOutputNotice": "La respuesta original solo permanece en esta página y puede contener tu texto. No la compartas públicamente."
   },
   "sources": {}
 }

@@ -18,7 +18,7 @@ function controller(options = {}) {
     emit(type, extras={}) { this.onmessage?.({data:{id:this.messages.at(-1).id,type,...extras}}); }
   }
   const context = vm.createContext({URL,Promise,AbortController,isSecureContext:true,Worker:FakeWorker,
-    document:{currentScript:{src:'https://budget.example/js/local-ai-engine.js'}},
+    document:{currentScript:{src:options.scriptURL || 'https://budget.example/js/local-ai-engine.js'}},
     navigator:{gpu:{requestAdapter: options.requestAdapter || (async()=>({features:new Set(options.f16 === false ? [] : ['shader-f16'])}))}},
     setTimeout:options.setTimeout || ((fn,ms)=>{const timer=setTimeout(fn,ms);timer.unref();return timer;}),clearTimeout,
     localStorage:{setItem(){throw new Error('Private financial data must never be persisted');}}
@@ -102,6 +102,23 @@ test('invalid requests fail without inference and runtime errors remain typed',a
   assert.equal(h.api.status().loaded,false);
 });
 
+test('controller versions the worker with its release and returns bounded diagnostics only to the failed caller',async t=>{
+  const h=controller({scriptURL:'https://budget.example/js/local-ai-engine.js?v=168'});t.after(()=>h.api.unload());await ready(h);
+  assert.equal(h.workers[0].url,'https://budget.example/js/local-ai-worker.js?v=168');
+  const pending=h.api.generate({task:'draft',input:'PRIVATE INPUT'});
+  h.workers[0].emit('error',{error:{code:'AI_NO_DRAFT',message:'No usable draft',details:{rawOutput:'x'.repeat(13000),model:'Qwen2.5',elapsedMs:42,finishReason:'stop',attempts:99,usage:{prompt_tokens:20,completion_tokens:10,total_tokens:30,privateInput:'DO NOT KEEP'},privateContext:'DO NOT KEEP'}}});
+  await assert.rejects(pending,error=>{
+    assert.equal(error.code,'AI_NO_DRAFT');assert.equal(error.details.rawOutput.length,12000);
+    assert.equal(error.details.attempts,2);assert.equal(error.details.elapsedMs,42);
+    assert.equal(error.details.usage.total_tokens,30);assert.equal(error.details.usage.privateInput,undefined);
+    assert.equal(error.details.privateContext,undefined);return true;
+  });
+  assert.equal(h.api.status().phase,'ready');
+  assert.equal(Object.hasOwn(h.api.status().lastError,'details'),false);
+  assert.equal(JSON.stringify(h.api.status()).includes('xxxx'),false);
+  h.api.unload();assert.equal(h.api.status().lastError,null);
+});
+
 test('model cache clearing uses the same pinned worker and can be cancelled',async()=>{
   const h=controller();const pending=h.api.clearCache();const w=h.workers[0];
   assert.equal(w.messages[0].type,'clearCache');assert.equal(w.messages[0].models.length,2);
@@ -113,7 +130,9 @@ function runtimeHarness(text, options={}) {
   const sent=[],calls={resets:0,requests:[]};
   const engine={resetChat:async()=>{calls.resets++;},unload:async()=>{},chat:{completions:{create:async config=>{
     calls.requests.push(config);
-    return(async function*(){yield{choices:[{delta:{content:text},finish_reason:null}]};yield{choices:[{delta:{},finish_reason:options.finishReason||'stop'}],usage:{completion_tokens:10}};})();
+    const content = Array.isArray(text) ? text[Math.min(calls.requests.length-1,text.length-1)] : text;
+    const usage = options.usages ? options.usages[calls.requests.length-1] : {prompt_tokens:20,completion_tokens:10,total_tokens:30};
+    return(async function*(){yield{choices:[{delta:{content},finish_reason:null}]};yield{choices:[{delta:{},finish_reason:options.finishReason||'stop'}],usage};})();
   }}}};
   const self={postMessage:message=>sent.push(message),__fakeRuntime:{CreateMLCEngine:async()=>engine,prebuiltAppConfig:{model_list:[]},deleteModelAllInfoInCache:async()=>{}}};
   const context=vm.createContext({self,TextEncoder,performance:{now:()=>Date.now()},console});
@@ -130,8 +149,77 @@ test('worker builds real-model JSON request for multi-entry drafts with explicit
   assert.equal(reply.type,'result');const request=h.calls.requests[0];
   assert.equal(request.response_format.type,'json_object');assert.equal(JSON.parse(request.response_format.schema).properties.items.maxItems,10);
   assert.equal(request.max_tokens,640);assert.ok(request.messages[0].content.includes('Traditional Chinese'));
-  assert.ok(request.messages[1].content.includes('UNTRUSTED_DATA_JSON'));assert.ok(request.messages[1].content.includes('2026-10-19'));
+  assert.equal(request.messages.length,4);assert.equal(request.messages[2].role,'assistant');
+  assert.equal(JSON.parse(request.messages[2].content).items.length,2);
+  assert.ok(request.messages.at(-1).content.includes('UNTRUSTED_DATA_JSON'));assert.ok(request.messages.at(-1).content.includes('2026-10-19'));
+  assert.ok(request.messages[0].content.includes('NEVER copy its purchases or amounts'));
+  const grammar=JSON.parse(request.response_format.schema);
+  assert.deepEqual(grammar.properties.items.items.properties.category.enum,['food','fuel',null]);
+  assert.ok(grammar.properties.items.items.properties.currency.enum.includes('TWD'));
+  assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
   assert.equal(h.calls.resets,2);assert.equal(reply.result.finishReason,'stop');
+});
+
+test('an empty extraction gets one real-model repair pass; the last user input and no invented fallback decide the result',async()=>{
+  const h=runtimeHarness([JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[{...draftItem,amount:65,note:'早餐'},{...draftItem,amount:120,note:'午餐'}],warnings:[]})]);await h.load();
+  const reply=await h.run({type:'generate',task:'draft',input:'今天早餐65元，午餐120元。',context:draftContext,language:'zh-TW'});
+  assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,2);assert.equal(h.calls.resets,3);
+  assert.equal(reply.result.attempts,2);assert.equal(reply.result.usage.completion_tokens,20);
+  assert.deepEqual(JSON.parse(reply.result.text).items.map(item=>item.amount),[65,120]);
+  assert.ok(h.calls.requests[1].messages[0].content.includes('AI_NO_DRAFT'));
+  assert.ok(h.calls.requests[1].messages[0].content.includes('Never invent a transaction'));
+  assert.ok(h.calls.requests[1].messages.at(-1).content.includes('今天早餐65元，午餐120元。'));
+  for(const request of h.calls.requests)assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
+});
+
+test('repeated empty or meaningless model output remains a failed draft with private in-memory diagnostics',async()=>{
+  for(const text of [JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[{...draftItem,kind:null,amount:null,category:null,note:'unknown'}],warnings:[]})]){
+    const h=runtimeHarness(text);await h.load();
+    const reply=await h.run({type:'generate',task:'draft',input:'沒有交易 PRIVATE_INPUT',context:draftContext});
+    assert.equal(reply.type,'error');assert.equal(reply.error.code,'AI_NO_DRAFT');assert.equal(h.calls.requests.length,2);
+    assert.equal(reply.error.details.rawOutput,text);assert.equal(reply.error.details.attempts,2);
+    assert.equal(reply.error.details.finishReason,'stop');assert.equal(reply.error.details.usage.total_tokens,60);
+    assert.equal(JSON.stringify(reply.error.details).includes('PRIVATE_INPUT'),false);
+  }
+});
+
+test('repair usage is absent when the runtime reports only one pass, and truncated drafts never retry',async()=>{
+  const text=[JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[draftItem],warnings:[]})];
+  for(const usages of [[null,{completion_tokens:10}],[{completion_tokens:10},null]]){
+    const h=runtimeHarness(text,{usages});await h.load();
+    const reply=await h.run({type:'generate',task:'draft',input:'午餐120',context:draftContext});
+    assert.equal(reply.type,'result');assert.equal(reply.result.attempts,2);assert.equal(reply.result.usage,null);
+  }
+  const truncated=runtimeHarness('{"items":[',{finishReason:'length'});await truncated.load();
+  const reply=await truncated.run({type:'generate',task:'draft',input:'午餐120',context:draftContext});
+  assert.equal(reply.error.code,'AI_TRUNCATED');assert.equal(reply.error.details.attempts,1);assert.equal(truncated.calls.requests.length,1);
+});
+
+test('the deployed public breakfast/lunch case fits both extraction and repair prompt budgets',async()=>{
+  const context={today:'2026-10-20',timezone:'Asia/Taipei',currency:'TWD',categories:[{id:'FOOD',name:'餐飲',kind:'expense'},{id:'TRANSIT',name:'交通',kind:'expense'},{id:'SALARY',name:'薪資',kind:'income'},{id:'OTHER',name:'其他',kind:'expense'}]};
+  const h=runtimeHarness([JSON.stringify({items:[],warnings:[]}),JSON.stringify({items:[{...draftItem,category:'FOOD',amount:65},{...draftItem,category:'FOOD',amount:120}],warnings:[]})]);await h.load();
+  const reply=await h.run({type:'generate',task:'draft',input:'今天早餐65元，午餐120元。',context,language:'zh-TW'});
+  assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,2);
+  for(const request of h.calls.requests){assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);assert.ok(request.messages.at(-1).content.includes('2026-10-20'));}
+});
+
+test('malformed output is repaired only once and a mismatched category kind remains invalid',async()=>{
+  const h=runtimeHarness(['{"wrong":[]}',JSON.stringify({items:[draftItem],warnings:[]})]);await h.load();
+  assert.equal((await h.run({type:'generate',task:'draft',input:'午餐120',context:draftContext})).type,'result');
+  assert.equal(h.calls.requests.length,2);
+  const mismatched=runtimeHarness(JSON.stringify({items:[{...draftItem,kind:'income'}],warnings:[]}));await mismatched.load();
+  const reply=await mismatched.run({type:'generate',task:'draft',input:'income120',context:draftContext});
+  assert.equal(reply.error.code,'AI_INVALID_DRAFT');assert.equal(mismatched.calls.requests.length,2);
+});
+
+test('draft grammar and few-shot categories use only the context retained under the byte budget',async()=>{
+  const context={...draftContext,categories:Array.from({length:40},(_,index)=>({id:'category-'+index,name:'很長的分類名稱'.repeat(4)+index,kind:'expense'}))};
+  const h=runtimeHarness(JSON.stringify({items:[{...draftItem,category:'category-0'}],warnings:[]}));await h.load();
+  const result=await h.run({type:'generate',task:'draft',input:'午餐120元',context});assert.equal(result.type,'result');
+  const request=h.calls.requests[0],data=JSON.parse(request.messages.at(-1).content.split('\n')[2]);
+  const retained=data.context.categories.map(item=>item.id);
+  assert.ok(retained.length<40);assert.deepEqual(JSON.parse(request.response_format.schema).properties.items.items.properties.category.enum,[...retained,null]);
+  assert.ok(JSON.parse(request.messages[2].content).items.every(item=>item.category===null||retained.includes(item.category)));
 });
 
 test('worker rejects invalid calendar dates, category/currency inventions, and malformed draft fields',async()=>{

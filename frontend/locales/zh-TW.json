@@ -1228,7 +1228,16 @@
     "aiTest.benchmarkComplete": "合成範例檢查完成；結果僅適用於這兩筆輸入。",
     "aiTest.cancelled": "已取消；沒有寫入任何資料。",
     "aiTest.unloaded": "模型已卸載，本頁輸入與回覆已清除。",
-    "aiTest.cacheCleared": "模型下載快取已清除。"
+    "aiTest.cacheCleared": "模型下載快取已清除。",
+    "aiTest.invalidDraft": "模型已回覆，但沒有產生通過檢查的記帳草稿。輸入仍保留，請重試；下方可展開原始回覆協助核對。",
+    "aiTest.noOutput": "模型沒有產生可用回覆。請重試，或縮短輸入文字。",
+    "aiTest.incomplete": "模型回覆尚未完成，沒有可用草稿。請將消費分成較短的段落再重試。",
+    "aiTest.runtimeFailure": "本次操作未完成。請檢查網路與裝置資源，再重新載入模型；不會切換至付費服務。",
+    "aiTest.timeout": "本次操作逾時，尚未產生可用草稿。請檢查網路與裝置資源，再重新載入模型。",
+    "aiTest.busy": "另一項模型操作仍在執行，請先等待或取消。",
+    "aiTest.failedMetrics": "操作未完成；以下是失敗量測，不計為成功。",
+    "aiTest.rawOutput": "查看模型原始回覆（未通過草稿驗證）",
+    "aiTest.rawOutputNotice": "原始回覆只保留在本頁，可能包含你的輸入內容；請勿公開分享。"
   },
   "sources": {
     "家庭記帳": "ui.737fc85046ed",
@@ -2198,6 +2207,15 @@
     "合成範例檢查完成；結果僅適用於這兩筆輸入。": "aiTest.benchmarkComplete",
     "已取消；沒有寫入任何資料。": "aiTest.cancelled",
     "模型已卸載，本頁輸入與回覆已清除。": "aiTest.unloaded",
-    "模型下載快取已清除。": "aiTest.cacheCleared"
+    "模型下載快取已清除。": "aiTest.cacheCleared",
+    "模型已回覆，但沒有產生通過檢查的記帳草稿。輸入仍保留，請重試；下方可展開原始回覆協助核對。": "aiTest.invalidDraft",
+    "模型沒有產生可用回覆。請重試，或縮短輸入文字。": "aiTest.noOutput",
+    "模型回覆尚未完成，沒有可用草稿。請將消費分成較短的段落再重試。": "aiTest.incomplete",
+    "本次操作未完成。請檢查網路與裝置資源，再重新載入模型；不會切換至付費服務。": "aiTest.runtimeFailure",
+    "本次操作逾時，尚未產生可用草稿。請檢查網路與裝置資源，再重新載入模型。": "aiTest.timeout",
+    "另一項模型操作仍在執行，請先等待或取消。": "aiTest.busy",
+    "操作未完成；以下是失敗量測，不計為成功。": "aiTest.failedMetrics",
+    "查看模型原始回覆（未通過草稿驗證）": "aiTest.rawOutput",
+    "原始回覆只保留在本頁，可能包含你的輸入內容；請勿公開分享。": "aiTest.rawOutputNotice"
   }
 }

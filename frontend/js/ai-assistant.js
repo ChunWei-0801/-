@@ -24,7 +24,24 @@
   function accountStamp(value) { var user=value&&value.user?value.user:value||{}; return [idOf(value),user.familyId||user.family_id||'',user.role||user.familyRole||'',user.permissionsVersion||user.membershipVersion||''].map(String).join('|'); }
   function active(s, job) { return current === s && !s.closed && (job == null || s.job === job) && s.accountStamp === accountStamp(account); }
   function message(s, value, error) { if (!active(s)) return; s.message.textContent = value || ''; s.message.classList.toggle('is-error', !!error); }
-  function errorMessage(error) { return error && error.message ? String(error.message) : t('error'); }
+  function testText(key, fallback) { return global.I18n && global.I18n.t ? global.I18n.t('aiTest.' + key, fallback) : fallback; }
+  function errorMessage(error) {
+    var code=error && error.code || '';
+    if (code==='AI_NO_DRAFT' || code==='AI_INVALID_DRAFT') return testText('invalidDraft',t('invalidDraft'));
+    if (code==='AI_EMPTY_OUTPUT') return testText('noOutput',t('invalidDraft'));
+    if (code==='AI_TRUNCATED') return testText('incomplete',t('resultTruncated'));
+    if (code==='AI_CONTEXT_TOO_LARGE' || code==='AI_INPUT_TOO_LARGE') return t('tooLong');
+    if (code==='AI_INVALID_INPUT') return t('enterText');
+    if (code==='AI_NO_EVIDENCE') return t('noSources');
+    if (code==='AI_UNGROUNDED') return t('error') + ' ' + t('unverified');
+    if (code==='AI_CANCELLED') return t('cancelled');
+    if (/^AI_(?:WEBGPU_UNAVAILABLE|GPU_UNAVAILABLE|GPU_TIMEOUT|WORKER_UNAVAILABLE|INSECURE_CONTEXT)$/.test(code)) return t('unsupported');
+    if (code==='AI_NOT_LOADED') return t('loadFirst');
+    if (code==='AI_TIMEOUT') return testText('timeout',t('error'));
+    if (code==='AI_BUSY') return testText('busy',t('running'));
+    if (/^AI_/.test(code)) return testText('runtimeFailure',t('error'));
+    return error && error.message ? String(error.message) : t('error');
+  }
   function scrub(value) { return String(value == null ? '' : value).replace(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email removed]'); }
   function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
   function validDate(value) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false; var d = new Date(value + 'T12:00:00Z'); return Number.isFinite(d.getTime()) && d.toISOString().slice(0,10) === value; }
@@ -84,7 +101,7 @@
     try {
       if (!global.LocalAI) throw new Error(t('noRuntime'));
       var support = await global.LocalAI.checkSupport(); if (!active(s,job)) return;
-      if (support === false || support && (support.supported === false || support.ok === false)) throw new Error(t('unsupported') + (support.reason ? ' ' + support.reason : ''));
+      if (support === false || support && (support.supported === false || support.ok === false)) throw new Error(t('unsupported'));
       await global.LocalAI.load({signal:s.controller.signal,onProgress:function (progress) {
         if (!active(s,job)) return;
         var fraction = typeof progress === 'number' ? progress : progress && (progress.progress != null ? progress.progress : progress.fraction);
@@ -170,12 +187,22 @@
       s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length,rating:null});
       renderMetrics(s); message(s,result.finishReason === 'length' ? t('resultTruncated') : t('finished'),result.finishReason === 'length');
     } catch (error) {
-      if (active(s,job)) { message(s,errorMessage(error),true); s.output.replaceChildren(); if (task === 'draft') preserveRaw(s); }
+      if (active(s,job)) {
+        message(s,errorMessage(error),true); s.output.replaceChildren();
+        var details=error && error.details;
+        if (details && typeof details.rawOutput==='string') s.modelOutput=details.rawOutput.slice(0,12000);
+        if (details) {
+          var failed={task:task,model:typeof details.model==='string'?details.model:'',elapsedMs:Number.isFinite(details.elapsedMs)?details.elapsedMs:null,usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason:null,attempts:details.attempts,errorCode:/^AI_[A-Z_]+$/.test(error.code||'')?error.code:'AI_INFERENCE_FAILED'};
+          s.failedMeasurements.push(failed);
+          add(s.output,el('p','ait-muted',testText('failedMetrics',t('error'))),el('pre','ait-answer',JSON.stringify(failed,null,2)));
+        }
+        if (task === 'draft') preserveRaw(s);
+      }
     } finally { if (active(s,job)) setBusy(s,false); }
   }
   function preserveRaw(s) {
     var details=el('details','ait-raw'); add(details,el('summary','',t('raw')),el('pre','',s.rawInput));
-    if (s.modelOutput) add(details,el('h3','',t('modelRaw')),el('pre','',s.modelOutput)); add(s.output,details,sourceLink('#/entry',t('manual')));
+    if (s.modelOutput) add(details,el('h3','',t('modelRaw')),el('p','ait-muted',testText('rawOutputNotice',t('unverified'))),el('pre','',s.modelOutput)); add(s.output,details,sourceLink('#/entry',t('manual')));
   }
   function syncRows(s) {
     if (!s.review) return;
@@ -236,7 +263,7 @@
     } catch (error) { if (active(s,job)) { message(s,t('photoFailed') + ' ' + errorMessage(error),true); if (!s.output.querySelector('[data-ai-action="retry-photo"]')) add(s.output,button(t('retryPhoto'),'retry-photo')); } }
   }
   function safeUsage(usage) { var clean={}; ['promptTokens','completionTokens','totalTokens','prompt_tokens','completion_tokens','total_tokens','inputTokens','outputTokens','prefillTokens','decodeTokens'].forEach(function(key) { if (usage && typeof usage[key] === 'number' && Number.isFinite(usage[key]) && usage[key]>=0) clean[key]=usage[key]; }); return clean; }
-  function evaluation(s) { return {schemaVersion:1,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,rating:item.rating}; }),note:'Observed session measurements only; no quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
+  function evaluation(s) { return {schemaVersion:2,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,rating:item.rating}; }),failedRuns:(s.failedMeasurements||[]).map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,attempts:item.attempts,errorCode:/^AI_[A-Z_]+$/.test(item.errorCode||'')?item.errorCode:'AI_INFERENCE_FAILED'}; }),note:'Observed session measurements only; failed runs are separate from successful runs. No quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
   function renderMetrics(s) {
     s.metrics.replaceChildren(el('h2','',t('metrics')),el('p','ait-muted',t('metricsHelp')));
     var last=s.measurements[s.measurements.length-1], list=el('dl','ait-metrics-grid');
@@ -277,7 +304,7 @@
   function render(container,options) {
     cleanup(); if (!container) return;
     if (options) account=options.user || options.account || (options.id != null ? options : account);
-    var s={root:container,accountId:idOf(account),accountStamp:accountStamp(account),closed:false,job:0,mode:'draft',busy:false,categories:[],groups:[],drafts:[],originalDrafts:[],measurements:[],context:null,knowledge:null,file:null,imageURL:null,photoRetry:null,rawInput:'',modelOutput:''}; current=s; serial++;
+    var s={root:container,accountId:idOf(account),accountStamp:accountStamp(account),closed:false,job:0,mode:'draft',busy:false,categories:[],groups:[],drafts:[],originalDrafts:[],measurements:[],failedMeasurements:[],context:null,knowledge:null,file:null,imageURL:null,photoRetry:null,rawInput:'',modelOutput:''}; current=s; serial++;
     var wrap=el('div','ai-trial'); s.wrap=wrap; wrap.dataset.i18nSkip='';
     var header=el('header','ait-hero'); add(header,el('span','ait-badge',t('trial')),el('h1','',t('title')),el('p','ait-subtitle',t('subtitle')),el('p','ait-privacy',t('privacy')));
     var runtime=el('section','ait-runtime'); s.runtimeLabel=el('p','ait-runtime-label',ready()?t('ready'):t('idle')); s.runtimeLabel.setAttribute('role','status'); s.progress=el('progress','ait-progress'); s.progress.max=1; s.progress.hidden=true; s.progress.setAttribute('aria-label',t('loading'));
@@ -307,7 +334,7 @@
   function cleanup() {
     var s=current; if(!s)return; abortJob(s,false); s.closed=true; current=null;
     if(s.imageURL)URL.revokeObjectURL(s.imageURL); s.wrap.removeEventListener('click',s.click);s.wrap.removeEventListener('change',s.change);s.wrap.removeEventListener('input',s.inputChange);
-    s.input.value='';s.output.replaceChildren();s.facts.replaceChildren();s.wrap.remove();s.preview.removeAttribute('src');s.imageName.textContent='';s.drafts=[];s.originalDrafts=[];s.measurements=[];s.categories=[];s.groups=[];s.context=null;s.knowledge=null;s.rawInput='';s.modelOutput='';s.file=null;s.photoRetry=null;
+    s.input.value='';s.output.replaceChildren();s.facts.replaceChildren();s.wrap.remove();s.preview.removeAttribute('src');s.imageName.textContent='';s.drafts=[];s.originalDrafts=[];s.measurements=[];s.failedMeasurements=[];s.categories=[];s.groups=[];s.context=null;s.knowledge=null;s.rawInput='';s.modelOutput='';s.file=null;s.photoRetry=null;
     if(global.LocalAI&&global.LocalAI.clearSession)global.LocalAI.clearSession();
   }
   function setAccount(user) { var old=accountStamp(account), next=accountStamp(user); if(old!==next)cleanup(); account=user||null; }

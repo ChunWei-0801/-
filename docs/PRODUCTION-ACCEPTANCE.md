@@ -1,14 +1,25 @@
 # Production acceptance handoff
 
-The deployed source is `0ec481895dbba253802ab44b49e4d1bf135bf9ac` at
-`https://fambudget-recovery-20261017.onrender.com`. This handoff adds portable
-acceptance tools; it does not claim a new production test result. The original
+The deployed application source is `ebb39397486f81d4fa067d5ef13babe853730e3b` at
+`https://fambudget-recovery-20261017.onrender.com` (Render reports live on
+2026-10-20). The opt-in browser-local model trial is `/ai-test.html`, and the
+authenticated trial is `/#/ai`; see `FREE-LLM.md` and `WORKLOG-20261020.md`.
+Deployment status does not establish full production acceptance. The original
 acceptance checks and all eight lifestyle features' online interactions remain
 pending. These two tools cover the original account/mail/photo/mobile acceptance
 scope, not the complete eight-feature online interaction checklist.
 
+The latest user-device check of `/ai-test.html` failed: after entering
+`今天早餐65元，午餐120元。`, the deployed page showed
+`The model did not produce usable draft items.` and the measurement remained
+incomplete. This newer screenshot/report supersedes the earlier brief reply
+that a draft was generated. Real LLM draft acceptance remains incomplete;
+worker fixes are in progress and require redeployment and a new device check.
+No accuracy, latency or successful-generation result is inferred from this run.
+
 The user saved and published the updated environment policy on 2026-10-19.
-The current task still has the old policy: the additional HTTP host allowlist
+The current task's observed runtime revision is 748 and still lacks the
+production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
 [The official environment workflow](https://learn.chatgpt.com/docs/environments/cloud-environments)
@@ -119,3 +130,10 @@ new task, use the existing `backend/tools/backup_restore.py` with credentials
 bound privately, store the backup outside Git with restrictive permissions, and
 validate restoration into an isolated database. Do not restore into production.
 These acceptance scripts do not create a full database backup.
+
+The original SQLite snapshot, the lifestyle QA snapshot, and the newer isolated
+AI/API QA snapshot have private Google Drive copies with separately stored
+recovery keys. Each was downloaded and restored in isolation, with full row and
+photo hashes verified; these are historical/test data, not production PostgreSQL.
+The newest QA snapshot verifies 31 tables, 415 rows and 11 photo blobs. Do not
+mark the production backup checkbox complete based on these successful drills.

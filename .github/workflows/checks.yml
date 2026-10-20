@@ -24,4 +24,4 @@ jobs:
           JWT_SECRET: 'isolated-ci-test-secret-at-least-thirty-two-bytes'
           APP_ENV: development
       - run: node --test frontend/tests/api-mode.test.cjs
-      - run: node --test frontend/tests/local-ai-engine.test.cjs frontend/tests/ai-assistant.test.cjs
+      - run: node --test frontend/tests/local-ai-engine.test.cjs frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs

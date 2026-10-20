@@ -1228,7 +1228,16 @@
     "aiTest.benchmarkComplete": "Synthetic example check complete. Results apply only to these two inputs.",
     "aiTest.cancelled": "Cancelled. No data was saved.",
     "aiTest.unloaded": "Model unloaded. This page's inputs and responses were cleared.",
-    "aiTest.cacheCleared": "Downloaded model cache cleared."
+    "aiTest.cacheCleared": "Downloaded model cache cleared.",
+    "aiTest.invalidDraft": "The model replied, but no entry draft passed validation. Your input is preserved. Retry, or expand the original reply below to inspect it.",
+    "aiTest.noOutput": "The model did not produce a usable reply. Retry or shorten the input.",
+    "aiTest.incomplete": "The model reply did not finish, so no usable draft is available. Split the purchases into shorter sections and retry.",
+    "aiTest.runtimeFailure": "This operation did not complete. Check the connection and device resources, then reload the model. No paid service will be used.",
+    "aiTest.timeout": "This operation timed out without a usable draft. Check the connection and device resources, then reload the model.",
+    "aiTest.busy": "Another model operation is running. Wait for it or cancel it first.",
+    "aiTest.failedMetrics": "Operation failed. These measurements record a failure, not a success.",
+    "aiTest.rawOutput": "Inspect original model reply (draft validation failed)",
+    "aiTest.rawOutputNotice": "The original reply stays only on this page and may contain your input. Do not share it publicly."
   },
   "sources": {}
 }
