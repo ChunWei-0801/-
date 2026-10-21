@@ -1254,7 +1254,21 @@
     "aiTest.benchmarkSummary": "{passed}／{total} 筆範例通過。請核對各筆結果及列出的欄位差異。",
     "aiTest.draftMeasurement": "模型已回覆，耗時 {seconds} 秒。請核對草稿的金額、收支與分類。",
     "aiTest.benchmarkMismatch": "範例檢查有未通過項目，請查看下方標出的欄位差異；不能視為驗收成功。",
-    "aiTest.mappedDraft": "以下為模型回覆經欄位映射後的草稿；仍須核對原文、金額、收支與分類。"
+    "aiTest.mappedDraft": "以下為模型回覆經欄位映射後的草稿；仍須核對原文、金額、收支與分類。",
+    "aiTest.reviewChecksTitle": "核對提醒",
+    "aiTest.sourceAssistNotice": "這些草稿結合模型抽取與原文規則檢查。規則可能調整收支或分類，請逐筆確認。",
+    "aiTest.sourceAssistBenchmark": "模型原判斷與來源檢查後草稿分開核對；後者符合預期，不代表模型自行判斷正確。",
+    "aiTest.modelOnlyLabel": "模型原判斷",
+    "aiTest.assistedLabel": "來源檢查後草稿",
+    "aiTest.modelOnlySummary": "模型原判斷：{passed}／{total} 筆範例符合預期。",
+    "aiTest.assistedSummary": "來源檢查後草稿：{passed}／{total} 筆範例符合預期。",
+    "aiTest.scoreMissing": "沒有可獨立比較的模型草稿。",
+    "aiTest.sourceChange": "{field}已依原文檢查調整，請確認。",
+    "aiTest.sourceCleared": "{field}在原文中無法確認，已留白；請核對，必要時自行補充。",
+    "aiTest.ambiguousSource": "這段文字可能不是已發生的明確收支，請自行確認收支與分類。",
+    "aiTest.originalChoice": "模型原判斷：{kind}／{category}。",
+    "aiTest.finalChoice": "待確認草稿：{kind}／{category}。",
+    "aiTest.sourceUnverified": "{field}尚未經原文規則確認，請自行核對。"
   },
   "sources": {
     "家庭記帳": "ui.737fc85046ed",
@@ -2250,6 +2264,20 @@
     "{passed}／{total} 筆範例通過。請核對各筆結果及列出的欄位差異。": "aiTest.benchmarkSummary",
     "模型已回覆，耗時 {seconds} 秒。請核對草稿的金額、收支與分類。": "aiTest.draftMeasurement",
     "範例檢查有未通過項目，請查看下方標出的欄位差異；不能視為驗收成功。": "aiTest.benchmarkMismatch",
-    "以下為模型回覆經欄位映射後的草稿；仍須核對原文、金額、收支與分類。": "aiTest.mappedDraft"
+    "以下為模型回覆經欄位映射後的草稿；仍須核對原文、金額、收支與分類。": "aiTest.mappedDraft",
+    "核對提醒": "aiTest.reviewChecksTitle",
+    "這些草稿結合模型抽取與原文規則檢查。規則可能調整收支或分類，請逐筆確認。": "aiTest.sourceAssistNotice",
+    "模型原判斷與來源檢查後草稿分開核對；後者符合預期，不代表模型自行判斷正確。": "aiTest.sourceAssistBenchmark",
+    "模型原判斷": "aiTest.modelOnlyLabel",
+    "來源檢查後草稿": "aiTest.assistedLabel",
+    "模型原判斷：{passed}／{total} 筆範例符合預期。": "aiTest.modelOnlySummary",
+    "來源檢查後草稿：{passed}／{total} 筆範例符合預期。": "aiTest.assistedSummary",
+    "沒有可獨立比較的模型草稿。": "aiTest.scoreMissing",
+    "{field}已依原文檢查調整，請確認。": "aiTest.sourceChange",
+    "這段文字可能不是已發生的明確收支，請自行確認收支與分類。": "aiTest.ambiguousSource",
+    "模型原判斷：{kind}／{category}。": "aiTest.originalChoice",
+    "待確認草稿：{kind}／{category}。": "aiTest.finalChoice",
+    "{field}在原文中無法確認，已留白；請核對，必要時自行補充。": "aiTest.sourceCleared",
+    "{field}尚未經原文規則確認，請自行核對。": "aiTest.sourceUnverified"
   }
 }

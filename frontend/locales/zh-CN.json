@@ -1254,7 +1254,21 @@
     "aiTest.benchmarkSummary": "{passed}／{total} 个示例通过。请核对各笔结果和列出的字段差异。",
     "aiTest.draftMeasurement": "模型已回复，耗时 {seconds} 秒。请核对草稿的金额、收支与分类。",
     "aiTest.benchmarkMismatch": "示例检查有未通过项目，请查看下方标出的字段差异；不能视为验收成功。",
-    "aiTest.mappedDraft": "以下为模型回复经字段映射后的草稿；仍须核对原文、金额、收支与分类。"
+    "aiTest.mappedDraft": "以下为模型回复经字段映射后的草稿；仍须核对原文、金额、收支与分类。",
+    "aiTest.reviewChecksTitle": "核对提醒",
+    "aiTest.sourceAssistNotice": "这些草稿结合模型提取与原文规则检查。规则可能调整收支或分类，请逐笔确认。",
+    "aiTest.sourceAssistBenchmark": "模型原判断与来源检查后草稿分开核对；后者符合预期，不代表模型自行判断正确。",
+    "aiTest.modelOnlyLabel": "模型原判断",
+    "aiTest.assistedLabel": "来源检查后草稿",
+    "aiTest.modelOnlySummary": "模型原判断：{passed}／{total} 个示例符合预期。",
+    "aiTest.assistedSummary": "来源检查后草稿：{passed}／{total} 个示例符合预期。",
+    "aiTest.scoreMissing": "没有可独立比较的模型草稿。",
+    "aiTest.sourceChange": "{field}已根据原文检查调整，请确认。",
+    "aiTest.sourceCleared": "{field}在原文中无法确认，已留空；请核对，必要时自行补充。",
+    "aiTest.ambiguousSource": "这段文字可能不是已发生的明确收支，请自行确认收支与分类。",
+    "aiTest.originalChoice": "模型原判断：{kind}／{category}。",
+    "aiTest.finalChoice": "待确认草稿：{kind}／{category}。",
+    "aiTest.sourceUnverified": "{field}尚未经过原文规则确认，请自行核对。"
   },
   "sources": {}
 }

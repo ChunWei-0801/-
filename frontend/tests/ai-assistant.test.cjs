@@ -69,11 +69,24 @@ test('contract fixture: model and source URLs cannot inject navigation', () => {
 });
 
 test('contract fixture: downloadable evaluation excludes input, ledger, answer, receipt, and raw errors', () => {
-  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],failedMeasurements:[{task:'draft',model:'local-model',elapsedMs:42,usage:{completion_tokens:6,privateText:'secret'},attempts:2,errorCode:'AI_NO_DRAFT',rawOutput:'private model output',message:'private raw error'}],context:{privateLedger:'never'},rawInput:'private input',rawModelOutput:'private raw extraction',file:'private image'});
+  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,sourceRuleAssisted:true,sourceAdjustmentCount:3,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],failedMeasurements:[{task:'draft',model:'local-model',elapsedMs:42,usage:{completion_tokens:6,privateText:'secret'},attempts:2,errorCode:'AI_NO_DRAFT',rawOutput:'private model output',message:'private raw error'}],context:{privateLedger:'never'},rawInput:'private input',rawModelOutput:'private raw extraction',file:'private image'});
   const json=JSON.stringify(data);
-  assert.equal(data.containsPrivateContent,false);assert.equal(data.modelRuns[0].usage.promptTokens,12);
+  assert.equal(data.containsPrivateContent,false);assert.equal(data.modelRuns[0].usage.promptTokens,12);assert.equal(data.modelRuns[0].sourceRuleAssisted,true);assert.equal(data.modelRuns[0].sourceAdjustmentCount,3);
   assert.equal(data.failedRuns[0].errorCode,'AI_NO_DRAFT');assert.equal(data.failedRuns[0].attempts,2);
   for(const value of ['private question','private answer','privateLedger','private input','private image','private model output','private raw error','private raw extraction','secret'])assert.equal(json.includes(value),false,value);
+});
+
+test('contract fixture: review notes accept only fixed reasons and stay attached to their original row',()=>{
+  const normalization={adjustments:[{rowIndex:1,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:'income',value:'expense'},{rowIndex:1,field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear',previous:'PRIVATE NAME'},{rowIndex:0,field:'date',reason:'OPTIONAL_DATE_UNSUPPORTED',action:'clear'},{rowIndex:1,field:'kind',reason:'PRIVATE SECRET',action:'set'},{rowIndex:1,field:'password',reason:'SOURCE_KIND_CUE',action:'set'}]};
+  const notes=JSON.parse(JSON.stringify(tools.rowChecks(normalization,1)));
+  assert.deepEqual(notes,[{field:'kind',reason:'SOURCE_KIND_CUE',action:'set'},{field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear'}]);
+  assert.equal(JSON.stringify(notes).includes('PRIVATE'),false,'private before/after values are not copied into review metadata');
+});
+
+test('contract fixture: final-field reminders replace intermediate clears while pure review stays unmodified',()=>{
+  const normalization={adjustments:[{rowIndex:0,field:'classification',reason:'OPTIONAL_FIELD_EMPTY',action:'clear'},{rowIndex:0,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set'},{rowIndex:0,field:'kind',reason:'SOURCE_CLASSIFICATION_UNVERIFIED',action:'review'}]};
+  assert.deepEqual(JSON.parse(JSON.stringify(tools.rowChecks(normalization,0))),[{field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set'},{field:'kind',reason:'SOURCE_CLASSIFICATION_UNVERIFIED',action:'review'}]);
+  assert.equal(tools.rowChecks(normalization,0,true).length,3,'provenance retains all approved events even when presentation keeps the final one');
 });
 
 test('contract fixture: OCR pins an actual worker and core; languages contain no image upload endpoint', () => {
@@ -103,12 +116,22 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
         if(__fixture.draftFailure){const error=new Error('The model did not produce usable draft items.');error.code='AI_NO_DRAFT';error.details={rawOutput:'{"items":[],"warnings":["<img src=x onerror=alert(1)>"]}',elapsedMs:42,model:'CONTRACT FIXTURE — NOT INFERENCE',finishReason:'stop',usage:{completion_tokens:6},attempts:2};throw error;}
         const result={text:options.task==='draft'?JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:__fixture.foreign?'USD':'TWD',kind:'expense',category:'1',merchant:'<img src=x onerror=alert(1)>',note:'fixture note',missingFields:[]}],warnings:[]}):'Explanation <img src=x onerror=alert(1)> [summary:2026-10]',model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:20,usage:{promptTokens:10,completionTokens:12},finishReason:'stop'};
         if(options.task==='draft')result.rawModelOutput='{"items":[{"sourceText":"MODEL SOURCE FIXTURE","amountText":"65","classification":"支出｜Food"}],"warnings":[]}';
+        if(__fixture.hybrid && options.task==='draft'){
+          const items=[{date:'2026-10-19',amount:65,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'fixture breakfast',missingFields:[]},{date:'2026-10-19',amount:120,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'fixture lunch',missingFields:[]}];
+          result.text=JSON.stringify({items,warnings:['INTERNAL SOURCE RULE WARNING SHOULD NOT APPEAR']});
+          result.modelDraft={items:[items[0],{...items[1],kind:'income',category:'2'}],warnings:['MODEL WARNING FIXTURE']};
+          result.normalization={sourceRuleAssisted:true,adjustments:[{rowIndex:0,field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear',previous:'invented'},{rowIndex:1,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:'income',value:'expense'},{rowIndex:1,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set',previous:'2',value:'1'}]};
+        }
+        if(__fixture.reviewOnly && options.task==='draft'){
+          const item={...JSON.parse(result.text).items[0],merchant:null};result.text=JSON.stringify({items:[item],warnings:[]});result.modelDraft={items:[item],warnings:[]};
+          result.normalization={sourceRuleAssisted:false,adjustments:[{rowIndex:0,field:'kind',reason:'SOURCE_CLASSIFICATION_UNVERIFIED',action:'review',previous:item.kind,value:item.kind},{rowIndex:0,field:'category',reason:'SOURCE_CLASSIFICATION_UNVERIFIED',action:'review',previous:item.category,value:item.category}]};
+        }
         if(__fixture.reject){options.onToken('REJECTED PROVISIONAL TEXT');throw new Error('AI_UNGROUNDED fixture rejection');}
         if(__fixture.defer)return new Promise(resolve=>{__fixture.resolve=()=>resolve(result);});
         return result;
       }};
       const facts=()=>({period:'2026-10',previousPeriod:'2026-09',scope:'me',current:{income:'10000.00',expense:'65.00',net:'9935.00'},previous:{income:'9000.00',expense:'50.00',net:'8950.00'},comparison:{expenseDelta:'15.00'},categories:{items:[]},budgets:{items:[]},savings:{goal:'1000.00',shortfall:'0.00'},transactions:{items:[{id:'8',evidenceId:'tx:8',date:'2026-10-19',kind:'expense',amount:'65.00',categoryName:'Food',merchant:'PRIVATE',note:'PRIVATE',sourceLink:'/api/ai-local/context?period=2026-10&scope=me'}],totalCount:1,returnedCount:1,offset:0,truncated:false,hasMore:false},sources:[{id:'summary:2026-10',title:'Monthly total',link:'/api/ai-local/context?period=2026-10&scope=me'}]});
-      window.API={mode:'http',categories:async()=>({categories:[{id:'1',name:'Food',kind:'expense'}]}),groups:async()=>({groups:[{id:'5',name:'My ledger'}]}),me:async()=>({user:{id:'one'}}),request:async(path,options={})=>{__fixture.requests.push(path);if(path.includes('/knowledge?'))return {method:'bm25',items:[{id:'help-entry',title:'Entry confirmation',text:'Review every draft before saving.',sourceLink:'/docs/tutorial.html#entry'}]};if(path.startsWith('/api/ai-local/context?'))return facts();if(path==='/api/nlp/confirm'){__fixture.writes.push(options.body);return {id:'100'};}throw new Error('Unexpected fixture request '+path);},nlpConfirmBatch:async(items)=>{__fixture.writes.push(items);return {created:items.length};}};
+      window.API={mode:'http',categories:async()=>({categories:[{id:'1',name:'Food',kind:'expense'},{id:'2',name:'Salary',kind:'income'}]}),groups:async()=>({groups:[{id:'5',name:'My ledger'}]}),me:async()=>({user:{id:'one'}}),request:async(path,options={})=>{__fixture.requests.push(path);if(path.includes('/knowledge?'))return {method:'bm25',items:[{id:'help-entry',title:'Entry confirmation',text:'Review every draft before saving.',sourceLink:'/docs/tutorial.html#entry'}]};if(path.startsWith('/api/ai-local/context?'))return facts();if(path==='/api/nlp/confirm'){__fixture.writes.push(options.body);return {id:'100'};}throw new Error('Unexpected fixture request '+path);},nlpConfirmBatch:async(items)=>{__fixture.writes.push(items);return {created:items.length};}};
     });
     await page.addScriptTag({path:path.join(__dirname,'../js/ai-assistant.js')});
     await page.evaluate(()=>{AIAssistant.setAccount({id:'one'});AIAssistant.render(document.querySelector('#view'));});
@@ -151,6 +174,37 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     const saved=await page.evaluate(()=>__fixture.writes[0]);
     assert.equal(saved.amount,2015);assert.equal(saved.groupId,'5');assert.equal(saved.raw,'CONTRACT FIXTURE ONLY: breakfast USD 65');
     assert.equal(await page.locator('.ait-output img').count(),0,'model HTML stays text or input values');
+    // A hybrid draft remains editable, keeps model choices for audit, and preserves per-row notes after deletion.
+    await page.evaluate(()=>{__fixture.hybrid=true;__fixture.foreign=false;});
+    await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: breakfast 65 and lunch 120');
+    await page.locator('[data-ai-action="run"]').click();
+    await page.waitForFunction(()=>document.querySelectorAll('[data-ai-row]').length===2);
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),1,'hybrid assistance still never saves automatically');
+    assert.equal(await page.locator('[data-ai-review-checks]').count(),2);
+    assert.match(await page.locator('[data-ai-row="1"] [data-ai-review-checks]').textContent(),/Original model choice: Income \/ Salary/);
+    assert.match(await page.locator('[data-ai-row="1"] [data-ai-review-checks]').textContent(),/Draft to review: Expenses \/ Food/);
+    assert.equal((await page.locator('.ait-review').textContent()).includes('SOURCE_KIND_CUE'),false,'daily review hides fixed internal reason codes');
+    assert.equal((await page.locator('.ait-review').textContent()).includes('INTERNAL SOURCE RULE WARNING'),false,'program checks and model warnings are not conflated');
+    assert.ok((await page.locator('.ait-review').textContent()).includes('MODEL WARNING FIXTURE'));
+    await page.locator('[data-ai-row="0"] [data-ai-action="remove-row"]').click();
+    assert.equal(await page.locator('[data-ai-row]').count(),1);
+    assert.match(await page.locator('[data-ai-row="0"] [data-ai-review-checks]').textContent(),/Original model choice: Income \/ Salary/,'deleting another draft does not move or discard its check notes');
+    await page.locator('[data-ai-group]').selectOption('5');await page.locator('[data-ai-approve]').check();
+    await page.locator('[data-ai-action="save"]').click();await page.waitForFunction(()=>__fixture.writes.length===2);
+    const hybrid=await page.evaluate(()=>__fixture.writes[1]);
+    assert.equal(hybrid.kind,'expense');assert.equal(hybrid.cat,'1');assert.equal(hybrid.amount,120);
+    assert.equal(hybrid.orig.by,'hybrid');assert.equal(hybrid.orig.kind,'income');assert.equal(hybrid.orig.cat,'2');assert.equal(hybrid.orig.amount,120,'audit original remains the unassisted model choice');
+    assert.equal(JSON.stringify(hybrid).includes('rawModelOutput'),false,'model raw JSON is not uploaded during confirmation');
+    await page.evaluate(()=>{__fixture.hybrid=false;__fixture.reviewOnly=true;});
+    await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: an item requiring manual review');
+    await page.locator('[data-ai-action="run"]').click();await page.waitForSelector('[data-ai-row]');
+    assert.match(await page.locator('[data-ai-review-checks]').textContent(),/has not been confirmed by the source-text rules/);
+    assert.equal((await page.locator('[data-ai-review-checks]').textContent()).includes('was adjusted'),false,'a review reminder does not claim that any field was corrected');
+    await page.locator('[data-ai-group]').selectOption('5');await page.locator('[data-ai-approve]').check();await page.locator('[data-ai-action="save"]').click();
+    await page.waitForFunction(()=>__fixture.writes.length===3);
+    assert.equal(await page.evaluate(()=>__fixture.writes[2].orig.by),'model','review-only notes never relabel an unchanged model draft as hybrid');
+    await page.evaluate(()=>{__fixture.reviewOnly=false;});
+
     await page.locator('[data-ai-mode="help"]').click();
     await page.locator('textarea').fill('PRIVATE QUESTION user@example.com — this must not be the search query');
     await page.locator('[data-ai-action="run"]').click();
@@ -169,7 +223,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     await page.evaluate(()=>{AIAssistant.setAccount({id:'two'});__fixture.resolve();});
     await page.waitForTimeout(30);
     assert.equal(await page.locator('.ai-trial').count(),0,'account change removes old private DOM');
-    assert.equal(await page.evaluate(()=>__fixture.writes.length),1,'stale generated result never writes');
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),3,'stale generated result never writes');
     await page.evaluate(()=>{AIAssistant.render(document.querySelector('#view'));});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'320px page has no horizontal overflow');
     assert.deepEqual(pageErrors,[]);

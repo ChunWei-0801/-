@@ -42,6 +42,11 @@ test('browser contract fixture: readable drafts, field mismatches and partial fa
       window.LocalAI={getStatus:()=>({loaded:__modelFixture.loaded,model:'CONTRACT FIXTURE — NOT INFERENCE'}),load:async()=>{__modelFixture.loads++;__modelFixture.loaded=true;},cancel:()=>{__modelFixture.loaded=false;},unload:()=>{__modelFixture.loaded=false;},clearCache:async()=>{__modelFixture.loaded=false;},generate:async(options)=>{
         __modelFixture.calls++;
         const success={text:JSON.stringify({items:[{amount:65,kind:'expense',currency:'TWD',date:options.context.today,category:'FOOD'}],warnings:[]}),model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:12,usage:{promptTokens:4,completionTokens:5,totalTokens:9},finishReason:'stop',rawModelOutput:'CONTRACT RAW MODEL OUTPUT — NOT INFERENCE',normalization:{version:'source-grounded-v1',mechanicalMapping:true,requiresHumanReview:true}};
+        if(__modelFixture.mode==='benchmarkHybrid'){
+          const salary=options.input.includes('薪資'),items=salary?[{amount:30000,kind:'income',currency:'TWD',date:options.context.today,category:'SALARY'}]:[65,120].map(amount=>({amount,kind:'expense',currency:'TWD',date:options.context.today,category:'FOOD'}));
+          const original=items.map(item=>({...item,kind:salary?'expense':'income',category:salary?'OTHER':'SALARY'}));
+          return {...success,text:JSON.stringify({items,warnings:['INTERNAL RULE WARNING']}),modelDraft:{items:original,warnings:[]},normalization:{sourceRuleAssisted:true,adjustments:items.flatMap((item,rowIndex)=>[{rowIndex,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:original[rowIndex].kind,value:item.kind},{rowIndex,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set',previous:original[rowIndex].category,value:item.category}])}};
+        }
         if(__modelFixture.mode==='benchmarkWrong'||__modelFixture.mode==='benchmarkPartial'||__modelFixture.mode==='benchmarkDefer'){
           if(options.input.includes('薪資')){
             if(__modelFixture.mode==='benchmarkDefer')return new Promise(resolve=>{__modelFixture.resolve=()=>resolve(success);});
@@ -137,6 +142,23 @@ test('browser contract fixture: readable drafts, field mismatches and partial fa
       await page.waitForFunction(language=>document.documentElement.lang===language,language);
       assert.ok((await page.locator('[data-synthetic-case="1"]').textContent()).includes(packs[language].messages['aiTest.notPassed']));
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,language+' result cards stay within 320px');
+    }
+    // A rules-assisted match must never be counted as the model's own semantic success.
+    await page.locator('[data-language-select]').selectOption('zh-TW');
+    await page.evaluate(()=>{__modelFixture.mode='benchmarkHybrid';});
+    await page.locator('#modelBenchmark').click();
+    await page.waitForFunction(()=>document.querySelectorAll('[data-case-state="passed"]').length===2&&!document.querySelector('#modelBenchmark').disabled);
+    const hybridReport=JSON.parse(await page.locator('#modelMetrics').textContent());
+    assert.deepEqual(hybridReport.modelOnly,{matched:0,compared:2});assert.deepEqual(hybridReport.sourceChecked,{matched:2,compared:2});assert.equal(hybridReport.accuracyNotInferred,true);
+    assert.equal(await page.locator('#modelStatus').getAttribute('data-error-code'),null,'usable reviewed drafts are not treated as a failed generation');
+    for(const language of languages){
+      await page.locator('[data-language-select]').selectOption(language);await page.waitForFunction(language=>document.documentElement.lang===language,language);
+      const modelLine=await page.locator('[data-synthetic-case="1"] p[data-review-stage="model"]').textContent(),finalLine=await page.locator('[data-synthetic-case="1"] p[data-review-stage="assisted"]').textContent();
+      assert.ok(modelLine.includes(packs[language].messages['aiTest.notPassed']));assert.ok(finalLine.includes(packs[language].messages['aiTest.passed']));
+      assert.ok((await page.locator('[data-synthetic-case="1"] [data-review-checks]').first().textContent()).includes(packs[language].messages['aiTest.reviewChecksTitle']));
+      assert.ok((await page.locator('#modelMetricsSummary').textContent()).includes(packs[language].messages['aiTest.modelOnlySummary'].replace('{passed}','0').replace('{total}','2')));
+      assert.equal((await page.locator('#modelOutput').textContent()).includes('SOURCE_KIND_CUE'),false,'rule metadata remains in collapsed technical details');
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,language+' hybrid comparison stays within 320px');
     }
     // The second case fails to produce a draft: retain the completed first case and say where it stopped.
     await page.evaluate(()=>{__modelFixture.mode='benchmarkPartial';});

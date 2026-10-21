@@ -1254,7 +1254,21 @@
     "aiTest.benchmarkSummary": "{passed} of {total} examples passed. Review every result and the listed field differences.",
     "aiTest.draftMeasurement": "The model replied in {seconds} seconds. Review the amounts, entry kinds and categories.",
     "aiTest.benchmarkMismatch": "Some example checks did not pass. Review the highlighted field differences below. This is not a successful acceptance test.",
-    "aiTest.mappedDraft": "These drafts map fields from the model reply. Still check the original text, amounts, entry kinds and categories."
+    "aiTest.mappedDraft": "These drafts map fields from the model reply. Still check the original text, amounts, entry kinds and categories.",
+    "aiTest.reviewChecksTitle": "Review reminders",
+    "aiTest.sourceAssistNotice": "These drafts combine model extraction with checks against the original text. Rules may change entry kinds or categories. Review every draft.",
+    "aiTest.sourceAssistBenchmark": "Model choices and source-checked drafts are checked separately. A source-checked match does not mean the model chose correctly on its own.",
+    "aiTest.modelOnlyLabel": "Original model choices",
+    "aiTest.assistedLabel": "Source-checked draft",
+    "aiTest.modelOnlySummary": "Original model choices: {passed} of {total} examples match the expectations.",
+    "aiTest.assistedSummary": "Source-checked drafts: {passed} of {total} examples match the expectations.",
+    "aiTest.scoreMissing": "No separate model draft is available for comparison.",
+    "aiTest.sourceChange": "{field} was adjusted after checking the original text. Please confirm it.",
+    "aiTest.sourceCleared": "{field} could not be confirmed in the original text and was left blank. Review it and add it if needed.",
+    "aiTest.ambiguousSource": "This text may not describe a clear, completed income or expense. Review the entry kind and category yourself.",
+    "aiTest.originalChoice": "Original model choice: {kind} / {category}.",
+    "aiTest.finalChoice": "Draft to review: {kind} / {category}.",
+    "aiTest.sourceUnverified": "{field} has not been confirmed by the source-text rules. Please check it yourself."
   },
   "sources": {}
 }

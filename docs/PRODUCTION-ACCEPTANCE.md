@@ -11,14 +11,16 @@ acceptance checks and all eight lifestyle features' online interactions remain
 pending. These two tools cover the original account/mail/photo/mobile acceptance
 scope, not the complete eight-feature online interaction checklist.
 
-The latest v168 user-device screenshot shows genuine Qwen model generation, but
-semantic acceptance failed: breakfast 65 was classified as income/SALARY and
-lunch 120 as expense/TRANSIT; synthetic case 1 reports `passed:false`. The user
-then explicitly reported that errors remain. Complete benchmark completion was
-not observed. Generation, schema validity, semantic field correctness and safe
-reviewed saving are separate evidence. This supersedes the earlier empty-draft
-failure and pending-retest notes. The next repair still needs deployment and a
-new real-device correctness check. No overall accuracy is inferred.
+The latest user-device screenshots expose the actual v170 failure. For the
+synthetic input “今天早餐65元，午餐120元。”, the model quoted both amounts
+correctly, left breakfast uncategorized, classified lunch as income/salary, and
+invented a lunch merchant. `MERCHANT_QUOTE_NOT_FOUND` on row 1 rejected the
+entire draft after two attempts / 61,190 ms. This supersedes the previous
+pending-raw-output notes; no more diagnostics are needed from the user for this
+case. The current repair must retain useful grounded fields, expose source-rule
+adjustments separately, and preserve pure-model vs assisted evaluation evidence.
+A fixture replay proves this known failure is handled; it does not measure new
+Qwen inference quality or complete production acceptance.
 
 The user saved and published the updated environment policy on 2026-10-19.
 The current task's observed runtime revision is 752 and still lacks the

@@ -185,7 +185,7 @@ test('worker asks for verbatim source fields and readable labels, then keeps raw
   assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
   assert.equal(reply.result.rawModelOutput,raw);assert.notEqual(reply.result.rawModelOutput,reply.result.text);
   assert.deepEqual(value.items.map(i=>[i.amount,i.kind,i.category,i.date]),[[120,'expense','food','2026-10-18'],[800,'expense','fuel','2026-10-18']]);
-  assert.equal(reply.result.normalization.sourceEvidenceChecked,true);assert.equal(reply.result.normalization.classificationMapping,'lookup-only');
+  assert.equal(reply.result.normalization.sourceEvidenceChecked,true);assert.equal(reply.result.normalization.classificationMapping,'lookup-and-explicit-source-rules');
   assert.equal(reply.result.normalization.requiresHumanReview,true);assert.equal(h.calls.resets,2);
 });
 
@@ -297,12 +297,12 @@ test('identical amounts and repeated real phrases remain separate but reusing on
 });
 
 test('unknown amounts, classifications and date expressions remain null for manual review',async()=>{
-  const raw=modelDraft([{...modelItem,sourceText:'買午餐忘記金額',amountText:null,classification:'支出（未選分類）',dateText:'下週一'}]);
-  const {reply,value}=await extractFixture(raw,'下週一的紀錄：買午餐忘記金額');
-  assert.equal(reply.type,'result');assert.equal(value.items[0].amount,null);assert.equal(value.items[0].date,null);assert.equal(value.items[0].category,null);
+  const raw=modelDraft([{...modelItem,sourceText:'買午餐忘記金額',amountText:null,classification:'支出（未選分類）',dateText:'某一天'}]);
+  const {reply,value}=await extractFixture(raw,'某一天的紀錄：買午餐忘記金額');
+  assert.equal(reply.type,'result');assert.equal(value.items[0].amount,null);assert.equal(value.items[0].date,null);assert.equal(reply.result.modelDraft.items[0].category,null);assert.equal(value.items[0].category,'food');
   assert.equal(value.items[0].kind,'expense');assert.ok(value.items[0].missingFields.includes('amount'));
   const uncertain=await extractFixture(modelDraft([{...modelItem,classification:null}]));
-  assert.equal(uncertain.reply.type,'result');assert.equal(uncertain.value.items[0].kind,null);assert.equal(uncertain.value.items[0].category,null);
+  assert.equal(uncertain.reply.type,'result');assert.equal(uncertain.reply.result.modelDraft.items[0].kind,null);assert.equal(uncertain.value.items[0].kind,'expense');assert.equal(uncertain.value.items[0].category,'food');
 });
 
 test('no-transaction and negated fixtures never cause the code to manufacture an entry',async()=>{
@@ -339,7 +339,7 @@ test('partial numeric substrings and partial source quotes cannot shrink actual 
 });
 
 test('forged sources, merchants, dates, currencies and malformed source fields fail independent validation',async()=>{
-  const invalid=[{...modelItem,sourceText:'加油800元',amountText:'800'},{...modelItem,amountText:'800'},{...modelItem,merchantText:'不存在的店'},{...modelItem,dateText:'2026-02-31'},{...modelItem,currency:'XYZ'},{...modelItem,amountText:120},{...modelItem,extra:'unsafe'},{...modelItem,sourceText:null},{...modelItem,sourceText:''}];
+  const invalid=[{...modelItem,sourceText:'加油800元',amountText:'800'},{...modelItem,amountText:'800'},{...modelItem,currency:'XYZ'},{...modelItem,amountText:120},{...modelItem,extra:'unsafe'},{...modelItem,sourceText:null},{...modelItem,sourceText:''}];
   for(const item of invalid){const {h,reply}=await extractFixture(modelDraft([item]));assert.equal(reply.error?.code,'AI_INVALID_DRAFT');assert.equal(h.calls.requests.length,2);}
   const {reply}=await extractFixture(modelDraft([modelItem],[3]));assert.equal(reply.error.code,'AI_INVALID_DRAFT');
 });
@@ -361,10 +361,7 @@ test('validation diagnostics identify reuse and date, merchant or classification
   const next={...modelItem,sourceText:'晚餐80元',amountText:'80'};
   for(const [second,reason,field] of [
     [modelItem,'EVIDENCE_REUSED','amountText'],
-    [{...next,dateText:'2026-10-20'},'DATE_QUOTE_NOT_FOUND','dateText'],
-    [{...next,merchantText:'PRIVATE_MERCHANT'},'MERCHANT_QUOTE_NOT_FOUND','merchantText'],
-    [{...next,classification:'PRIVATE_LABEL'},'CLASSIFICATION_NOT_ALLOWED','classification'],
-    [{...next,merchantText:''},'INVALID_SHAPE','merchantText']
+    [{...next,classification:'PRIVATE_LABEL'},'CLASSIFICATION_NOT_ALLOWED','classification']
   ]){
     const {reply}=await extractFixture(modelDraft([modelItem,second]),'昨天午餐120元，晚餐80元。');
     assert.equal(reply.error.code,'AI_INVALID_DRAFT');
@@ -380,6 +377,92 @@ test('no-draft diagnostics keep empty and unusable output distinct without addin
   const unknown=await extractFixture(modelDraft([{...modelItem,sourceText:'資料不明',amountText:null,classification:null,dateText:null,currency:null}]),'資料不明');
   assert.equal(unknown.reply.error.code,'AI_NO_DRAFT');
   assert.deepEqual(JSON.parse(JSON.stringify(unknown.reply.error.details.validation)),{reason:'NO_USABLE_FIELDS',field:'items',rowIndex:0});
+});
+
+test('recorded failure shape keeps model mistakes visible while optional merchant cleanup avoids a retry loop',async()=>{
+  const raw=modelDraft([{...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天',classification:'支出（未選分類）'},{...modelItem,dateText:'今天',classification:'收入｜薪資',merchantText:'收銀員3號'}]);
+  const {h,reply,value}=await extractFixture(raw,'今天早餐65元，午餐120元。');
+  assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);assert.equal(reply.result.rawModelOutput,raw);
+  assert.deepEqual(value.items.map(row=>[row.amount,row.kind,row.category,row.merchant]),[[65,'expense','food',null],[120,'expense','food',null]]);
+  assert.equal(reply.result.modelDraft.items[0].category,null);assert.equal(reply.result.modelDraft.items[1].kind,'income');
+  assert.equal(reply.result.modelDraft.items[1].category,'salary');assert.equal(reply.result.modelDraft.items[1].merchant,'收銀員3號');
+  assert.equal(reply.result.modelDraft.items[1].missingFields.includes('merchant'),false);
+  assert.equal(reply.result.normalization.sourceRuleAssisted,true);
+  assert.ok(reply.result.normalization.adjustments.some(row=>row.rowIndex===1&&row.reason==='OPTIONAL_MERCHANT_UNSUPPORTED'&&row.value===null));
+  assert.deepEqual(value.warnings,[],'rule notices are metadata, not falsely labelled model warnings');
+});
+
+test('optional date and empty fields become explicit review adjustments without inventing a date or amount',async()=>{
+  for(const [extra,field] of [[{merchantText:''},'merchant'],[{dateText:'2099-01-01'},'date'],[{dateText:''},'date'],[{amountText:''},'amount'],[{currency:''},'currency']]){
+    const {h,reply,value}=await extractFixture(modelDraft([{...modelItem,...extra}]));
+    assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);
+    assert.equal(value.items[0][field],null);assert.ok(reply.result.normalization.adjustments.some(item=>item.field===field&&item.reason.startsWith('OPTIONAL_')&&item.action==='clear'));
+  }
+  const date=await extractFixture(modelDraft([{...modelItem,dateText:'2026-10-19'}]),'今天午餐120元');
+  assert.equal(date.value.items[0].date,'2026-10-19','provided calendar date is tied to the actual today quote');
+  const notCited=await extractFixture(modelDraft([{...modelItem,dateText:'2026-10-18'}]),'今天午餐120元');
+  assert.equal(notCited.value.items[0].date,null,'a calendar value alone does not make an unmentioned yesterday valid');
+  const noDate=await extractFixture(modelDraft([{...modelItem,dateText:null}]),'午餐120元');
+  assert.equal(noDate.value.items[0].date,null,'no default today is invented');
+});
+
+test('unseen food, transit and salary cues use only unique exact category-name aliases, never opaque IDs',async()=>{
+  const context={...draftContext,categories:[{id:'Z9',name:'FOOD',kind:'expense'},{id:'B7',name:'transportation',kind:'expense'},{id:'Q2',name:'wages',kind:'income'}]};
+  const raw=modelDraft([{...modelItem,sourceText:'買便當193元',amountText:'193',classification:'收入｜wages'},{...modelItem,sourceText:'搭公車37元',amountText:'37',classification:'支出｜FOOD'},{...modelItem,sourceText:'收到工資28431元',amountText:'28431',classification:'支出｜transportation'}]);
+  const {reply,value}=await extractFixture(raw,'昨天買便當193元，搭公車37元，收到工資28431元。',context);
+  assert.equal(reply.type,'result');assert.deepEqual(value.items.map(row=>[row.kind,row.category]),[['expense','Z9'],['expense','B7'],['income','Q2']]);
+  assert.deepEqual(Array.from(reply.result.modelDraft.items,row=>row.category),['Q2','Z9','B7']);
+  const ambiguous=await extractFixture(modelDraft([{...modelItem,classification:'支出（未選分類）'}]),undefined,{...draftContext,categories:[{id:'a',name:'Food',kind:'expense'},{id:'b',name:'餐飲',kind:'expense'}]});
+  assert.equal(ambiguous.value.items[0].category,null);assert.ok(ambiguous.reply.result.normalization.adjustments.some(item=>item.reason==='SOURCE_CATEGORY_AMBIGUOUS'));
+});
+
+test('lack of rule vocabulary preserves genuine model predictions with review notices',async()=>{
+  const context={...draftContext,categories:[{id:'custom',name:'我的項目',kind:'expense'}]};
+  const raw=modelDraft([{...modelItem,sourceText:'orbit 289 credits',amountText:'289',classification:'支出｜我的項目',dateText:null}]);
+  const {reply,value}=await extractFixture(raw,'orbit 289 credits',context);
+  assert.equal(reply.type,'result');assert.equal(value.items[0].kind,'expense');assert.equal(value.items[0].category,'custom');
+  assert.equal(reply.result.normalization.sourceRuleAssisted,false);
+  assert.ok(reply.result.normalization.adjustments.some(item=>item.action==='review'&&item.reason==='SOURCE_CLASSIFICATION_UNVERIFIED'));
+});
+
+test('bad model entries for negated, hypothetical, refunded and third-party meals remain manual decisions',async()=>{
+  for(const input of ['今天沒有買午餐120元。','今天不買午餐120元。','明天預算午餐120元。','午餐退款120元。','今天午餐由朋友請客120元。','午餐120元只是範例。']){
+    const sourceText=input.includes('午餐120元')?'午餐120元':input;
+    const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText,dateText:null}]),input);
+    assert.equal(reply.type,'result',input);assert.equal(value.items[0].amount,120,input);
+    assert.equal(value.items[0].kind,null,input);assert.equal(value.items[0].category,null,input);
+    assert.ok(reply.result.normalization.adjustments.some(item=>item.reason==='SOURCE_NONACTUAL_OR_AMBIGUOUS'),input);
+    assert.equal(reply.result.modelDraft.items[0].kind,'expense','the bad model prediction stays distinguishable');
+  }
+});
+
+test('meal words do not force expense when the selected source explicitly records sales or a received subsidy',async()=>{
+  for(const sourceText of ['賣午餐收入170元','收到午餐補助170元']){
+    const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText,amountText:'170',classification:'收入｜薪資',dateText:null}]),sourceText);
+    assert.equal(reply.type,'result');assert.equal(value.items[0].kind,'income');assert.notEqual(value.items[0].category,'food');
+    assert.ok(reply.result.normalization.adjustments.some(item=>item.action==='review'),'no unsupported salary/category accuracy claim');
+  }
+});
+
+test('mixed transactions without commas and scoped negation do not borrow cues from another selected row',async()=>{
+  const mixed=await extractFixture(modelDraft([{...modelItem,sourceText:'薪資30000元',amountText:'30000',classification:'支出｜餐飲',dateText:'今天'},{...modelItem,dateText:'今天',classification:'收入｜薪資'}]),'今天薪資30000元和午餐120元。');
+  assert.equal(mixed.reply.type,'result');assert.deepEqual(mixed.value.items.map(row=>[row.kind,row.category]),[['income','salary'],['expense','food']]);
+  const negated=await extractFixture(modelDraft([{...modelItem,dateText:'今天'},{...modelItem,sourceText:'晚餐80元',amountText:'80',dateText:'今天'}]),'今天午餐120元和沒有買晚餐80元。');
+  assert.equal(negated.reply.type,'result');assert.equal(negated.value.items[0].kind,'expense');assert.equal(negated.value.items[1].kind,null);
+});
+
+test('all ten rows retain adjustment provenance without truncating or mixing it into model warnings',async()=>{
+  const items=Array.from({length:10},(_,i)=>({...modelItem,sourceText:'午餐第'+(i+1)+'份'+(301+i)+'元',amountText:String(301+i),classification:'收入｜薪資',dateText:null,merchantText:'ghost-'+i}));
+  const input=items.map(item=>item.sourceText).join('，');
+  const warnings=Array.from({length:5},(_,i)=>'MODEL NOTICE '+i);
+  const {reply,value}=await extractFixture(modelDraft(items,warnings),input);
+  assert.equal(reply.type,'result');assert.equal(value.items.length,10);assert.deepEqual(value.warnings,warnings);
+  for(let rowIndex=0;rowIndex<10;rowIndex++){
+    const adjustments=reply.result.normalization.adjustments.filter(item=>item.rowIndex===rowIndex);
+    assert.ok(adjustments.some(item=>item.reason==='OPTIONAL_MERCHANT_UNSUPPORTED'));
+    assert.ok(adjustments.some(item=>item.reason==='SOURCE_KIND_CUE'));
+    assert.ok(adjustments.some(item=>item.reason==='SOURCE_CATEGORY_CUE'));
+  }
 });
 
 test('worker guards citation IDs and unsupported numeric assertions without treating citations as proof',async()=>{

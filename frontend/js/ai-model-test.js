@@ -41,17 +41,32 @@
     if(code==='AI_BUSY')return 'aiTest.busy';
     return 'aiTest.runtimeFailure';
   }
-  function fieldName(field){return named('aiTrial.'+field);}
+  function fieldName(field){return named('aiTrial.'+(field==='classification'?'category':field));}
   function display(field,value){
     if(value===null||value===undefined||value==='')return named('aiTrial.unknown');
     if(field==='kind')return value==='income'?named('aiTrial.income'):value==='expense'?named('aiTrial.expense'):String(value);
     if(field==='category'){var categories={FOOD:'餐飲',TRANSIT:'交通',SALARY:'薪資',OTHER:'其他'};return categories[value]?text(categories[value]):String(value);}
     return String(value);
   }
-  function draftCard(item,index){
+  function rowChecks(normalization,index){
+    var reasons=['OPTIONAL_MERCHANT_UNSUPPORTED','OPTIONAL_DATE_UNSUPPORTED','OPTIONAL_FIELD_EMPTY','SOURCE_KIND_CUE','SOURCE_CATEGORY_CUE','SOURCE_CATEGORY_AMBIGUOUS','SOURCE_CLASSIFICATION_UNCLEAR','SOURCE_CLASSIFICATION_UNVERIFIED','SOURCE_NONACTUAL_OR_AMBIGUOUS'];
+    var notes=normalization&&Array.isArray(normalization.adjustments)?normalization.adjustments.filter(function(item){return item&&item.rowIndex===index&&['kind','category','merchant','date','amount','currency','classification'].includes(item.field)&&['clear','set','review'].includes(item.action)&&reasons.includes(item.reason);}).slice(0,30):[],latest={};
+    notes.forEach(function(item){latest[item.field==='classification'?'category':item.field]=item;});return Object.keys(latest).map(function(field){return latest[field];});
+  }
+  function showChecks(card,finalItem,originalItem,normalization,index){
+    var checks=rowChecks(normalization,index);if(!checks.length)return;
+    var notice=node('div',undefined,'note');notice.dataset.reviewChecks='';notice.append(node('strong',named('aiTest.reviewChecksTitle')));
+    if(checks.some(function(item){return item.reason==='SOURCE_NONACTUAL_OR_AMBIGUOUS'||item.reason==='SOURCE_CLASSIFICATION_UNCLEAR';}))notice.append(node('p',named('aiTest.ambiguousSource')));
+    if(originalItem&&(originalItem.kind!==finalItem.kind||originalItem.category!==finalItem.category)){
+      notice.append(node('p',named('aiTest.originalChoice',{kind:display('kind',originalItem.kind),category:display('category',originalItem.category)})),node('p',named('aiTest.finalChoice',{kind:display('kind',finalItem.kind),category:display('category',finalItem.category)})));
+    }
+    var seen={};checks.forEach(function(item){var key=item.field+'|'+item.action;if(seen[key])return;seen[key]=true;notice.append(node('p',named(item.action==='review'?'aiTest.sourceUnverified':item.action==='clear'?'aiTest.sourceCleared':'aiTest.sourceChange',{field:fieldName(item.field)})));});card.append(notice);
+  }
+  function draftCard(item,index,originalItem,normalization){
     var card=node('article',undefined,'model-draft'),title=node('h4',named('aiTest.entryNumber',{index:index+1}));card.dataset.draftIndex=String(index);card.append(title);
     var values=node('dl');
     ['amount','kind','category','date','currency'].forEach(function(field){var pair=node('div');pair.append(node('dt',fieldName(field)),node('dd',display(field,item[field])));values.append(pair);});card.append(values);
+    showChecks(card,item,originalItem,normalization,index);
     if(item.note)card.append(node('p',named('aiTrial.note')+'：'+String(item.note)));
     return card;
   }
@@ -70,7 +85,14 @@
     var card=node('article',undefined,'model-case '+(item.state==='passed'?'passed':item.state==='failed'||item.state==='error'?'failed':''));card.dataset.syntheticCase=String(item.syntheticCase);card.dataset.caseState=item.state;
     var title=node('h3',named('aiTest.caseNumber',{index:item.syntheticCase})),badge=node('span',named(item.state==='passed'?'aiTest.passed':item.state==='failed'?'aiTest.notPassed':item.state==='error'?'aiTest.caseError':item.state==='running'?'aiTest.caseRunning':'aiTest.caseWaiting'),'model-case-state');
     title.append(document.createTextNode(' '),badge);card.append(title,node('p',item.input,'model-case-input'));
-    if(item.output){if(item.normalization)card.append(node('p',named('aiTest.mappedDraft'),'note'));item.output.items.forEach(function(draft,index){card.append(draftCard(draft,index));});
+    if(item.output){
+      var modelLine=node('p',named('aiTest.modelOnlyLabel')+'：'+(item.modelOnlyPassed===null?named('aiTest.scoreMissing'):named(item.modelOnlyPassed?'aiTest.passed':'aiTest.notPassed')),item.modelOnlyPassed===false?'error':'note');modelLine.dataset.reviewStage='model';card.append(modelLine);
+      var finalLine=node('p',named('aiTest.assistedLabel')+'：'+named(item.passed?'aiTest.passed':'aiTest.notPassed'),'note');finalLine.dataset.reviewStage='assisted';card.append(finalLine);
+      if(item.normalization&&item.normalization.sourceRuleAssisted)card.append(node('p',named('aiTest.sourceAssistBenchmark'),'note'));
+      else if(item.normalization)card.append(node('p',named('aiTest.mappedDraft'),'note'));
+      item.output.items.forEach(function(draft,index){card.append(draftCard(draft,index,item.modelDraft&&item.modelDraft.items[index],item.normalization));});
+      if(item.modelOnlyDifferences&&item.modelOnlyDifferences.length){var originalList=node('ul',undefined,'model-differences model-only-differences');originalList.dataset.reviewStage='model';originalList.append(node('li',named('aiTest.modelOnlyLabel')));item.modelOnlyDifferences.forEach(function(diff){var message=diff.type?named(diff.type==='missing'?'aiTest.missingEntry':'aiTest.extraEntry',{index:diff.entry}):named('aiTest.fieldDifference',{index:diff.entry,field:fieldName(diff.field),expected:display(diff.field,diff.expected),actual:display(diff.field,diff.actual)});originalList.append(node('li',message));});card.append(originalList);}
+
       if(item.differences.length){var list=node('ul',undefined,'model-differences');item.differences.forEach(function(diff){var message=diff.type?named(diff.type==='missing'?'aiTest.missingEntry':'aiTest.extraEntry',{index:diff.entry}):named('aiTest.fieldDifference',{index:diff.entry,field:fieldName(diff.field),expected:display(diff.field,diff.expected),actual:display(diff.field,diff.actual)});list.append(node('li',message));});card.append(list);}
     }
     if(item.state==='error'&&failureDetails)card.append(node('p',named(failureDetails.key),'error'));
@@ -83,13 +105,16 @@
       var completed=view.cases.filter(function(item){return item.state==='passed'||item.state==='failed';}).length,passed=view.cases.filter(function(item){return item.state==='passed';}).length;
       var key=failureDetails?'aiTest.partialBenchmark':running&&completed<view.cases.length?'aiTest.benchmarkProgress':'aiTest.benchmarkSummary';
       ui.modelMetricsSummary.textContent=named(key,{completed:completed,total:view.cases.length,passed:passed,index:view.current+1});
-      ui.modelMetrics.textContent=JSON.stringify({observedOnly:true,completed:completed,total:view.cases.length,passed:passed,complete:!failureDetails&&completed===view.cases.length,cases:view.cases,failure:failureDetails&&failureDetails.measurement||null},null,2);
+      var measured=view.cases.filter(function(item){return typeof item.modelOnlyPassed==='boolean';}),modelPassed=measured.filter(function(item){return item.modelOnlyPassed;}).length;
+      if(measured.length){ui.modelMetricsSummary.style.whiteSpace='pre-line';ui.modelMetricsSummary.textContent+='\n'+named('aiTest.modelOnlySummary',{passed:modelPassed,total:measured.length})+'\n'+named('aiTest.assistedSummary',{passed:passed,total:completed});}
+      ui.modelMetrics.textContent=JSON.stringify({observedOnly:true,completed:completed,total:view.cases.length,passed:passed,modelOnly:{matched:modelPassed,compared:measured.length},sourceChecked:{matched:passed,compared:completed},accuracyNotInferred:true,complete:!failureDetails&&completed===view.cases.length,cases:view.cases,failure:failureDetails&&failureDetails.measurement||null},null,2);
     }else if(view&&view.result){
-      if(view.result.normalization)ui.modelOutput.append(node('p',named('aiTest.mappedDraft'),'note'));
-      view.value.items.forEach(function(item,index){ui.modelOutput.append(draftCard(item,index));});
-      if(Array.isArray(view.value.warnings)&&view.value.warnings.length){var notices=node('div',undefined,'note');notices.append(node('p',named('aiTrial.draftWarnings')));view.value.warnings.forEach(function(warning){notices.append(node('p',warning));});ui.modelOutput.append(notices);}
+      if(view.result.normalization)ui.modelOutput.append(node('p',named(view.result.normalization.sourceRuleAssisted?'aiTest.sourceAssistNotice':'aiTest.mappedDraft'),'note'));
+      view.value.items.forEach(function(item,index){ui.modelOutput.append(draftCard(item,index,view.result.modelDraft&&view.result.modelDraft.items[index],view.result.normalization));});
+      var modelWarnings=view.result.modelDraft&&Array.isArray(view.result.modelDraft.warnings)?view.result.modelDraft.warnings:view.value.warnings;
+      if(Array.isArray(modelWarnings)&&modelWarnings.length){var notices=node('div',undefined,'note');notices.append(node('p',named('aiTrial.draftWarnings')));modelWarnings.forEach(function(warning){notices.append(node('p',warning));});ui.modelOutput.append(notices);}
       ui.modelMetricsSummary.textContent=named('aiTest.draftMeasurement',{seconds:(view.result.elapsedMs/1000).toFixed(2)});
-      ui.modelMetrics.textContent=JSON.stringify({measurement:measure(view.result),rawModelOutput:view.result.rawModelOutput||view.result.text,normalizedDraft:view.value,normalization:view.result.normalization||null},null,2);
+      ui.modelMetrics.textContent=JSON.stringify({measurement:measure(view.result),rawModelOutput:view.result.rawModelOutput||view.result.text,modelDraft:view.result.modelDraft||null,normalizedDraft:view.value,normalization:view.result.normalization||null},null,2);
     }else if(failureDetails){ui.modelOutput.append(node('p',named(failureDetails.key),'error'));ui.modelMetricsSummary.textContent=named('aiTest.failedMetrics');ui.modelMetrics.textContent=JSON.stringify(failureDetails.measurement,null,2);}
     var rawFailure=failureDetails&&failureDetails.rawOutput||'',revealFailure=!!rawFailure&&diagnostics.hidden;
     diagnosticRaw.textContent=rawFailure;diagnostics.hidden=!rawFailure;
@@ -128,7 +153,7 @@
     for(var i=0;i<view.cases.length;i++){
       view.current=i;var item=view.cases[i];item.state='running';renderResults();
       var result=await draft(item.input,signal);if(mine!==generation)return;
-      item.output=JSON.parse(result.text);item.rawModelOutput=result.rawModelOutput||result.text;item.normalization=result.normalization||null;item.measurement=measure(result);item.differences=differences(item.expected,item.output.items);item.passed=item.differences.length===0;item.state=item.passed?'passed':'failed';renderResults();
+      item.output=JSON.parse(result.text);item.rawModelOutput=result.rawModelOutput||result.text;item.normalization=result.normalization||null;item.modelDraft=result.modelDraft&&Array.isArray(result.modelDraft.items)?result.modelDraft:null;item.modelOnlyDifferences=item.modelDraft?differences(item.expected,item.modelDraft.items):null;item.modelOnlyPassed=item.modelOnlyDifferences?item.modelOnlyDifferences.length===0:null;item.measurement=measure(result);item.differences=differences(item.expected,item.output.items);item.passed=item.differences.length===0;item.state=item.passed?'passed':'failed';renderResults();
     }
     var allPassed=view.cases.every(function(item){return item.passed;});
     if(allPassed)status('合成範例檢查完成；結果僅適用於這兩筆輸入。');

@@ -1254,7 +1254,21 @@
     "aiTest.benchmarkSummary": "{passed} de {total} ejemplos superados. Revisa cada resultado y las diferencias de campos indicadas.",
     "aiTest.draftMeasurement": "El modelo respondió en {seconds} segundos. Revisa los importes, los tipos de movimiento y las categorías.",
     "aiTest.benchmarkMismatch": "Hay ejemplos no superados. Revisa las diferencias de campos resaltadas abajo. Esto no constituye una prueba de aceptación satisfactoria.",
-    "aiTest.mappedDraft": "Estos borradores asignan campos de la respuesta del modelo. Comprueba igualmente el texto original, los importes, los tipos de movimiento y las categorías."
+    "aiTest.mappedDraft": "Estos borradores asignan campos de la respuesta del modelo. Comprueba igualmente el texto original, los importes, los tipos de movimiento y las categorías.",
+    "aiTest.reviewChecksTitle": "Avisos de revisión",
+    "aiTest.sourceAssistNotice": "Estos borradores combinan la extracción del modelo con comprobaciones basadas en el texto original. Las reglas pueden cambiar el tipo de movimiento o la categoría. Revisa cada borrador.",
+    "aiTest.sourceAssistBenchmark": "Las decisiones originales del modelo y los borradores comprobados se evalúan por separado. Que el segundo coincida no significa que el modelo acertara por sí solo.",
+    "aiTest.modelOnlyLabel": "Decisiones originales del modelo",
+    "aiTest.assistedLabel": "Borrador comprobado con el texto",
+    "aiTest.modelOnlySummary": "Decisiones originales del modelo: {passed} de {total} ejemplos coinciden con lo esperado.",
+    "aiTest.assistedSummary": "Borradores comprobados con el texto: {passed} de {total} ejemplos coinciden con lo esperado.",
+    "aiTest.scoreMissing": "No hay un borrador independiente del modelo para comparar.",
+    "aiTest.sourceChange": "Se ajustó {field} tras comprobar el texto original. Confírmalo.",
+    "aiTest.sourceCleared": "No se pudo confirmar {field} en el texto original y se dejó en blanco. Revísalo y complétalo si es necesario.",
+    "aiTest.ambiguousSource": "El texto podría no describir un ingreso o gasto claro y ya realizado. Comprueba el tipo de movimiento y la categoría.",
+    "aiTest.originalChoice": "Decisión original del modelo: {kind} / {category}.",
+    "aiTest.finalChoice": "Borrador para revisar: {kind} / {category}.",
+    "aiTest.sourceUnverified": "Las reglas del texto original no han confirmado {field}. Compruébalo personalmente."
   },
   "sources": {}
 }

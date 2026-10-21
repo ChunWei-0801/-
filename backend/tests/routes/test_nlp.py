@@ -5,6 +5,7 @@ import pytest
 from app.models import GroupMember, NlpParse, Notification, Transaction
 from app.services.llm import client
 from app.toolkit import crud
+from app.toolkit.config import settings
 from tests.routes.conftest import categories, family_of, guard, ledger_of, login, now, today, user
 
 
@@ -146,6 +147,38 @@ def test_confirm_one_規則解析的不算模型成績_錯誤情況(api):
     assert crud.count(Transaction) == 1
 
 
+@pytest.mark.route(*CONFIRM)
+def test_confirm_one_hybrid_preserves_unadjusted_model_output_and_reviewed_ledger(api):
+    me = user("hybrid@x.tw", "核對者")
+    cats = categories()
+    ledger_of(me)
+    food, salary = str(cats["餐飲"].id), str(cats["薪資"].id)
+    original = {"by": "hybrid", "date": today(), "amount": 55, "kind": "income", "cat": salary,
+                "merchant": "模型捏造商家", "note": ""}
+    reviewed = {"date": today(), "amount": 60, "kind": "expense", "cat": food,
+                "merchant": "", "note": "", "raw": "午餐55", "orig": original}
+    response = api.post("/api/nlp/confirm", headers=login(me), json=reviewed)
+    assert response.status_code == 201, response.text
+    transaction = crud.get(Transaction, int(response.json()["id"]))
+    parsed = crud.get(NlpParse, where={"transaction_id": transaction.id})
+    assert (float(transaction.amount), transaction.kind, transaction.category_id, transaction.merchant) == (60, "expense", int(food), None)
+    assert parsed.model_ver == "hybrid" and parsed.parsed_json == original
+    assert parsed.user_corrected == {"amount": 60, "kind": "expense", "cat": food, "merchant": ""}
+
+
+@pytest.mark.route(*CONFIRM)
+def test_confirm_one_rejects_unknown_provenance_without_writing(api):
+    me = user("provenance@x.tw", "核對者")
+    food = str(categories()["餐飲"].id)
+    ledger_of(me)
+    response = api.post("/api/nlp/confirm", headers=login(me), json={
+        "date": today(), "amount": 55, "kind": "expense", "cat": food,
+        "orig": {"by": "user-defined-model"},
+    })
+    assert response.status_code == 422
+    assert crud.count(Transaction) == crud.count(NlpParse) == 0
+
+
 # ===========================================================================
 # POST /api/nlp/confirm-batch
 # ===========================================================================
@@ -201,3 +234,39 @@ def test_confirm_batch_有一筆不對就一筆都不寫(api):
     assert crud.count(Transaction) == 0 and crud.count(NlpParse) == 0 and crud.count(Notification) == 0
     r = api.post("/api/nlp/confirm-batch", headers=h, json={"items": [ok, ok]})
     assert r.status_code == 201 and crud.count(Notification) == 2
+
+
+@pytest.mark.route(*CB)
+def test_confirm_batch_preserves_each_provenance_and_reviewed_values(api):
+    me = user("mixed-provenance@x.tw", "核對者")
+    food = str(categories()["餐飲"].id)
+    ledger_of(me)
+    base = {"date": today(), "amount": 55, "kind": "expense", "cat": food, "merchant": "", "note": ""}
+    items = []
+    for index, source in enumerate(("model", "rules", "hybrid", None)):
+        item = {**base, "span": "早餐55", "amount": 60 + index}
+        if source is not None:
+            item["orig"] = {**base, "by": source}
+        items.append(item)
+    response = api.post("/api/nlp/confirm-batch", headers=login(me), json={"items": items})
+    assert response.status_code == 201 and response.json() == {"created": 4}
+    rows = crud.find(Transaction, order_by="id")
+    parses = crud.find(NlpParse, order_by="id")
+    assert [float(row.amount) for row in rows] == [60, 61, 62, 63]
+    assert [row.model_ver for row in parses] == [settings.model_name, "rules", "hybrid", settings.model_name]
+    assert [row.parsed_json["by"] if row.parsed_json else None for row in parses] == ["model", "rules", "hybrid", None]
+    assert [row.user_corrected for row in parses] == [{"amount": 60}, {"amount": 61}, {"amount": 62}, None]
+
+
+@pytest.mark.route(*CB)
+def test_confirm_batch_hybrid_still_validates_every_record_before_writing(api):
+    me, recipient = user("atomic-hybrid@x.tw", "核對者"), user("notify@x.tw", "家人")
+    cats = categories()
+    group = ledger_of(me, recipient)
+    crud.save(GroupMember, {"notify": True}, where={"group_id": group.id, "user_id": recipient.id})
+    base = {"date": today(), "amount": 55, "kind": "expense", "cat": str(cats["餐飲"].id), "orig": {"by": "hybrid"}}
+    response = api.post("/api/nlp/confirm-batch", headers=login(me), json={
+        "items": [base, {**base, "cat": str(cats["薪資"].id)}],
+    })
+    assert response.status_code == 400 and "第 2 筆" in response.json()["detail"]
+    assert crud.count(Transaction) == crud.count(NlpParse) == crud.count(Notification) == 0

@@ -512,13 +512,13 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
         raw                                               字串  否    原句，寫進 nlp_parses.raw_text
         conf                                              數字  否    模型對金額的信心度（0～1）
         catConf                                           數字  否    模型對分類的信心度（0～1）
-        orig                                              物件  否    解析當下的原始結果 {by, date, amount, kind, cat, merchant, note}；by 是 "model" 或 "rules"
+        orig                                              物件  否    解析當下的原始結果 {by, date, amount, kind, cat, merchant, note}；by 是 "model"、"rules" 或 "hybrid"
         範例：
             {"date": "2026-09-17", "amount": 60, "kind": "expense", "cat": "1", "raw": "早餐55",
              "conf": 0.99, "catConf": 0.9,
              "orig": {"by": "model", "date": "2026-09-17", "amount": 55, "kind": "expense", "cat": "1"}}
         ⚠️ orig 是前端送來的，只當評測資料，**不影響**寫進 transactions 的內容。
-        ⚠️ orig.by 是 "rules"：那是後端還沒接上時前端規則解析的，不能算成模型的成績——model_ver 記 "rules"，算正確率時濾掉。
+        ⚠️ orig.by 是 "rules" 或 "hybrid"：分別表示規則解析及模型經規則協助，model_ver 保留同名來源；算純模型正確率時兩者都排除。
 
     【成功回應】狀態碼 201
         {"id": "12", "user": "3", "date": "2026-09-17", "amount": 60, "group": "5", "kind": "expense",
@@ -532,7 +532,7 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
         409     groupId 那本已經結算                              這本帳已經結算，不能再記新的帳。請換一本帳本
         409     沒帶 groupId，也沒有能記的帳本                    你還沒有可以記帳的帳本，先到「帳本」開一本
         422     date 格式不對                                     日期要是 YYYY-MM-DD
-        422     amount ≤ 0、kind 不對、orig.by 不是 model／rules  （FastAPI 自動回）
+        422     amount ≤ 0、kind 不對、orig.by 不是 model／rules／hybrid  （FastAPI 自動回）
 
     【會用到的資料表】
         表                     讀／寫  用來做什麼
@@ -556,7 +556,7 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
         3. 檢查分類（400）
         4. 新增 transactions，source = "nlp"
         5. 新增 nlp_parses：raw_text = raw、parsed_json = orig、user_corrected = 改過的欄位、
-           confidence = conf、cat_confidence = catConf、model_ver = orig.by 是 rules 就記 "rules"，不然記模型名稱
+           confidence = conf、cat_confidence = catConf、model_ver = orig.by 是 rules／hybrid 就保留來源，純模型才記模型名稱
         6. 新增通知（同 POST /api/transactions）
         7. db.commit()，回傳這一筆（多帶 raw 與 parsed）
         ⚠️ 全部帶 db=db，最後才 commit：交易、解析紀錄、通知要嘛一起成功、要嘛一起不見。
@@ -646,7 +646,7 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
                 "user_corrected": corrected,
                 "confidence": confidence(body.conf),
                 "cat_confidence": confidence(body.catConf),
-                "model_ver": "rules" if orig and orig["by"] == "rules" else settings.model_name,
+                "model_ver": orig["by"] if orig and orig["by"] in {"rules", "hybrid"} else settings.model_name,
             }, db=db)
 
             # 6. 新增通知（跟 POST /api/transactions 一樣）
@@ -762,7 +762,7 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
         "user_corrected": corrected,
         "confidence": confidence(body.conf),
         "cat_confidence": confidence(body.catConf),
-        "model_ver": "rules" if orig and orig["by"] == "rules" else settings.model_name,
+        "model_ver": orig["by"] if orig and orig["by"] in {"rules", "hybrid"} else settings.model_name,
     }, db=db)
 
     # 6. 新增通知（跟 POST /api/transactions 一樣）
@@ -825,7 +825,7 @@ def confirm_batch(body: ConfirmBatchIn, me: User, db: Session = Depends(get_db))
         date／amount／kind／cat／merchant／note  |     使用者確認後的值，規則同 POST /api/transactions
         conf                                     物件  否    {date, amount, kind, cat} 各欄信心度
         groupId                                  字串  否    **只看第一筆的**：整批記進同一本帳；沒帶就記進第一本還能記的
-        orig                                     物件  否    解析當下的原始結果，by 是 "model" 或 "rules"
+        orig                                     物件  否    解析當下的原始結果，by 是 "model"、"rules" 或 "hybrid"
         範例：
             {"items": [{"span": "早上買早餐55", "date": "2026-09-17", "amount": 55, "kind": "expense", "cat": "1",
                         "groupId": "5", "conf": {"date": 0.9, "amount": 0.99, "kind": 0.97, "cat": 0.9},
@@ -965,7 +965,7 @@ def confirm_batch(body: ConfirmBatchIn, me: User, db: Session = Depends(get_db))
                     "user_corrected": corrected,
                     "confidence": confidence(conf.get("amount", 0)),
                     "cat_confidence": confidence(conf.get("cat", 0)),
-                    "model_ver": "rules" if orig and orig["by"] == "rules" else settings.model_name,
+                    "model_ver": orig["by"] if orig and orig["by"] in {"rules", "hybrid"} else settings.model_name,
                 }, db=db)
                 for user_id, reason in notify.recipients_for(tx, guardians, members):
                     notes.append({
@@ -1077,7 +1077,7 @@ def confirm_batch(body: ConfirmBatchIn, me: User, db: Session = Depends(get_db))
             "user_corrected": corrected,
             "confidence": confidence(conf.get("amount", 0)),
             "cat_confidence": confidence(conf.get("cat", 0)),
-            "model_ver": "rules" if orig and orig["by"] == "rules" else settings.model_name,
+            "model_ver": orig["by"] if orig and orig["by"] in {"rules", "hybrid"} else settings.model_name,
         }, db=db)
         for user_id, reason in notify.recipients_for(tx, guardians, members):
             notes.append({

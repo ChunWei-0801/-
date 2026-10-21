@@ -1254,7 +1254,21 @@
     "aiTest.benchmarkSummary": "{total} 例中 {passed} 例が合格。各結果と表示された項目の違いを確認してください。",
     "aiTest.draftMeasurement": "モデルは {seconds} 秒で応答しました。金額、収支区分、分類を確認してください。",
     "aiTest.benchmarkMismatch": "不合格の例があります。下に示された項目の違いを確認してください。受け入れテストの成功とはみなしません。",
-    "aiTest.mappedDraft": "モデルの応答から項目を対応付けた下書きです。元の文章、金額、収支区分、分類を確認してください。"
+    "aiTest.mappedDraft": "モデルの応答から項目を対応付けた下書きです。元の文章、金額、収支区分、分類を確認してください。",
+    "aiTest.reviewChecksTitle": "確認の注意点",
+    "aiTest.sourceAssistNotice": "下書きはモデルの抽出結果と原文に基づくルール確認を組み合わせています。収支区分や分類が調整される場合があるため、各項目を確認してください。",
+    "aiTest.sourceAssistBenchmark": "モデルの元の判断と原文確認後の下書きを別々に確認します。後者の一致は、モデル単独で正しく判断したことを意味しません。",
+    "aiTest.modelOnlyLabel": "モデルの元の判断",
+    "aiTest.assistedLabel": "原文確認後の下書き",
+    "aiTest.modelOnlySummary": "モデルの元の判断：{total} 例中 {passed} 例が期待値と一致。",
+    "aiTest.assistedSummary": "原文確認後の下書き：{total} 例中 {passed} 例が期待値と一致。",
+    "aiTest.scoreMissing": "比較用の独立したモデル下書きがありません。",
+    "aiTest.sourceChange": "{field}は原文の確認後に調整されました。確認してください。",
+    "aiTest.sourceCleared": "原文で{field}を確認できず、空欄にしました。確認し、必要に応じて補ってください。",
+    "aiTest.ambiguousSource": "この文章は、発生済みの明確な収支を示していない可能性があります。収支区分と分類を確認してください。",
+    "aiTest.originalChoice": "モデルの元の判断：{kind}／{category}。",
+    "aiTest.finalChoice": "確認する下書き：{kind}／{category}。",
+    "aiTest.sourceUnverified": "{field}は原文に基づくルールで確認されていません。自身で確認してください。"
   },
   "sources": {}
 }

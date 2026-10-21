@@ -173,7 +173,7 @@ function reserveEvidence(input, source, amount, used, rowIndex) {
       // quoting "5元" from "65元" must not turn 65 into a supported amount 5.
       const fullNumber = amount === null || !(digit(input[start-1]) || digit(input[end]) || separator(input[start-1]) && digit(input[start-2]) || continuesRight || /[-−+＋－]/.test(input[start-1] || ''));
       if (fullNumber) hadFullNumber = true;
-      if (fullNumber && !used.some(span => start < span.end && end > span.start)) { used.push({start,end}); return; }
+      if (fullNumber && !used.some(span => start < span.end && end > span.start)) { used.push({start,end}); return {start,end,sourceStart:sourceAt,sourceEnd:sourceAt+source.length}; }
       if (amount === null) break;
       amountAt = source.indexOf(amount,amountAt + 1);
     }
@@ -193,31 +193,123 @@ function mapClassification(label, retained, original, rowIndex) {
   const kind = label.startsWith('收入｜') ? 'income' : 'expense';
   return {kind,category:matches.length === 1 && matches[0].kind === kind ? matches[0].id : null};
 }
+const sourceCategoryAliases = {
+  food:['餐飲','餐饮','飲食','饮食','餐費','餐费','飲食費','饮食费','food','dining','meals','food & dining','food/dining'],
+  transit:['交通','交通費','交通费','交通運輸','交通运输','transit','transport','transportation'],
+  salary:['薪資','薪资','薪水','工資','工资','薪資收入','薪资收入','salary','wages','payroll']
+};
+function sourceClause(input, evidence) {
+  function boundary(at) {
+    const char = input[at];
+    if (/[,，]/.test(char || '') && /[0-9０-９]/.test(input[at-1] || '') && /[0-9０-９]/.test(input[at+1] || '')) return false;
+    return /[,，。；;!?！？\n、]/.test(char || '');
+  }
+  let start = evidence.start, end = evidence.end;
+  while (start > 0 && !boundary(start-1)) start--;
+  while (end < input.length && !boundary(end)) end++;
+  // A known connector also bounds the local cue window. For example salary and
+  // lunch in the same sentence must not lend their income/expense cues to each
+  // other. This only scopes assistance around a previously validated amount.
+  for (const match of input.matchAll(/但是|而且|然後|然后|並且|并且|以及|和|及|並|并|\b(?:and|but|then)\b/gi)) {
+    const left = match.index, right = left + match[0].length;
+    if (right <= evidence.start && right > start) start = right;
+    if (left >= evidence.end && left < end) end = left;
+  }
+  return input.slice(start,end).normalize('NFKC');
+}
+function sourceIntent(input, evidence) {
+  // Deliberately limited, visible source rules. These never extract transactions
+  // or amounts. They check only an already model-selected, source-aligned row.
+  const clause = sourceClause(input,evidence);
+  const globalNonActual = /以下(?:是|為|为)?.{0,8}(?:範例|范例|預算|预算)|(?:全部|所有).{0,5}(?:沒有|没有|未發生|未发生)|沒有(?:任何)?(?:交易|支出|收入)|没有(?:任何)?(?:交易|支出|收入)/.test(input);
+  const caution = globalNonActual || /沒有|没有|沒買|没买|不買|不买|未買|未买|未付款|尚未|還沒|还没|不是|不會|不会|假設|假设|如果|預算|预算|打算|計畫|计划|預計|预计|明天|下週|下周|下個月|下个月|將要|将要|範例|范例|例如|退款|退費|退费|退貨|退货|報銷|报销|代墊|代垫|代付|借款|借錢|借钱|還款|还款|還錢|还钱|轉帳|转账|轉賬|转账|請客|请客|他人付款|別人付|别人付|\b(?:refund|reimbursement|reimbursed|loan|transfer|budget|hypothetical|example|tomorrow|not|didn't|haven't|would|might|will)\b/i.test(clause);
+  if (caution) return {kind:null,group:null,reason:'SOURCE_NONACTUAL_OR_AMBIGUOUS'};
+  const food = /早餐|午餐|晚餐|早飯|早饭|午飯|午饭|晚飯|晚饭|餐費|餐费|餐點|餐点|便當|便当|咖啡|飲料|饮料|奶茶|麵包|面包|點心|点心|外食|\b(?:breakfast|lunch|dinner|coffee|meal|meals)\b/i.test(clause);
+  const transit = /公車|公交|巴士|捷運|地鐵|地铁|車票|车票|計程車|出租車|出租车|停車費|停车费|加油|油錢|油钱|交通費|交通费|高鐵|高铁|台鐵|台铁|火車票|火车票|\b(?:bus fare|train ticket|subway|metro|taxi|parking|gasoline|fuel)\b/i.test(clause);
+  const salary = /薪資|薪资|薪水|工資|工资|薪酬|月薪|\b(?:salary|payroll|wages)\b/i.test(clause);
+  const income = /收到|領到|领到|領取|领取|入帳|入账|收款|收入|獲得|获得|賺到|赚到|出售|賣出|卖出|賣|卖|\b(?:received|earned|income|sold)\b/i.test(clause) || salary;
+  const expense = /購買|购买|買了|买了|買|买|付款|支付|付了|支出|花費|花费|花了|消費|消费|繳費|缴费|繳了|缴了|\b(?:bought|paid|spent|purchase)\b/i.test(clause);
+  if (income && expense || salary && (food || transit) || /收到.{0,12}(?:發票|发票|收據|收据)|\breceived\s+(?:a\s+)?(?:receipt|invoice)\b/i.test(clause)) return {kind:null,group:null,reason:'SOURCE_NONACTUAL_OR_AMBIGUOUS'};
+  if (income) return {kind:'income',group:salary ? 'salary' : null};
+  if (expense || food || transit) return {kind:'expense',group:food !== transit ? (food ? 'food' : 'transit') : null};
+  return {kind:null,group:null,reason:'SOURCE_CLASSIFICATION_UNCLEAR'};
+}
+function adjustField(item, field, value, rowIndex, reason, adjustments, evenIfSame = false) {
+  const previous = item[field];
+  if (previous === value && !evenIfSame) return;
+  item[field] = value;
+  adjustments.push({rowIndex,field,reason,action:value === null ? 'clear' : 'set',previous,value});
+}
+function reviewField(item, field, rowIndex, reason, adjustments) {
+  adjustments.push({rowIndex,field,reason,action:'review',previous:item[field],value:item[field]});
+}
+function assistClassification(item, input, evidence, categories, rowIndex, adjustments) {
+  const intent = sourceIntent(input,evidence);
+  if (!intent.kind) {
+    const caution = intent.reason === 'SOURCE_NONACTUAL_OR_AMBIGUOUS';
+    if (caution) {
+      adjustField(item,'kind',null,rowIndex,intent.reason,adjustments,true);
+      adjustField(item,'category',null,rowIndex,intent.reason,adjustments,true);
+    } else reviewField(item,'kind',rowIndex,'SOURCE_CLASSIFICATION_UNVERIFIED',adjustments);
+    return;
+  }
+  adjustField(item,'kind',intent.kind,rowIndex,'SOURCE_KIND_CUE',adjustments);
+  const aliases = intent.group && sourceCategoryAliases[intent.group];
+  const matches = aliases ? [...new Map(categories.filter(category => category.kind === intent.kind && aliases.includes(category.name.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim())).map(category => [category.id,category])).values()] : [];
+  if (matches.length === 1) adjustField(item,'category',matches[0].id,rowIndex,'SOURCE_CATEGORY_CUE',adjustments);
+  else {
+    const chosen = categories.find(category => category.id === item.category);
+    const chosenGroup = chosen && Object.keys(sourceCategoryAliases).find(group => chosen.kind === (group === 'salary' ? 'income' : 'expense') && sourceCategoryAliases[group].includes(chosen.name.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim()));
+    const contradicted = chosen && chosen.kind !== intent.kind || intent.group && chosenGroup && chosenGroup !== intent.group;
+    if (contradicted) adjustField(item,'category',null,rowIndex,'SOURCE_CLASSIFICATION_UNCLEAR',adjustments);
+    else reviewField(item,'category',rowIndex,matches.length > 1 ? 'SOURCE_CATEGORY_AMBIGUOUS' : 'SOURCE_CLASSIFICATION_UNVERIFIED',adjustments);
+  }
+}
 function normalizeModelDraft(text, grounding, input, originalContext) {
   let value; try { value = JSON.parse(text); } catch (_) { throw draftFailure('INVALID_SHAPE','items',undefined,'The model did not produce a complete JSON draft.'); }
   if (!value || Array.isArray(value) || Object.keys(value).some(key => !['items','warnings'].includes(key)) || !Array.isArray(value.items) || value.items.length > 10) throw draftFailure('INVALID_SHAPE','items',undefined,'The model did not produce usable draft items.');
   if (!Array.isArray(value.warnings) || value.warnings.length > 5 || value.warnings.some(w => typeof w !== 'string' || w.length > 500)) throw draftFailure('INVALID_SHAPE','warnings',undefined,'The model did not produce usable draft warnings.');
   if (!value.items.length) throw draftFailure('NO_TRANSACTIONS','items',undefined,'The model did not identify any transactions. No draft was created.','AI_NO_DRAFT');
   const keys = ['sourceText','amountText','classification','dateText','currency','merchantText'];
-  const aliases = calendarAliases(grounding.today), used = [], originalCategories = categoriesOf(originalContext);
-  const items = value.items.map((item,rowIndex) => {
+  const aliases = calendarAliases(grounding.today), used = [], originalCategories = categoriesOf(originalContext), adjustments = [], modelItems = [];
+  const items = value.items.map((originalItem,rowIndex) => {
+    const item = originalItem && typeof originalItem === 'object' && !Array.isArray(originalItem) ? {...originalItem} : originalItem;
     if (!item || Array.isArray(item) || keys.some(key => !Object.prototype.hasOwnProperty.call(item,key)) || Object.keys(item).some(key => !keys.includes(key)) || typeof item.sourceText !== 'string' || !item.sourceText.trim() || item.sourceText.length > 1500) throw draftFailure('INVALID_SHAPE','sourceText',rowIndex,'A generated draft has invalid source fields.');
     for (const key of keys.slice(1)) if (!(item[key] === null || typeof item[key] === 'string')) throw draftFailure('INVALID_SHAPE',key,rowIndex,'A generated draft has invalid quote fields.');
-    for (const [key,limit] of [['amountText',100],['dateText',40],['merchantText',200]]) if (item[key] !== null && (!item[key].trim() || item[key].length > limit)) throw draftFailure('INVALID_SHAPE',key,rowIndex,'A generated quote exceeds its limits.');
+    for (const [key,field] of [['amountText','amount'],['dateText','date'],['merchantText','merchant'],['currency','currency'],['classification','category']]) {
+      if (typeof item[key] === 'string' && !item[key].trim()) {
+        adjustments.push({rowIndex,field,reason:'OPTIONAL_FIELD_EMPTY',action:'clear',previous:item[key],value:null});
+        item[key] = null;
+      }
+    }
+    for (const [key,limit] of [['amountText',100],['dateText',40],['merchantText',200]]) if (item[key] !== null && item[key].length > limit) throw draftFailure('INVALID_SHAPE',key,rowIndex,'A generated quote exceeds its limits.');
     if (item.currency !== null && !currencies.has(item.currency)) throw draftFailure('INVALID_SHAPE','currency',rowIndex,'A generated currency is unsupported.');
-    reserveEvidence(input,item.sourceText,item.amountText,used,rowIndex);
-    if (item.dateText !== null && !input.includes(item.dateText)) throw draftFailure('DATE_QUOTE_NOT_FOUND','dateText',rowIndex,'A generated date quote is absent from the original input.');
-    if (item.merchantText !== null && !input.includes(item.merchantText)) throw draftFailure('MERCHANT_QUOTE_NOT_FOUND','merchantText',rowIndex,'A generated merchant quote is absent from the original input.');
+    const evidence = reserveEvidence(input,item.sourceText,item.amountText,used,rowIndex);
+    let merchant = item.merchantText;
+    if (merchant !== null && !input.includes(merchant)) {
+      adjustments.push({rowIndex,field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear',previous:merchant,value:null});
+      merchant = null;
+    }
     const mapped = mapClassification(item.classification,grounding.categories,originalCategories,rowIndex);
     const dateQuote = item.dateText === null ? null : item.dateText.normalize('NFKC');
-    const date = dateQuote === null ? null : Object.prototype.hasOwnProperty.call(aliases,dateQuote.toLowerCase()) ? aliases[dateQuote.toLowerCase()] : validCalendarDate(dateQuote) ? dateQuote : null;
-    const result = {kind:mapped.kind,amount:quotedAmount(item.amountText),currency:item.currency,date,category:mapped.category,merchant:item.merchantText,note:item.sourceText,missingFields:[]};
+    const rawDatePresent = item.dateText !== null && input.includes(item.dateText);
+    const citedCalendarDate = dateQuote !== null && validCalendarDate(dateQuote) && Object.entries(aliases).some(([word,date]) => date === dateQuote && input.toLowerCase().includes(word));
+    const date = dateQuote === null ? null : rawDatePresent && Object.prototype.hasOwnProperty.call(aliases,dateQuote.toLowerCase()) ? aliases[dateQuote.toLowerCase()] : validCalendarDate(dateQuote) && (rawDatePresent || citedCalendarDate) ? dateQuote : null;
+    if (item.dateText !== null && date === null) adjustments.push({rowIndex,field:'date',reason:'OPTIONAL_DATE_UNSUPPORTED',action:'clear',previous:item.dateText,value:null});
+    const result = {kind:mapped.kind,amount:quotedAmount(item.amountText),currency:item.currency,date,category:mapped.category,merchant,note:item.sourceText,missingFields:[]};
+    result.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key => result[key] === null);
+    const predictedMerchant = typeof originalItem.merchantText === 'string' && originalItem.merchantText.trim() ? originalItem.merchantText.slice(0,200) : null;
+    const predictedDate = dateQuote === null ? null : Object.prototype.hasOwnProperty.call(aliases,dateQuote.toLowerCase()) ? aliases[dateQuote.toLowerCase()] : validCalendarDate(dateQuote) ? dateQuote : null;
+    const modelItem = {...result,date:predictedDate,merchant:predictedMerchant,missingFields:[]};
+    modelItem.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key => modelItem[key] === null);
+    modelItems.push(modelItem);
+    assistClassification(result,input,evidence,originalCategories,rowIndex,adjustments);
     result.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key => result[key] === null);
     return result;
   });
   const normalized = {items,warnings:value.warnings};
   validateDraft(JSON.stringify(normalized),originalContext);
-  return normalized;
+  return {draft:normalized,modelDraft:{items:modelItems,warnings:value.warnings.slice()},adjustments};
 }
 function validateDraft(text, context) {
   let value; try { value = JSON.parse(text); } catch (_) { throw draftFailure('INVALID_SHAPE','items',undefined,'The model did not produce a complete JSON draft.'); }
@@ -303,10 +395,11 @@ async function generate(id, request) {
         if (!refs.some(ref => prepared.sourceIds.includes(ref)) || refs.some(ref => !prepared.sourceIds.includes(ref))) throw failure('AI_UNGROUNDED','The model answer did not cite the supplied evidence correctly. Try a narrower question.');
       }
       if (!draft) validateNumbers(text,prepared.grounding);
-      const result = {text:draft ? JSON.stringify(normalized) : text.trim(),model:modelId,usage,elapsedMs:Math.round(performance.now()-started),finishReason,attempts};
+      const result = {text:draft ? JSON.stringify(normalized.draft) : text.trim(),model:modelId,usage,elapsedMs:Math.round(performance.now()-started),finishReason,attempts};
       if (draft) {
         result.rawModelOutput = text.slice(0,12000);
-        result.normalization = {version:'source-grounded-v1',mechanicalMapping:true,sourceEvidenceChecked:true,classificationMapping:'lookup-only',dateResolution:'provided-calendar-aliases',requiresHumanReview:true};
+        result.modelDraft = normalized.modelDraft;
+        result.normalization = {version:'source-grounded-v2',mechanicalMapping:true,sourceEvidenceChecked:true,classificationMapping:'lookup-and-explicit-source-rules',dateResolution:'verbatim-or-cited-calendar-alias',requiresHumanReview:true,sourceRuleAssisted:normalized.adjustments.some(item => item.reason.startsWith('SOURCE_') && item.action !== 'review'),adjustments:normalized.adjustments};
       }
       return result;
     }
