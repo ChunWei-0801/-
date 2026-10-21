@@ -1268,7 +1268,13 @@
     "aiTest.ambiguousSource": "這段文字可能不是已發生的明確收支，請自行確認收支與分類。",
     "aiTest.originalChoice": "模型原判斷：{kind}／{category}。",
     "aiTest.finalChoice": "待確認草稿：{kind}／{category}。",
-    "aiTest.sourceUnverified": "{field}尚未經原文規則確認，請自行核對。"
+    "aiTest.sourceUnverified": "{field}尚未經原文規則確認，請自行核對。",
+    "aiTest.excludedTitle": "已排除未通過檢查的模型候選",
+    "aiTest.excludedNotice": "有 {count} 筆模型候選未通過原文或金額檢查，已排除。請核對保留的草稿，並自行確認是否有漏記。",
+    "aiTest.excludedRow": "第 {index} 號模型候選沒有成為可記帳草稿。",
+    "aiTest.excludedSource": "原文中找不到對應內容。",
+    "aiTest.excludedAmount": "金額或其引用無法核對。",
+    "aiTest.excludedFields": "欄位格式或來源資訊無法核對。"
   },
   "sources": {
     "家庭記帳": "ui.737fc85046ed",
@@ -2278,6 +2284,12 @@
     "模型原判斷：{kind}／{category}。": "aiTest.originalChoice",
     "待確認草稿：{kind}／{category}。": "aiTest.finalChoice",
     "{field}在原文中無法確認，已留白；請核對，必要時自行補充。": "aiTest.sourceCleared",
-    "{field}尚未經原文規則確認，請自行核對。": "aiTest.sourceUnverified"
+    "{field}尚未經原文規則確認，請自行核對。": "aiTest.sourceUnverified",
+    "已排除未通過檢查的模型候選": "aiTest.excludedTitle",
+    "有 {count} 筆模型候選未通過原文或金額檢查，已排除。請核對保留的草稿，並自行確認是否有漏記。": "aiTest.excludedNotice",
+    "第 {index} 號模型候選沒有成為可記帳草稿。": "aiTest.excludedRow",
+    "原文中找不到對應內容。": "aiTest.excludedSource",
+    "金額或其引用無法核對。": "aiTest.excludedAmount",
+    "欄位格式或來源資訊無法核對。": "aiTest.excludedFields"
   }
 }

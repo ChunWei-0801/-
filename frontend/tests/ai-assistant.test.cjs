@@ -69,9 +69,9 @@ test('contract fixture: model and source URLs cannot inject navigation', () => {
 });
 
 test('contract fixture: downloadable evaluation excludes input, ledger, answer, receipt, and raw errors', () => {
-  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,sourceRuleAssisted:true,sourceAdjustmentCount:3,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],failedMeasurements:[{task:'draft',model:'local-model',elapsedMs:42,usage:{completion_tokens:6,privateText:'secret'},attempts:2,errorCode:'AI_NO_DRAFT',rawOutput:'private model output',message:'private raw error'}],context:{privateLedger:'never'},rawInput:'private input',rawModelOutput:'private raw extraction',file:'private image'});
+  const data=tools.evaluation({measurements:[{task:'ledger',model:'local-model',elapsedMs:123,usage:{promptTokens:12,completionTokens:9,privateText:'secret'},sourceCount:4,sourceRuleAssisted:true,sourceAdjustmentCount:3,excludedCandidateCount:2,rating:'supported',finishReason:'stop',input:'private question',text:'private answer'}],failedMeasurements:[{task:'draft',model:'local-model',elapsedMs:42,usage:{completion_tokens:6,privateText:'secret'},attempts:2,errorCode:'AI_NO_DRAFT',rawOutput:'private model output',message:'private raw error'}],context:{privateLedger:'never'},rawInput:'private input',rawModelOutput:'private raw extraction',file:'private image'});
   const json=JSON.stringify(data);
-  assert.equal(data.containsPrivateContent,false);assert.equal(data.modelRuns[0].usage.promptTokens,12);assert.equal(data.modelRuns[0].sourceRuleAssisted,true);assert.equal(data.modelRuns[0].sourceAdjustmentCount,3);
+  assert.equal(data.containsPrivateContent,false);assert.equal(data.modelRuns[0].usage.promptTokens,12);assert.equal(data.modelRuns[0].sourceRuleAssisted,true);assert.equal(data.modelRuns[0].sourceAdjustmentCount,3);assert.equal(data.modelRuns[0].excludedCandidateCount,2);
   assert.equal(data.failedRuns[0].errorCode,'AI_NO_DRAFT');assert.equal(data.failedRuns[0].attempts,2);
   for(const value of ['private question','private answer','privateLedger','private input','private image','private model output','private raw error','private raw extraction','secret'])assert.equal(json.includes(value),false,value);
 });
@@ -125,6 +125,12 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
         if(__fixture.reviewOnly && options.task==='draft'){
           const item={...JSON.parse(result.text).items[0],merchant:null};result.text=JSON.stringify({items:[item],warnings:[]});result.modelDraft={items:[item],warnings:[]};
           result.normalization={sourceRuleAssisted:false,adjustments:[{rowIndex:0,field:'kind',reason:'SOURCE_CLASSIFICATION_UNVERIFIED',action:'review',previous:item.kind,value:item.kind},{rowIndex:0,field:'category',reason:'SOURCE_CLASSIFICATION_UNVERIFIED',action:'review',previous:item.category,value:item.category}]};
+        }
+        if(__fixture.partial && options.task==='draft'){
+          const food={date:'2026-10-19',amount:65,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'fixture food',missingFields:[]};
+          const salary={...food,amount:30000,kind:'income',category:'2',note:'fixture salary'};
+          result.text=JSON.stringify({items:[food,salary],warnings:[]});result.modelDraft={items:[null,food,salary],warnings:[]};
+          result.normalization={sourceRuleAssisted:true,adjustments:[],rejectedRows:[{modelRowIndex:0,reason:'INVALID_SHAPE',field:'sourceText'}],rowMappings:[{draftIndex:0,modelRowIndex:1},{draftIndex:1,modelRowIndex:2}]};
         }
         if(__fixture.reject){options.onToken('REJECTED PROVISIONAL TEXT');throw new Error('AI_UNGROUNDED fixture rejection');}
         if(__fixture.defer)return new Promise(resolve=>{__fixture.resolve=()=>resolve(result);});
@@ -205,6 +211,20 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.equal(await page.evaluate(()=>__fixture.writes[2].orig.by),'model','review-only notes never relabel an unchanged model draft as hybrid');
     await page.evaluate(()=>{__fixture.reviewOnly=false;});
 
+    await page.evaluate(()=>{__fixture.partial=true;});
+    await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: malformed candidate, food65, salary30000');
+    await page.locator('[data-ai-action="run"]').click();await page.waitForFunction(()=>document.querySelectorAll('[data-ai-row]').length===2);
+    assert.equal(await page.locator('[data-excluded-candidates]').count(),1,'discarded candidates are disclosed');
+    assert.equal(await page.locator('[data-ai-row]').count(),2,'the malformed original never becomes a draft');
+    await page.locator('[data-ai-row="0"] [data-ai-action="remove-row"]').click();
+    assert.equal(await page.locator('[data-excluded-candidates]').count(),1,'exclusion notice survives deleting a retained row');
+    await page.locator('[data-ai-group]').selectOption('5');await page.locator('[data-ai-approve]').check();await page.locator('[data-ai-action="save"]').click();
+    await page.waitForFunction(()=>__fixture.writes.length===4);
+    const filtered=await page.evaluate(()=>__fixture.writes[3]);
+    assert.equal(filtered.amount,30000);assert.equal(filtered.orig.amount,30000);assert.equal(filtered.orig.kind,'income');assert.equal(filtered.orig.cat,'2');
+    assert.equal(filtered.orig.by,'hybrid','candidate filtering is not reported as an untouched model run');
+    await page.evaluate(()=>{__fixture.partial=false;});
+
     await page.locator('[data-ai-mode="help"]').click();
     await page.locator('textarea').fill('PRIVATE QUESTION user@example.com — this must not be the search query');
     await page.locator('[data-ai-action="run"]').click();
@@ -223,7 +243,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     await page.evaluate(()=>{AIAssistant.setAccount({id:'two'});__fixture.resolve();});
     await page.waitForTimeout(30);
     assert.equal(await page.locator('.ai-trial').count(),0,'account change removes old private DOM');
-    assert.equal(await page.evaluate(()=>__fixture.writes.length),3,'stale generated result never writes');
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),4,'stale generated result never writes');
     await page.evaluate(()=>{AIAssistant.render(document.querySelector('#view'));});
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'320px page has no horizontal overflow');
     assert.deepEqual(pageErrors,[]);

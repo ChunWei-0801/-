@@ -53,6 +53,18 @@
     var notes=normalization&&Array.isArray(normalization.adjustments)?normalization.adjustments.filter(function(item){return item&&item.rowIndex===index&&['kind','category','merchant','date','amount','currency','classification'].includes(item.field)&&['clear','set','review'].includes(item.action)&&reasons.includes(item.reason);}).slice(0,30):[],latest={};
     notes.forEach(function(item){latest[item.field==='classification'?'category':item.field]=item;});return Object.keys(latest).map(function(field){return latest[field];});
   }
+  function originalRowIndex(normalization,index){
+    if(!normalization||!Array.isArray(normalization.rowMappings))return index;
+    var entries=normalization.rowMappings.filter(function(item){return item&&item.draftIndex===index&&Number.isInteger(item.modelRowIndex)&&item.modelRowIndex>=0&&item.modelRowIndex<10;});return entries.length===1?entries[0].modelRowIndex:null;
+  }
+  function originalItem(modelDraft,normalization,index){
+    var sourceIndex=originalRowIndex(normalization,index);return modelDraft&&Array.isArray(modelDraft.items)&&sourceIndex!==null?modelDraft.items[sourceIndex]:null;
+  }
+  function showExcluded(parent,normalization){
+    var excluded=normalization&&Array.isArray(normalization.rejectedRows)?normalization.rejectedRows.filter(function(item){return item&&Number.isInteger(item.modelRowIndex)&&item.modelRowIndex>=0&&item.modelRowIndex<10;}).slice(0,10):[];if(!excluded.length)return;
+    var notice=node('section',undefined,'note');notice.dataset.excludedCandidates='';notice.append(node('strong',named('aiTest.excludedTitle')),node('p',named('aiTest.excludedNotice',{count:excluded.length})));
+    var list=node('ul');excluded.forEach(function(item){var why=item.reason==='SOURCE_NOT_FOUND'?'aiTest.excludedSource':['AMOUNT_NOT_IN_SOURCE','AMOUNT_BOUNDARY','EVIDENCE_REUSED'].includes(item.reason)?'aiTest.excludedAmount':'aiTest.excludedFields',line=node('li',named('aiTest.excludedRow',{index:item.modelRowIndex+1})+' '+named(why));line.dataset.excludedRow=String(item.modelRowIndex);list.append(line);});notice.append(list);parent.append(notice);
+  }
   function showChecks(card,finalItem,originalItem,normalization,index){
     var checks=rowChecks(normalization,index);if(!checks.length)return;
     var notice=node('div',undefined,'note');notice.dataset.reviewChecks='';notice.append(node('strong',named('aiTest.reviewChecksTitle')));
@@ -66,13 +78,13 @@
     var card=node('article',undefined,'model-draft'),title=node('h4',named('aiTest.entryNumber',{index:index+1}));card.dataset.draftIndex=String(index);card.append(title);
     var values=node('dl');
     ['amount','kind','category','date','currency'].forEach(function(field){var pair=node('div');pair.append(node('dt',fieldName(field)),node('dd',display(field,item[field])));values.append(pair);});card.append(values);
-    showChecks(card,item,originalItem,normalization,index);
+    showChecks(card,item,originalItem,normalization,originalRowIndex(normalization,index));
     if(item.note)card.append(node('p',named('aiTrial.note')+'：'+String(item.note)));
     return card;
   }
   function differences(expected,actual){
     // Compare the actual output to fixed synthetic expectations; never correct or invent a model field.
-    var remaining=actual.map(function(item,index){return {item:item,index:index};}),result=[];
+    var remaining=actual.map(function(item,index){return {item:item&&typeof item==='object'&&!Array.isArray(item)?item:{},index:index};}),result=[];
     expected.forEach(function(wanted,index){
       var found=remaining.findIndex(function(candidate){return candidate.item.amount===wanted.amount;});if(found<0&&remaining.length)found=0;
       if(found<0){result.push({entry:index+1,type:'missing'});return;}
@@ -86,11 +98,12 @@
     var title=node('h3',named('aiTest.caseNumber',{index:item.syntheticCase})),badge=node('span',named(item.state==='passed'?'aiTest.passed':item.state==='failed'?'aiTest.notPassed':item.state==='error'?'aiTest.caseError':item.state==='running'?'aiTest.caseRunning':'aiTest.caseWaiting'),'model-case-state');
     title.append(document.createTextNode(' '),badge);card.append(title,node('p',item.input,'model-case-input'));
     if(item.output){
+      showExcluded(card,item.normalization);
       var modelLine=node('p',named('aiTest.modelOnlyLabel')+'：'+(item.modelOnlyPassed===null?named('aiTest.scoreMissing'):named(item.modelOnlyPassed?'aiTest.passed':'aiTest.notPassed')),item.modelOnlyPassed===false?'error':'note');modelLine.dataset.reviewStage='model';card.append(modelLine);
       var finalLine=node('p',named('aiTest.assistedLabel')+'：'+named(item.passed?'aiTest.passed':'aiTest.notPassed'),'note');finalLine.dataset.reviewStage='assisted';card.append(finalLine);
       if(item.normalization&&item.normalization.sourceRuleAssisted)card.append(node('p',named('aiTest.sourceAssistBenchmark'),'note'));
       else if(item.normalization)card.append(node('p',named('aiTest.mappedDraft'),'note'));
-      item.output.items.forEach(function(draft,index){card.append(draftCard(draft,index,item.modelDraft&&item.modelDraft.items[index],item.normalization));});
+      item.output.items.forEach(function(draft,index){card.append(draftCard(draft,index,originalItem(item.modelDraft,item.normalization,index),item.normalization));});
       if(item.modelOnlyDifferences&&item.modelOnlyDifferences.length){var originalList=node('ul',undefined,'model-differences model-only-differences');originalList.dataset.reviewStage='model';originalList.append(node('li',named('aiTest.modelOnlyLabel')));item.modelOnlyDifferences.forEach(function(diff){var message=diff.type?named(diff.type==='missing'?'aiTest.missingEntry':'aiTest.extraEntry',{index:diff.entry}):named('aiTest.fieldDifference',{index:diff.entry,field:fieldName(diff.field),expected:display(diff.field,diff.expected),actual:display(diff.field,diff.actual)});originalList.append(node('li',message));});card.append(originalList);}
 
       if(item.differences.length){var list=node('ul',undefined,'model-differences');item.differences.forEach(function(diff){var message=diff.type?named(diff.type==='missing'?'aiTest.missingEntry':'aiTest.extraEntry',{index:diff.entry}):named('aiTest.fieldDifference',{index:diff.entry,field:fieldName(diff.field),expected:display(diff.field,diff.expected),actual:display(diff.field,diff.actual)});list.append(node('li',message));});card.append(list);}
@@ -109,8 +122,9 @@
       if(measured.length){ui.modelMetricsSummary.style.whiteSpace='pre-line';ui.modelMetricsSummary.textContent+='\n'+named('aiTest.modelOnlySummary',{passed:modelPassed,total:measured.length})+'\n'+named('aiTest.assistedSummary',{passed:passed,total:completed});}
       ui.modelMetrics.textContent=JSON.stringify({observedOnly:true,completed:completed,total:view.cases.length,passed:passed,modelOnly:{matched:modelPassed,compared:measured.length},sourceChecked:{matched:passed,compared:completed},accuracyNotInferred:true,complete:!failureDetails&&completed===view.cases.length,cases:view.cases,failure:failureDetails&&failureDetails.measurement||null},null,2);
     }else if(view&&view.result){
+      showExcluded(ui.modelOutput,view.result.normalization);
       if(view.result.normalization)ui.modelOutput.append(node('p',named(view.result.normalization.sourceRuleAssisted?'aiTest.sourceAssistNotice':'aiTest.mappedDraft'),'note'));
-      view.value.items.forEach(function(item,index){ui.modelOutput.append(draftCard(item,index,view.result.modelDraft&&view.result.modelDraft.items[index],view.result.normalization));});
+      view.value.items.forEach(function(item,index){ui.modelOutput.append(draftCard(item,index,originalItem(view.result.modelDraft,view.result.normalization,index),view.result.normalization));});
       var modelWarnings=view.result.modelDraft&&Array.isArray(view.result.modelDraft.warnings)?view.result.modelDraft.warnings:view.value.warnings;
       if(Array.isArray(modelWarnings)&&modelWarnings.length){var notices=node('div',undefined,'note');notices.append(node('p',named('aiTrial.draftWarnings')));modelWarnings.forEach(function(warning){notices.append(node('p',warning));});ui.modelOutput.append(notices);}
       ui.modelMetricsSummary.textContent=named('aiTest.draftMeasurement',{seconds:(view.result.elapsedMs/1000).toFixed(2)});

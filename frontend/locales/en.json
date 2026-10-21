@@ -1268,7 +1268,13 @@
     "aiTest.ambiguousSource": "This text may not describe a clear, completed income or expense. Review the entry kind and category yourself.",
     "aiTest.originalChoice": "Original model choice: {kind} / {category}.",
     "aiTest.finalChoice": "Draft to review: {kind} / {category}.",
-    "aiTest.sourceUnverified": "{field} has not been confirmed by the source-text rules. Please check it yourself."
+    "aiTest.sourceUnverified": "{field} has not been confirmed by the source-text rules. Please check it yourself.",
+    "aiTest.excludedTitle": "Model candidates excluded after checks",
+    "aiTest.excludedNotice": "{count} model candidates failed checks against the original text or amount and were excluded. Review the retained drafts and check for any missing entries.",
+    "aiTest.excludedRow": "Model candidate {index} was not turned into a savable draft.",
+    "aiTest.excludedSource": "No matching content was found in the original text.",
+    "aiTest.excludedAmount": "The amount or its quoted evidence could not be verified.",
+    "aiTest.excludedFields": "The field format or source information could not be verified."
   },
   "sources": {}
 }

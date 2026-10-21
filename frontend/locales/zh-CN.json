@@ -1268,7 +1268,13 @@
     "aiTest.ambiguousSource": "这段文字可能不是已发生的明确收支，请自行确认收支与分类。",
     "aiTest.originalChoice": "模型原判断：{kind}／{category}。",
     "aiTest.finalChoice": "待确认草稿：{kind}／{category}。",
-    "aiTest.sourceUnverified": "{field}尚未经过原文规则确认，请自行核对。"
+    "aiTest.sourceUnverified": "{field}尚未经过原文规则确认，请自行核对。",
+    "aiTest.excludedTitle": "已排除未通过检查的模型候选",
+    "aiTest.excludedNotice": "有 {count} 笔模型候选未通过原文或金额检查，已排除。请核对保留的草稿，并自行确认是否有漏记。",
+    "aiTest.excludedRow": "第 {index} 号模型候选没有成为可记账草稿。",
+    "aiTest.excludedSource": "原文中找不到对应内容。",
+    "aiTest.excludedAmount": "金额或其引用无法核对。",
+    "aiTest.excludedFields": "字段格式或来源信息无法核对。"
   },
   "sources": {}
 }

@@ -1268,7 +1268,13 @@
     "aiTest.ambiguousSource": "この文章は、発生済みの明確な収支を示していない可能性があります。収支区分と分類を確認してください。",
     "aiTest.originalChoice": "モデルの元の判断：{kind}／{category}。",
     "aiTest.finalChoice": "確認する下書き：{kind}／{category}。",
-    "aiTest.sourceUnverified": "{field}は原文に基づくルールで確認されていません。自身で確認してください。"
+    "aiTest.sourceUnverified": "{field}は原文に基づくルールで確認されていません。自身で確認してください。",
+    "aiTest.excludedTitle": "確認に合格しなかったモデル候補を除外",
+    "aiTest.excludedNotice": "{count} 件のモデル候補が原文または金額の確認に合格せず、除外されました。残った下書きを確認し、記帳漏れがないか自身で確認してください。",
+    "aiTest.excludedRow": "モデル候補 {index} は保存可能な下書きにはなりませんでした。",
+    "aiTest.excludedSource": "原文に対応する内容がありません。",
+    "aiTest.excludedAmount": "金額または引用を確認できません。",
+    "aiTest.excludedFields": "項目の形式または出典情報を確認できません。"
   },
   "sources": {}
 }

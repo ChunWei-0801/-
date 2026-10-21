@@ -265,29 +265,47 @@ function assistClassification(item, input, evidence, categories, rowIndex, adjus
     else reviewField(item,'category',rowIndex,matches.length > 1 ? 'SOURCE_CATEGORY_AMBIGUOUS' : 'SOURCE_CLASSIFICATION_UNVERIFIED',adjustments);
   }
 }
+function baselineModelItem(original, grounding, categories, aliases, rowIndex) {
+  // Baseline rows are NOT approved drafts. Preserve candidate count/order for
+  // honest model-only evaluation, using bounded nulls for malformed fields.
+  const row = original && typeof original === 'object' && !Array.isArray(original) ? original : {};
+  let mapped = {kind:null,category:null};
+  if (row.classification === null || typeof row.classification === 'string') {
+    try { mapped = mapClassification(row.classification || null,grounding.categories,categories,rowIndex); } catch (_) { /* invalid prediction remains null, not an approved category */ }
+  }
+  const dateQuote = typeof row.dateText === 'string' ? row.dateText.slice(0,40).normalize('NFKC') : null;
+  const date = dateQuote === null ? null : Object.prototype.hasOwnProperty.call(aliases,dateQuote.toLowerCase()) ? aliases[dateQuote.toLowerCase()] : validCalendarDate(dateQuote) ? dateQuote : null;
+  const result = {kind:mapped.kind,amount:typeof row.amountText === 'string' && row.amountText.length <= 100 ? quotedAmount(row.amountText) : null,currency:typeof row.currency === 'string' && currencies.has(row.currency) ? row.currency : null,date,category:mapped.category,merchant:typeof row.merchantText === 'string' && row.merchantText.trim() ? row.merchantText.slice(0,200) : null,note:typeof row.sourceText === 'string' ? row.sourceText.slice(0,1500) : '',missingFields:[]};
+  result.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key => result[key] === null);
+  return result;
+}
 function normalizeModelDraft(text, grounding, input, originalContext) {
   let value; try { value = JSON.parse(text); } catch (_) { throw draftFailure('INVALID_SHAPE','items',undefined,'The model did not produce a complete JSON draft.'); }
   if (!value || Array.isArray(value) || Object.keys(value).some(key => !['items','warnings'].includes(key)) || !Array.isArray(value.items) || value.items.length > 10) throw draftFailure('INVALID_SHAPE','items',undefined,'The model did not produce usable draft items.');
   if (!Array.isArray(value.warnings) || value.warnings.length > 5 || value.warnings.some(w => typeof w !== 'string' || w.length > 500)) throw draftFailure('INVALID_SHAPE','warnings',undefined,'The model did not produce usable draft warnings.');
   if (!value.items.length) throw draftFailure('NO_TRANSACTIONS','items',undefined,'The model did not identify any transactions. No draft was created.','AI_NO_DRAFT');
   const keys = ['sourceText','amountText','classification','dateText','currency','merchantText'];
-  const aliases = calendarAliases(grounding.today), used = [], originalCategories = categoriesOf(originalContext), adjustments = [], modelItems = [];
-  const items = value.items.map((originalItem,rowIndex) => {
+  const aliases = calendarAliases(grounding.today), used = [], originalCategories = categoriesOf(originalContext), adjustments = [], items = [], rejectedRows = [], rowMappings = [], failures = [];
+  const modelItems = value.items.map((row,rowIndex) => baselineModelItem(row,grounding,originalCategories,aliases,rowIndex));
+  function normalizeRow(originalItem,rowIndex,rowUsed,rowAdjustments) {
     const item = originalItem && typeof originalItem === 'object' && !Array.isArray(originalItem) ? {...originalItem} : originalItem;
     if (!item || Array.isArray(item) || keys.some(key => !Object.prototype.hasOwnProperty.call(item,key)) || Object.keys(item).some(key => !keys.includes(key)) || typeof item.sourceText !== 'string' || !item.sourceText.trim() || item.sourceText.length > 1500) throw draftFailure('INVALID_SHAPE','sourceText',rowIndex,'A generated draft has invalid source fields.');
     for (const key of keys.slice(1)) if (!(item[key] === null || typeof item[key] === 'string')) throw draftFailure('INVALID_SHAPE',key,rowIndex,'A generated draft has invalid quote fields.');
     for (const [key,field] of [['amountText','amount'],['dateText','date'],['merchantText','merchant'],['currency','currency'],['classification','category']]) {
       if (typeof item[key] === 'string' && !item[key].trim()) {
-        adjustments.push({rowIndex,field,reason:'OPTIONAL_FIELD_EMPTY',action:'clear',previous:item[key],value:null});
+        rowAdjustments.push({rowIndex,field,reason:'OPTIONAL_FIELD_EMPTY',action:'clear',previous:item[key],value:null});
         item[key] = null;
       }
     }
     for (const [key,limit] of [['amountText',100],['dateText',40],['merchantText',200]]) if (item[key] !== null && item[key].length > limit) throw draftFailure('INVALID_SHAPE',key,rowIndex,'A generated quote exceeds its limits.');
     if (item.currency !== null && !currencies.has(item.currency)) throw draftFailure('INVALID_SHAPE','currency',rowIndex,'A generated currency is unsupported.');
-    const evidence = reserveEvidence(input,item.sourceText,item.amountText,used,rowIndex);
+    const evidence = reserveEvidence(input,item.sourceText,item.amountText,rowUsed,rowIndex);
+    const amount = quotedAmount(item.amountText);
+    const numericQuote = item.amountText === null ? '' : item.amountText.normalize('NFKC').replace(/,/g,'');
+    if (amount === null && /^[+\-−]?\d+(?:\.\d+)?$/.test(numericQuote) && Number(numericQuote.replace('−','-')) <= 0) throw draftFailure('INVALID_SHAPE','amountText',rowIndex,'A generated amount quote is not positive money.');
     let merchant = item.merchantText;
     if (merchant !== null && !input.includes(merchant)) {
-      adjustments.push({rowIndex,field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear',previous:merchant,value:null});
+      rowAdjustments.push({rowIndex,field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear',previous:merchant,value:null});
       merchant = null;
     }
     const mapped = mapClassification(item.classification,grounding.categories,originalCategories,rowIndex);
@@ -295,21 +313,39 @@ function normalizeModelDraft(text, grounding, input, originalContext) {
     const rawDatePresent = item.dateText !== null && input.includes(item.dateText);
     const citedCalendarDate = dateQuote !== null && validCalendarDate(dateQuote) && Object.entries(aliases).some(([word,date]) => date === dateQuote && input.toLowerCase().includes(word));
     const date = dateQuote === null ? null : rawDatePresent && Object.prototype.hasOwnProperty.call(aliases,dateQuote.toLowerCase()) ? aliases[dateQuote.toLowerCase()] : validCalendarDate(dateQuote) && (rawDatePresent || citedCalendarDate) ? dateQuote : null;
-    if (item.dateText !== null && date === null) adjustments.push({rowIndex,field:'date',reason:'OPTIONAL_DATE_UNSUPPORTED',action:'clear',previous:item.dateText,value:null});
-    const result = {kind:mapped.kind,amount:quotedAmount(item.amountText),currency:item.currency,date,category:mapped.category,merchant,note:item.sourceText,missingFields:[]};
+    if (item.dateText !== null && date === null) rowAdjustments.push({rowIndex,field:'date',reason:'OPTIONAL_DATE_UNSUPPORTED',action:'clear',previous:item.dateText,value:null});
+    const result = {kind:mapped.kind,amount,currency:item.currency,date,category:mapped.category,merchant,note:item.sourceText,missingFields:[]};
+    assistClassification(result,input,evidence,originalCategories,rowIndex,rowAdjustments);
     result.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key => result[key] === null);
-    const predictedMerchant = typeof originalItem.merchantText === 'string' && originalItem.merchantText.trim() ? originalItem.merchantText.slice(0,200) : null;
-    const predictedDate = dateQuote === null ? null : Object.prototype.hasOwnProperty.call(aliases,dateQuote.toLowerCase()) ? aliases[dateQuote.toLowerCase()] : validCalendarDate(dateQuote) ? dateQuote : null;
-    const modelItem = {...result,date:predictedDate,merchant:predictedMerchant,missingFields:[]};
-    modelItem.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key => modelItem[key] === null);
-    modelItems.push(modelItem);
-    assistClassification(result,input,evidence,originalCategories,rowIndex,adjustments);
-    result.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key => result[key] === null);
+    validateDraft(JSON.stringify({items:[result],warnings:[]}),originalContext);
     return result;
+  }
+  value.items.forEach((originalItem,rowIndex) => {
+    // A rejected candidate must not consume an amount occurrence or publish
+    // provisional adjustments that belong to a row the user cannot save.
+    const rowUsed = used.slice(), rowAdjustments = [];
+    try {
+      const result = normalizeRow(originalItem,rowIndex,rowUsed,rowAdjustments);
+      rowMappings.push({draftIndex:items.length,modelRowIndex:rowIndex});
+      items.push(result);
+      used.splice(0,used.length,...rowUsed);
+      adjustments.push(...rowAdjustments);
+    } catch (cause) {
+      if (!['AI_INVALID_DRAFT','AI_NO_DRAFT'].includes(cause.code)) throw cause;
+      const validation = cause.validation || {reason:'INVALID_SHAPE',field:'items'};
+      cause.validation = {...validation,rowIndex};
+      rejectedRows.push({modelRowIndex:rowIndex,reason:validation.reason,field:validation.field});
+      failures.push(cause);
+    }
   });
+  if (!items.length) {
+    const cause = failures[0] || draftFailure('NO_TRANSACTIONS','items',undefined,'The model did not identify any usable transactions.','AI_NO_DRAFT');
+    cause.rejectedRows = rejectedRows;
+    throw cause;
+  }
   const normalized = {items,warnings:value.warnings};
   validateDraft(JSON.stringify(normalized),originalContext);
-  return {draft:normalized,modelDraft:{items:modelItems,warnings:value.warnings.slice()},adjustments};
+  return {draft:normalized,modelDraft:{items:modelItems,warnings:value.warnings.slice()},adjustments,rejectedRows,rowMappings};
 }
 function validateDraft(text, context) {
   let value; try { value = JSON.parse(text); } catch (_) { throw draftFailure('INVALID_SHAPE','items',undefined,'The model did not produce a complete JSON draft.'); }
@@ -399,7 +435,7 @@ async function generate(id, request) {
       if (draft) {
         result.rawModelOutput = text.slice(0,12000);
         result.modelDraft = normalized.modelDraft;
-        result.normalization = {version:'source-grounded-v2',mechanicalMapping:true,sourceEvidenceChecked:true,classificationMapping:'lookup-and-explicit-source-rules',dateResolution:'verbatim-or-cited-calendar-alias',requiresHumanReview:true,sourceRuleAssisted:normalized.adjustments.some(item => item.reason.startsWith('SOURCE_') && item.action !== 'review'),adjustments:normalized.adjustments};
+        result.normalization = {version:'source-grounded-v2',mechanicalMapping:true,sourceEvidenceChecked:true,classificationMapping:'lookup-and-explicit-source-rules',dateResolution:'verbatim-or-cited-calendar-alias',requiresHumanReview:true,sourceRuleAssisted:normalized.rejectedRows.length > 0 || normalized.adjustments.some(item => item.reason.startsWith('SOURCE_') && item.action !== 'review'),adjustments:normalized.adjustments,rejectedRows:normalized.rejectedRows,rowMappings:normalized.rowMappings,sourceRowIndexes:normalized.rowMappings.map(item => item.modelRowIndex)};
       }
       return result;
     }
@@ -408,6 +444,7 @@ async function generate(id, request) {
     // grounding, credentials or a transcript; the UI may display this as text.
     cause.details = {rawOutput:text.slice(0,12000),elapsedMs:Math.max(0,Math.round(performance.now()-started)),model:modelId,usage,finishReason,attempts};
     if (cause.validation) cause.details.validation = cause.validation;
+    if (cause.rejectedRows) cause.details.rejectedRows = cause.rejectedRows;
     throw cause;
   } finally { await engine.resetChat(); }
 }

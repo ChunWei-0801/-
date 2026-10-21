@@ -293,7 +293,8 @@ test('identical amounts and repeated real phrases remain separate but reusing on
     const {reply,value}=await extractFixture(modelDraft(items),input);assert.equal(reply.type,'result');assert.deepEqual(value.items.map(i=>i.amount),[50,50]);
   }
   const {reply}=await extractFixture(modelDraft(Array(2).fill(modelItem)));
-  assert.equal(reply.type,'error');assert.equal(reply.error.code,'AI_INVALID_DRAFT');
+  assert.equal(reply.type,'result');assert.equal(JSON.parse(reply.result.text).items.length,1);assert.equal(reply.result.attempts,1);
+  assert.equal(reply.result.modelDraft.items.length,2);assert.equal(reply.result.normalization.rejectedRows[0].reason,'EVIDENCE_REUSED');
 });
 
 test('unknown amounts, classifications and date expressions remain null for manual review',async()=>{
@@ -321,7 +322,7 @@ test('date words use the provided calendar and explicit ISO dates require actual
 });
 
 test('only model-selected full numeric quotes are normalized; unsupported amount wording stays unknown',async()=>{
-  for(const [amountText,expected] of [['1,234.50',1234.5],['１２３．５０',123.5],['六十五',null],['1,23',null],['0',null]]){
+  for(const [amountText,expected] of [['1,234.50',1234.5],['１２３．５０',123.5],['六十五',null],['1,23',null]]){
     const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText:'午餐'+amountText+'元',amountText}]),'昨天午餐'+amountText+'元');
     assert.equal(reply.type,'result');assert.equal(value.items[0].amount,expected);
   }
@@ -364,9 +365,9 @@ test('validation diagnostics identify reuse and date, merchant or classification
     [{...next,classification:'PRIVATE_LABEL'},'CLASSIFICATION_NOT_ALLOWED','classification']
   ]){
     const {reply}=await extractFixture(modelDraft([modelItem,second]),'昨天午餐120元，晚餐80元。');
-    assert.equal(reply.error.code,'AI_INVALID_DRAFT');
-    const detail=JSON.parse(JSON.stringify(reply.error.details.validation));
-    assert.deepEqual(detail,{reason,field,rowIndex:1});assert.equal(JSON.stringify(detail).includes('PRIVATE_'),false);
+    assert.equal(reply.type,'result');assert.equal(JSON.parse(reply.result.text).items.length,1);assert.equal(reply.result.attempts,1);
+    const detail=JSON.parse(JSON.stringify(reply.result.normalization.rejectedRows[0]));
+    assert.deepEqual(detail,{reason,field,modelRowIndex:1});assert.equal(JSON.stringify(detail).includes('PRIVATE_'),false);
   }
 });
 
@@ -493,4 +494,44 @@ test('grounded tasks without retained authorized evidence never ask the model to
   const h=runtimeHarness('Made-up answer');await h.load();
   const result=await h.run({type:'generate',task:'rules',input:'Unsupported rule?',context:{knowledge:{items:[]}}});
   assert.equal(result.error?.code,'AI_NO_EVIDENCE');assert.equal(h.calls.requests.length,0);
+});
+
+
+// Actual recorded salary failure and positional variants: strict row validation,
+// not new model inference or a quality estimate.
+test('recorded salary output retains the valid income and excludes fabricated candidates at any position',async()=>{
+  const salary={sourceText:'收到薪資30000元',amountText:'30000',classification:'收入｜薪資',dateText:'今天',currency:'TWD',merchantText:null};
+  const invented={...salary,sourceText:'今天收到餐飲',amountText:'0',classification:'支出（未選分類）'};
+  for(const [rows,index] of [[[salary,invented],0],[[invented,salary],1],[[null,salary,7],1]]){
+    const {reply,value,h}=await extractFixture(modelDraft(rows,['未選分類']),'今天收到薪資30000元。');
+    assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);assert.deepEqual(value.items.map(r=>[r.kind,r.amount,r.category]),[['income',30000,'salary']]);
+    assert.equal(reply.result.modelDraft.items.length,rows.length);assert.deepEqual(JSON.parse(JSON.stringify(reply.result.normalization.rowMappings)),[{draftIndex:0,modelRowIndex:index}]);
+    assert.equal(reply.result.normalization.rejectedRows.length,rows.length-1);assert.equal(reply.result.rawModelOutput,modelDraft(rows,['未選分類']));
+    assert.equal(reply.result.normalization.sourceRuleAssisted,true);
+  }
+});
+
+test('rejected rows roll back evidence and provisional adjustments before a later valid candidate',async()=>{
+  const bad={...modelItem,merchantText:'',classification:'NOT_ALLOWED'};
+  const {reply,value}=await extractFixture(modelDraft([bad,modelItem]));
+  assert.equal(reply.type,'result');assert.equal(value.items.length,1);assert.equal(value.items[0].amount,120);
+  assert.deepEqual(JSON.parse(JSON.stringify(reply.result.normalization.rowMappings)),[{draftIndex:0,modelRowIndex:1}]);
+  assert.equal(reply.result.normalization.rejectedRows[0].reason,'CLASSIFICATION_NOT_ALLOWED');
+  assert.equal(reply.result.normalization.adjustments.some(a=>a.rowIndex===0),false,'rejected provisional merchant clearing must not leak');
+});
+
+test('zero and negative money rows never become normal drafts while independently valid rows survive',async()=>{
+  const next={...modelItem,sourceText:'晚餐80元',amountText:'80',dateText:'今天'};
+  for(const amountText of ['0','-65','−65','０']){
+    const zero={...modelItem,sourceText:'咖啡'+amountText+'元',amountText,dateText:'今天'};
+    const mixed=await extractFixture(modelDraft([zero,next]),'今天'+zero.sourceText+'，晚餐80元。');
+    assert.equal(mixed.reply.type,'result');assert.deepEqual(mixed.value.items.map(r=>r.amount),[80]);assert.equal(mixed.reply.result.normalization.rejectedRows.length,1);
+    const alone=await extractFixture(modelDraft([zero]),'今天'+zero.sourceText+'。');assert.equal(alone.reply.type,'error');assert.equal(alone.h.calls.requests.length,2);
+  }
+});
+
+test('all unsupported candidates and malformed envelopes still fail without creating replacement rows',async()=>{
+  for(const raw of [modelDraft([null,7]),modelDraft([{...modelItem,sourceText:'不存在的交易999元',amountText:'999'}]),JSON.stringify({items:[modelItem],warnings:[],unexpected:true})]){
+    const {reply,h}=await extractFixture(raw);assert.equal(reply.type,'error');assert.equal(h.calls.requests.length,2);assert.equal(reply.error.code,'AI_INVALID_DRAFT');
+  }
 });

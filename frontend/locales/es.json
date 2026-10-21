@@ -1268,7 +1268,13 @@
     "aiTest.ambiguousSource": "El texto podría no describir un ingreso o gasto claro y ya realizado. Comprueba el tipo de movimiento y la categoría.",
     "aiTest.originalChoice": "Decisión original del modelo: {kind} / {category}.",
     "aiTest.finalChoice": "Borrador para revisar: {kind} / {category}.",
-    "aiTest.sourceUnverified": "Las reglas del texto original no han confirmado {field}. Compruébalo personalmente."
+    "aiTest.sourceUnverified": "Las reglas del texto original no han confirmado {field}. Compruébalo personalmente.",
+    "aiTest.excludedTitle": "Candidatos del modelo excluidos tras la revisión",
+    "aiTest.excludedNotice": "Se excluyeron {count} candidatos del modelo porque no superaron la comprobación del texto original o el importe. Revisa los borradores conservados y comprueba si falta algún movimiento.",
+    "aiTest.excludedRow": "El candidato {index} del modelo no se convirtió en un borrador que se pueda guardar.",
+    "aiTest.excludedSource": "No se encontró contenido correspondiente en el texto original.",
+    "aiTest.excludedAmount": "No se pudo verificar el importe o la cita que lo respalda.",
+    "aiTest.excludedFields": "No se pudo verificar el formato del campo o la información de origen."
   },
   "sources": {}
 }

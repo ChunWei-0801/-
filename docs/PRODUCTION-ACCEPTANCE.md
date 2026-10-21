@@ -17,16 +17,18 @@ acceptance checks and all eight lifestyle features' online interactions remain
 pending. These two tools cover the original account/mail/photo/mobile acceptance
 scope, not the complete eight-feature online interaction checklist.
 
-The latest user-device screenshots expose the actual v170 failure. For the
-synthetic input “今天早餐65元，午餐120元。”, the model quoted both amounts
-correctly, left breakfast uncategorized, classified lunch as income/salary, and
-invented a lunch merchant. `MERCHANT_QUOTE_NOT_FOUND` on row 1 rejected the
-entire draft after two attempts / 61,190 ms. This supersedes the previous
-pending-raw-output notes; no more diagnostics are needed from the user for this
-case. The deployed repair retains useful grounded fields, exposes source-rule
-adjustments separately, and preserves pure-model vs assisted evaluation evidence.
-A fixture replay proves this known failure is handled; it does not measure new
-Qwen inference quality or complete production acceptance.
+The newest v171 user-device screenshots confirm the source-checked breakfast
+65 / lunch 120 drafts are correct, while raw model classification still fails.
+The salary example exposed a new whole-draft failure: the model returned a
+grounded 30,000 salary plus a fabricated zero-amount candidate, and row 1
+SOURCE_NOT_FOUND rejected both after two attempts. The v172 repair isolates
+strict per-candidate checks, discloses rejected candidates, keeps all raw model
+rows for honest comparison, and maps retained drafts to their original rows.
+All 70 related local checks pass with no skips, including the real worker /
+controller / Chromium replay of this new actual failure. This replay is not a
+fresh model inference or full production acceptance. Deploy status is recorded
+in the latest worklog. No more raw-output diagnostics are needed from the user
+for this case.
 
 The user saved and published the updated environment policy on 2026-10-19.
 The latest observed runtime revision is 840 (2026-10-21) and still lacks the

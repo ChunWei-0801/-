@@ -27,9 +27,9 @@
   function testText(key, fallback) { return global.I18n && global.I18n.t ? global.I18n.t('aiTest.' + key, fallback) : fallback; }
   function reviewText(key, vars) {
     var labels = /^zh/.test(lang()) ? {
-      reviewChecksTitle:'核對提醒',sourceAssistNotice:'這些草稿結合模型抽取與原文規則檢查。規則可能調整收支或分類，請逐筆確認。',sourceChange:'{field}已依原文檢查調整，請確認。',sourceCleared:'{field}在原文中無法確認，已留白；請核對，必要時自行補充。',sourceUnverified:'{field}尚未經原文規則確認，請自行核對。',ambiguousSource:'這段文字可能不是已發生的明確收支，請自行確認收支與分類。',originalChoice:'模型原判斷：{kind}／{category}。',finalChoice:'待確認草稿：{kind}／{category}。'
+      excludedTitle:'已排除未通過檢查的模型候選',excludedNotice:'有 {count} 筆模型候選未通過原文或金額檢查，已排除。請核對保留的草稿，並自行確認是否有漏記。',excludedRow:'第 {index} 號模型候選沒有成為可記帳草稿。',excludedSource:'原文中找不到對應內容。',excludedAmount:'金額或其引用無法核對。',excludedFields:'欄位格式或來源資訊無法核對。',reviewChecksTitle:'核對提醒',sourceAssistNotice:'這些草稿結合模型抽取與原文規則檢查。規則可能調整收支或分類，請逐筆確認。',sourceChange:'{field}已依原文檢查調整，請確認。',sourceCleared:'{field}在原文中無法確認，已留白；請核對，必要時自行補充。',sourceUnverified:'{field}尚未經原文規則確認，請自行核對。',ambiguousSource:'這段文字可能不是已發生的明確收支，請自行確認收支與分類。',originalChoice:'模型原判斷：{kind}／{category}。',finalChoice:'待確認草稿：{kind}／{category}。'
     } : {
-      reviewChecksTitle:'Review reminders',sourceAssistNotice:'These drafts combine model extraction with checks against the original text. Rules may change entry kinds or categories. Review every draft.',sourceChange:'{field} was adjusted after checking the original text. Please confirm it.',sourceCleared:'{field} could not be confirmed in the original text and was left blank. Review it and add it if needed.',sourceUnverified:'{field} has not been confirmed by the source-text rules. Please check it yourself.',ambiguousSource:'This text may not describe a clear, completed income or expense. Review the entry kind and category yourself.',originalChoice:'Original model choice: {kind} / {category}.',finalChoice:'Draft to review: {kind} / {category}.'
+      excludedTitle:'Model candidates excluded after checks',excludedNotice:'{count} model candidates failed checks against the original text or amount and were excluded. Review the retained drafts and check for any missing entries.',excludedRow:'Model candidate {index} was not turned into a savable draft.',excludedSource:'No matching content was found in the original text.',excludedAmount:'The amount or its quoted evidence could not be verified.',excludedFields:'The field format or source information could not be verified.',reviewChecksTitle:'Review reminders',sourceAssistNotice:'These drafts combine model extraction with checks against the original text. Rules may change entry kinds or categories. Review every draft.',sourceChange:'{field} was adjusted after checking the original text. Please confirm it.',sourceCleared:'{field} could not be confirmed in the original text and was left blank. Review it and add it if needed.',sourceUnverified:'{field} has not been confirmed by the source-text rules. Please check it yourself.',ambiguousSource:'This text may not describe a clear, completed income or expense. Review the entry kind and category yourself.',originalChoice:'Original model choice: {kind} / {category}.',finalChoice:'Draft to review: {kind} / {category}.'
     };
     return String(testText(key,labels[key] || t('unverified'))).replace(/\{(\w+)\}/g,function(whole,name){return vars && Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):whole;});
   }
@@ -39,6 +39,19 @@
     if(includeAll)return notes;
     // Later checks describe the final candidate; avoid saying both “blank” and “filled” for one field.
     var latest={};notes.forEach(function(item){latest[item.field]=item;});return Object.keys(latest).map(function(field){return latest[field];});
+  }
+  function excludedCandidates(normalization) {
+    return normalization&&Array.isArray(normalization.rejectedRows)?normalization.rejectedRows.filter(function(item){return item&&Number.isInteger(item.modelRowIndex)&&item.modelRowIndex>=0&&item.modelRowIndex<10;}).slice(0,10):[];
+  }
+  function originalRowIndex(normalization, index) {
+    if(!normalization||!Array.isArray(normalization.rowMappings))return index;
+    var entries=normalization.rowMappings.filter(function(item){return item&&item.draftIndex===index&&Number.isInteger(item.modelRowIndex)&&item.modelRowIndex>=0&&item.modelRowIndex<10;});
+    return entries.length===1?entries[0].modelRowIndex:null;
+  }
+  function renderExcluded(s, review) {
+    var excluded=excludedCandidates(s.normalization);if(!excluded.length)return;
+    var notice=el('section','ait-note');notice.dataset.excludedCandidates='';add(notice,el('strong','',reviewText('excludedTitle')),el('p','',reviewText('excludedNotice',{count:excluded.length})));
+    var list=el('ul');excluded.forEach(function(item){var why=item.reason==='SOURCE_NOT_FOUND'?'excludedSource':['AMOUNT_NOT_IN_SOURCE','AMOUNT_BOUNDARY','EVIDENCE_REUSED'].includes(item.reason)?'excludedAmount':'excludedFields',line=el('li','',reviewText('excludedRow',{index:item.modelRowIndex+1})+' '+reviewText(why));line.dataset.excludedRow=String(item.modelRowIndex);add(list,line);});add(notice,list);add(review,notice);
   }
   function rowChoice(row, categories) {
     var category=categories.find(function(item){return String(item.id)===String(row && row.cat);});
@@ -210,15 +223,20 @@
       s.modelOutput=String(result.text || '');
       s.rawModelOutput=typeof result.rawModelOutput==='string'?result.rawModelOutput.slice(0,12000):s.modelOutput;
       if (task === 'draft') {
-        var draft=checkDraft(s.modelOutput,s.categories), modelDraft=null;
-        if(result.modelDraft){try{modelDraft=checkDraft(JSON.stringify(result.modelDraft),s.categories);}catch(_){}}
+        var draft=checkDraft(s.modelOutput,s.categories), modelDraft=result.modelDraft&&Array.isArray(result.modelDraft.items)?result.modelDraft:null;
         s.normalization=result.normalization||null;s.drafts=draft.items;
-        s.originalDrafts=JSON.parse(JSON.stringify(modelDraft&&modelDraft.items.length===draft.items.length?modelDraft.items:draft.items));
-        s.drafts.forEach(function(row,index){row.reviewChecks=rowChecks(s.normalization,index);row.ruleAdjusted=rowChecks(s.normalization,index,true).some(function(item){return item.action==='set'||item.action==='clear';});row.modelChoice=s.originalDrafts[index];});
-        renderDrafts(s,modelDraft?modelDraft.warnings:draft.warnings);
+        // A rejected raw row may be null or malformed. Only parse the mapped retained original for audit.
+        s.originalDrafts=s.drafts.map(function(row,index){
+          var sourceIndex=originalRowIndex(s.normalization,index);row.modelRowIndex=sourceIndex;
+          if(!modelDraft)return JSON.parse(JSON.stringify(row));
+          if(sourceIndex===null||!modelDraft.items[sourceIndex]){var invalid=new Error(t('invalidDraft'));invalid.code='AI_INVALID_DRAFT';throw invalid;}
+          return checkDraft(JSON.stringify({items:[modelDraft.items[sourceIndex]],warnings:[]}),s.categories).items[0];
+        });
+        s.drafts.forEach(function(row,index){row.reviewChecks=rowChecks(s.normalization,row.modelRowIndex);row.ruleAdjusted=excludedCandidates(s.normalization).length>0||rowChecks(s.normalization,row.modelRowIndex,true).some(function(item){return item.action==='set'||item.action==='clear';});row.modelChoice=s.originalDrafts[index];});
+        renderDrafts(s,modelDraft&&Array.isArray(modelDraft.warnings)?modelDraft.warnings.filter(function(value){return typeof value==='string';}).slice(0,10):draft.warnings);
       }
       else answer.textContent=s.modelOutput;
-      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,rating:null});
+      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),excludedCandidateCount:excludedCandidates(result.normalization).length,sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,rating:null});
       renderMetrics(s); message(s,result.finishReason === 'length' ? t('resultTruncated') : t('finished'),result.finishReason === 'length');
     } catch (error) {
       if (active(s,job)) {
@@ -247,6 +265,7 @@
   function renderDrafts(s,warnings) {
     s.output.replaceChildren(); var review=el('section','ait-review'); s.review=review;
     add(review,el('h2','',t('review')),el('p','ait-muted',t('reviewHelp')));
+    renderExcluded(s,review);
     if(s.drafts.some(function(row){return row.ruleAdjusted;}))add(review,el('p','ait-note',reviewText('sourceAssistNotice')));
     if (warnings && warnings.length) { var warning=el('div','ait-note'); add(warning,el('strong','',t('draftWarnings'))); warnings.forEach(function (v) { add(warning,el('p','',v)); }); add(review,warning); }
     var group=select([['',t('chooseGroup')]].concat(s.groups.map(function(g) { return [String(g.id),g.name]; }))); group.dataset.aiGroup=''; group.value=s.groupId || ''; add(review,field(t('group'),group));
@@ -300,7 +319,7 @@
     } catch (error) { if (active(s,job)) { message(s,t('photoFailed') + ' ' + errorMessage(error),true); if (!s.output.querySelector('[data-ai-action="retry-photo"]')) add(s.output,button(t('retryPhoto'),'retry-photo')); } }
   }
   function safeUsage(usage) { var clean={}; ['promptTokens','completionTokens','totalTokens','prompt_tokens','completion_tokens','total_tokens','inputTokens','outputTokens','prefillTokens','decodeTokens'].forEach(function(key) { if (usage && typeof usage[key] === 'number' && Number.isFinite(usage[key]) && usage[key]>=0) clean[key]=usage[key]; }); return clean; }
-  function evaluation(s) { return {schemaVersion:2,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,sourceRuleAssisted:item.sourceRuleAssisted===true,sourceAdjustmentCount:Number.isInteger(item.sourceAdjustmentCount)&&item.sourceAdjustmentCount>=0?Math.min(80,item.sourceAdjustmentCount):0,rating:item.rating}; }),failedRuns:(s.failedMeasurements||[]).map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,attempts:item.attempts,errorCode:/^AI_[A-Z_]+$/.test(item.errorCode||'')?item.errorCode:'AI_INFERENCE_FAILED'}; }),note:'Observed session measurements only; failed runs are separate from successful runs. No quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
+  function evaluation(s) { return {schemaVersion:2,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,sourceRuleAssisted:item.sourceRuleAssisted===true,excludedCandidateCount:Number.isInteger(item.excludedCandidateCount)&&item.excludedCandidateCount>=0?Math.min(10,item.excludedCandidateCount):0,sourceAdjustmentCount:Number.isInteger(item.sourceAdjustmentCount)&&item.sourceAdjustmentCount>=0?Math.min(80,item.sourceAdjustmentCount):0,rating:item.rating}; }),failedRuns:(s.failedMeasurements||[]).map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,attempts:item.attempts,errorCode:/^AI_[A-Z_]+$/.test(item.errorCode||'')?item.errorCode:'AI_INFERENCE_FAILED'}; }),note:'Observed session measurements only; failed runs are separate from successful runs. No quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
   function renderMetrics(s) {
     s.metrics.replaceChildren(el('h2','',t('metrics')),el('p','ait-muted',t('metricsHelp')));
     var last=s.measurements[s.measurements.length-1], list=el('dl','ait-metrics-grid');
@@ -375,5 +394,5 @@
     if(global.LocalAI&&global.LocalAI.clearSession)global.LocalAI.clearSession();
   }
   function setAccount(user) { var old=accountStamp(account), next=accountStamp(user); if(old!==next)cleanup(); account=user||null; }
-  global.AIAssistant={render:render,cleanup:cleanup,setAccount:setAccount,messages:words,testing:Object.freeze({checkDraft:checkDraft,validateRows:validateRows,contextForModel:contextForModel,safeRoute:safeRoute,scrub:scrub,evaluation:evaluation,validMoney:validMoney,validDate:validDate,rowChecks:rowChecks,ocr:OCR})};
+  global.AIAssistant={render:render,cleanup:cleanup,setAccount:setAccount,messages:words,testing:Object.freeze({checkDraft:checkDraft,validateRows:validateRows,contextForModel:contextForModel,safeRoute:safeRoute,scrub:scrub,evaluation:evaluation,validMoney:validMoney,validDate:validDate,rowChecks:rowChecks,originalRowIndex:originalRowIndex,ocr:OCR})};
 })(typeof window!=='undefined'?window:globalThis);
