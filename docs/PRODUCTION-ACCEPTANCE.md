@@ -1,46 +1,48 @@
 # Production acceptance handoff
 
-**Latest release preparation (v173):** the v172 row-isolation fix is live from
-`9b2987773f7d59f2e4bdcc905c63361b6b7fe995`. New public anti-fraud updates,
-dismissible cross-page reminders, referenced financial coaching, current-device
-preserving logout, and 24-hour verification-email presentation pass 916 backend
-and 72 related frontend checks (zero skips). v173 deployment and actual
-government-feed sync audit are pending. No new email was sent and no production
-database backup/restore was completed in this stage. Older entries below are
-historical; the final release record is in WORKLOG-20261021.md.
+The current deployed source is `2fbe3d39d14057156bffef09e56721d6cda04fd6`,
+resource version **173**, at `https://fambudget-recovery-20261017.onrender.com`.
+Render `dep-dbce44uq1p3s73d55cc0` reports live, finished
+2026-10-22 00:04:03 Asia/Taipei. The service remains free with auto-deploy off.
+GitHub run [39630746107](https://github.com/ChunWei-0801/-/actions/runs/39630746107)
+passed both checks and real Chromium browser jobs. Local complete backend:
+916 passed. Related frontend runner checks: 72 passed, zero skips. The first
+feature CI attempt failed from a browser-only file in a job without Playwright;
+the workflow was corrected before deployment without reducing assertions.
 
-The deployed application source is `81abbe15a50f6d60fc5550acf581b45d18396467` at
-`https://fambudget-recovery-20261017.onrender.com` (Render reports live on
-2026-10-21 19:15:20 Asia/Taipei; deployment `dep-dbc9sp3bc2fs73bp4ia0`).
-Resource version 171 retains grounded drafts when optional model fields are
-unsupported and adds explicitly disclosed source-rule assistance. The public
-trial is `/ai-test.html?v=171`; the authenticated trial is `/#/ai`. See
-`FREE-LLM.md` and `WORKLOG-20261021.md`. All 22 changed remote blobs were verified;
-GitHub checks and real Chromium browser job both passed in run 39590123146.
-The actual failed output now passes an integrated recorded-output replay:
-two expenses (65/120), food categories, empty fabricated merchant, one attempt.
-Original model predictions remain available; model-only vs assisted comparisons
-are separate. This is not fresh model inference or a device acceptance pass.
-Deployment status does not establish full production acceptance. The original
-acceptance checks and all eight lifestyle features' online interactions remain
-pending. These two tools cover the original account/mail/photo/mobile acceptance
-scope, not the complete eight-feature online interaction checklist.
+## Current changes and evidence limits
 
-The newest v171 user-device screenshots confirm the source-checked breakfast
-65 / lunch 120 drafts are correct, while raw model classification still fails.
-The salary example exposed a new whole-draft failure: the model returned a
-grounded 30,000 salary plus a fabricated zero-amount candidate, and row 1
-SOURCE_NOT_FOUND rejected both after two attempts. The v172 repair isolates
-strict per-candidate checks, discloses rejected candidates, keeps all raw model
-rows for honest comparison, and maps retained drafts to their original rows.
-All 70 related local checks pass with no skips, including the real worker /
-controller / Chromium replay of this new actual failure. This replay is not a
-fresh model inference or full production acceptance. Deploy status is recorded
-in the latest worklog. No more raw-output diagnostics are needed from the user
-for this case.
+- AI row isolation keeps source-grounded candidates and excludes fabricated
+  candidates with visible reasons, preserving raw model rows and provenance.
+  Actual user salary-failure output now passes the real worker/controller/
+  Chromium recorded-output replay, as does the breakfast/lunch case. It is not
+  fresh model inference. On v171, the user's real breakfast/lunch final drafts
+  already passed while raw model labels failed; the salary extra row exposed
+  the defect repaired in v172. New salary-device inference remains pending.
+- Public fraud shortcut and dismissible all-page reminders, government CSV
+  fetching with honest freshness/errors, three referenced education summaries
+  for explicit local-model coaching, current-session preserving logout, and
+  six-language 24-hour button/fallback verification-email presentation are live.
+- Actual government sync is **not verified**: management/deployment requests
+  work, but Render logs API returns a Cloudflare HTML attention page (403),
+  and public web inspection cannot open the deployed page/feed API. Controlled
+  source parsing, cache and failure tests passed; these are not provider proof.
+- No new real verification email was sent in this stage. Full production
+  registration/mail-link/photos/mobile/eight-feature interactions, and current
+  production PostgreSQL private backup plus isolated restore remain pending.
+  The three verified private historical/QA backups remain separate evidence.
+- Original failed environment retained; changes committed and pushed in stages.
+
+Public no-write AI test: `/ai-test.html?v=173`. Public fraud page: `/#/fraud`.
+Reload first so an old tab does not keep the previous logout implementation.
+Reference-site research is documented in `LLM-REFERENCE-REVIEW.md`; historical
+public code does not establish that external site's current model or state.
+See `FREE-LLM.md` and `WORKLOG-20261021.md` for details.
+
+## Existing acceptance and backup handoff
 
 The user saved and published the updated environment policy on 2026-10-19.
-The latest observed runtime revision is 840 (2026-10-21) and still lacks the
+The latest observed runtime revision is 910 (2026-10-21) and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
