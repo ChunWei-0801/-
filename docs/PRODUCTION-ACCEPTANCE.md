@@ -1,11 +1,17 @@
 # Production acceptance handoff
 
-The deployed application source is `394b33e3108ed1c0c1946a7918d09fa1b4a6f748` at
+The deployed application source is `81abbe15a50f6d60fc5550acf581b45d18396467` at
 `https://fambudget-recovery-20261017.onrender.com` (Render reports live on
-2026-10-21 07:39:42 Asia/Taipei). Resource version 170 fixes locale startup and
-adds fixed validation diagnostics; it does not change model acceptance rules.
-The public trial is `/ai-test.html?v=170`, and the authenticated trial is
-`/#/ai`; see `FREE-LLM.md` and `WORKLOG-20261021.md`.
+2026-10-21 19:15:20 Asia/Taipei; deployment `dep-dbc9sp3bc2fs73bp4ia0`).
+Resource version 171 retains grounded drafts when optional model fields are
+unsupported and adds explicitly disclosed source-rule assistance. The public
+trial is `/ai-test.html?v=171`; the authenticated trial is `/#/ai`. See
+`FREE-LLM.md` and `WORKLOG-20261021.md`. All 22 changed remote blobs were verified;
+GitHub checks and real Chromium browser job both passed in run 39590123146.
+The actual failed output now passes an integrated recorded-output replay:
+two expenses (65/120), food categories, empty fabricated merchant, one attempt.
+Original model predictions remain available; model-only vs assisted comparisons
+are separate. This is not fresh model inference or a device acceptance pass.
 Deployment status does not establish full production acceptance. The original
 acceptance checks and all eight lifestyle features' online interactions remain
 pending. These two tools cover the original account/mail/photo/mobile acceptance
@@ -17,13 +23,13 @@ correctly, left breakfast uncategorized, classified lunch as income/salary, and
 invented a lunch merchant. `MERCHANT_QUOTE_NOT_FOUND` on row 1 rejected the
 entire draft after two attempts / 61,190 ms. This supersedes the previous
 pending-raw-output notes; no more diagnostics are needed from the user for this
-case. The current repair must retain useful grounded fields, expose source-rule
-adjustments separately, and preserve pure-model vs assisted evaluation evidence.
+case. The deployed repair retains useful grounded fields, exposes source-rule
+adjustments separately, and preserves pure-model vs assisted evaluation evidence.
 A fixture replay proves this known failure is handled; it does not measure new
 Qwen inference quality or complete production acceptance.
 
 The user saved and published the updated environment policy on 2026-10-19.
-The current task's observed runtime revision is 752 and still lacks the
+The latest observed runtime revision is 840 (2026-10-21) and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
