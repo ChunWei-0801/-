@@ -27,6 +27,7 @@ from app.toolkit.body_limit import APIBodyLimit
 
 from app import routers
 from app.toolkit import db
+from app.services.public_resources import start_warmup as warm_public_resources
 
 app = FastAPI(
     title="家庭記帳與財務控管系統 API",
@@ -101,6 +102,10 @@ async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
 # ---------------------------------------------------------------------------
 for module in routers.ALL:
     app.include_router(module.router, prefix="/api")
+
+# Only public government data is warmed, in a bounded daemon thread. Readiness
+# and account/database initialization never wait for an external information feed.
+app.router.add_event_handler("startup", warm_public_resources)
 
 
 @app.get("/healthz", tags=["系統"])

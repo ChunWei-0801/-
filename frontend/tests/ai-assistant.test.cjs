@@ -225,6 +225,15 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.equal(filtered.orig.by,'hybrid','candidate filtering is not reported as an untouched model run');
     await page.evaluate(()=>{__fixture.partial=false;});
 
+    await page.evaluate(()=>{
+      window.__bookCalls=0;window.SafetyCenter={financialContext:async()=>{__bookCalls++;return {items:[{id:'finance:test-book',title:'Sourced book fixture',text:'Keep a buffer for uncertainty.',sourceLink:'https://www.harriman-house.com/psychologyofmoney'}]};},mountFinancialReferences:async(root)=>{const a=document.createElement('a');a.textContent='VISIBLE BOOK SOURCE FIXTURE';a.href='https://www.harriman-house.com/psychologyofmoney';root.append(a);}};
+    });
+    await page.locator('[data-ai-mode="coach"]').click();await page.locator('textarea').fill('How can I build saving habits?');
+    await page.locator('[data-ai-action="run"]').click();await page.waitForFunction(()=>__fixture.lastContext&&__fixture.lastContext.knowledge&&__fixture.lastContext.knowledge.items[0].id==='finance:test-book');
+    assert.equal(await page.evaluate(()=>__bookCalls),1,'only explicit coaching retrieves public source principles');
+    assert.equal(await page.evaluate(()=>__fixture.lastContext.current.income),'10000.00','book RAG retains exact authorized ledger facts');
+    assert.match(await page.locator('.ait-facts').textContent(),/VISIBLE BOOK SOURCE FIXTURE/,'cited book source is visible beside ledger sources');
+
     await page.locator('[data-ai-mode="help"]').click();
     await page.locator('textarea').fill('PRIVATE QUESTION user@example.com — this must not be the search query');
     await page.locator('[data-ai-action="run"]').click();

@@ -24,7 +24,7 @@ function boot(http) {
 }
 let reqs = [];
 global.fetch = (url, opt) => {
-  reqs.push({ method: (opt && opt.method) || 'GET', url: url.replace('http://api.test', ''), body: opt && opt.body ? JSON.parse(opt.body) : undefined });
+  reqs.push({ method: (opt && opt.method) || 'GET', url: url.replace('http://api.test', ''), body: opt && opt.body ? JSON.parse(opt.body) : undefined, headers: opt && opt.headers || {}, credentials: opt && opt.credentials });
   return Promise.resolve({ ok: false, status: 501, json: () => Promise.resolve({ detail: 'x' }), text: () => Promise.resolve('{"detail":"x"}') });
 };
 global.window = {};
@@ -41,6 +41,11 @@ async function rec(name, ...args) {
   return r;
 }
 (async () => {
+  // Even with a saved session, public resources omit credentials and do not require mock login.
+  sessionStorage.setItem('fambudget.auth', JSON.stringify({accessToken:'fixture-private-access',refreshToken:'fixture-private-refresh'}));
+  await rec('fraudUpdates', {refresh:true});
+  await rec('financialReferences', {language:'ja'});
+  sessionStorage.removeItem('fambudget.auth');
   const dad = await rec('register', { name: '王大明', email: 'daming@wang.tw', password: 'daming-pass-1' });
   const verification = await rec('requestEmailVerification', 'daming@wang.tw');
   await rec('confirmEmailVerification', verification.demoVerificationUrl.split('/').pop());

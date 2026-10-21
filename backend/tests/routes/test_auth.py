@@ -185,14 +185,38 @@ def test_logout_撤銷這一台_重複登出也成功(api):
 @pytest.mark.route(*LOGOUT_ALL)
 def test_logout_all(api):
     me, other = user("d@x.tw", "爸爸"), user("o@x.tw", "別人")
-    session_for(me)
-    session_for(me)
+    here, current_refresh = session_for(me)
+    there, other_refresh = session_for(me)
     session_for(me, revoked_at=now())
     c, _ = session_for(other)
-    r = api.post("/api/auth/logout-all", headers=login(me))
-    assert r.status_code == 200 and r.json() == {"revoked": 2}
-    assert crud.count(UserSession, {"user_id": me.id, "revoked_at__isnull": True}) == 0
+    current_headers, other_headers = login_as(me, here), login_as(me, there)
+    original_hash = crud.get(UserSession, here.id).refresh_token_hash
+    original_expiry = crud.get(UserSession, here.id).expires_at
+    r = api.post("/api/auth/logout-all", headers=current_headers)
+    assert r.status_code == 200 and r.json() == {"revoked": 1}
+    assert crud.count(UserSession, {"user_id": me.id, "revoked_at__isnull": True}) == 1
+    assert crud.get(UserSession, here.id).revoked_at is None
+    assert crud.get(UserSession, here.id).refresh_token_hash == original_hash == tokens.fingerprint(current_refresh)
+    assert original_hash != current_refresh and crud.get(UserSession, here.id).expires_at == original_expiry
     assert crud.get(UserSession, c.id).revoked_at is None
+    assert api.get("/api/auth/me", headers=current_headers).status_code == 200
+    assert api.get("/api/auth/me", headers=other_headers).status_code == 401
+    assert api.post("/api/auth/refresh", json={"refreshToken": other_refresh}).status_code == 401
+    renewed = api.post("/api/auth/refresh", json={"refreshToken": current_refresh})
+    assert renewed.status_code == 200
+    assert tokens.read_access_token(renewed.json()["accessToken"])["sid"] == str(here.id)
+    assert api.post("/api/auth/logout-all", headers=current_headers).json() == {"revoked": 0}
+
+
+@pytest.mark.route(*LOGOUT_ALL)
+def test_logout_all_without_a_current_device_does_not_revoke_anything(api):
+    me, other = user("d@x.tw", "爸爸"), user("o@x.tw", "別人")
+    here, _ = session_for(me)
+    unrelated, _ = session_for(other)
+    assert api.post("/api/auth/logout-all", headers=login(me)).status_code == 401
+    assert api.post("/api/auth/logout-all", headers=login_as(me, unrelated)).status_code == 401
+    assert crud.get(UserSession, here.id).revoked_at is None
+    assert crud.get(UserSession, unrelated.id).revoked_at is None
 
 
 # ===========================================================================

@@ -39,7 +39,8 @@ LEGACY_MODULE_NAMES = {
     "app.routers.analytics.exchange", "app.routers.access.family",
     "app.routers.access.notifications",
 }
-PRODUCT_MODULE_NAMES = {"app.routers.memories", "app.routers.appearance", "app.routers.lifestyle", "app.routers.ai_local"}
+PUBLIC_PRODUCT_MODULE_NAMES = {"app.routers.resources"}
+PRODUCT_MODULE_NAMES = {"app.routers.memories", "app.routers.appearance", "app.routers.lifestyle", "app.routers.ai_local"} | PUBLIC_PRODUCT_MODULE_NAMES
 LEGACY_MODULES = [module for module in routers.ALL if module.__name__ in LEGACY_MODULE_NAMES]
 PRODUCT_MODULES = [module for module in routers.ALL if module.__name__ in PRODUCT_MODULE_NAMES]
 
@@ -70,7 +71,11 @@ def test_product_routes_document_access_and_expose_request_schemas(module, metho
     assert len(doc.splitlines()) >= 3, "產品 API 需說明權限、輸入或結果"
     operation = app.openapi()["paths"]["/api" + route.path][method.lower()]
     assert operation["summary"] == route.summary and operation.get("description") == doc
-    assert operation.get("security"), "私人資料路由必須記錄登入要求"
+    if module.__name__ in PUBLIC_PRODUCT_MODULE_NAMES:
+        assert not operation.get("security"), "公開參考資料不讀取帳號或私人資料"
+        assert "公開" in doc
+    else:
+        assert operation.get("security"), "私人資料路由必須記錄登入要求"
     assert str(route.status_code or 200) in operation["responses"]
     for name in re.findall(r"{([^}]+)}", route.path):
         assert any(parameter["name"] == name and parameter["in"] == "path" and parameter["required"]

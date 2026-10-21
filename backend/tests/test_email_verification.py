@@ -3,6 +3,8 @@
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from html import escape
+from html.parser import HTMLParser
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("JWT_SECRET", "email-verification-tests-more-than-32-characters")
@@ -14,7 +16,8 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models import EmailVerification, User, UserSession
 from app.services import email_verification
-from app.toolkit import crud, db, mailer, tokens
+from app.services.mail_content import FALLBACK, VERIFICATION_HOURS, verification_message
+from app.toolkit import crud, db, mailer, password_reset, tokens
 from app.toolkit.config import Settings, settings
 
 REQUEST = "/api/auth/email-verification/request"
@@ -302,3 +305,67 @@ def test_real_delivery_uses_selected_language_and_single_use_link(email_api, mon
     token = text.split("/#/verify-email/", 1)[1].split()[0]
     assert email_api.post(CONFIRM, json={"token": token}).status_code == 200
     assert email_api.post(CONFIRM, json={"token": token}).status_code == 400
+
+
+@pytest.mark.parametrize("language,expiry", [
+    ("zh-TW", "24 小時"), ("zh-CN", "24 小时"), ("en", "24 hours"),
+    ("ja", "24時間"), ("ko", "24시간"), ("es", "24 horas"),
+])
+def test_verification_email_has_styled_button_visible_fallback_and_escaped_names(language, expiry):
+    class Links(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.anchors, self.visible = [], []
+        def handle_starttag(self, tag, attrs):
+            if tag == "a":
+                self.anchors.append(dict(attrs))
+        def handle_data(self, data):
+            self.visible.append(data)
+
+    name = '小明 <script>alert("x")</script> & "家人"'
+    link = "https://budget.example.com/#/verify-email/" + "a" * 43
+    _subject, text, markup = verification_message(name, link, language)
+    parsed = Links()
+    parsed.feed(markup)
+    assert [anchor["href"] for anchor in parsed.anchors] == [link, link]
+    assert "background:#176b5d" in parsed.anchors[0]["style"] and "padding:" in parsed.anchors[0]["style"]
+    assert link in parsed.visible and FALLBACK[language] in parsed.visible
+    assert name in text and escape(name) in markup and "<script>" not in markup
+    assert link in text and FALLBACK[language] in text and expiry in text and expiry in markup
+
+
+def test_verification_expiry_is_twenty_four_hours_and_password_reset_stays_thirty_minutes(email_api, monkeypatch):
+    register(email_api)
+    before = datetime.now(timezone.utc)
+    token = demo_token(email_api)
+    after = datetime.now(timezone.utc)
+    row = crud.get(EmailVerification, where={"token_hash": tokens.fingerprint(token)})
+    expiry = row.expires_at.replace(tzinfo=timezone.utc) if row.expires_at.tzinfo is None else row.expires_at
+    assert VERIFICATION_HOURS == 24 and email_verification.TOKEN_MINUTES == 1440
+    assert before + timedelta(hours=24) <= expiry <= after + timedelta(hours=24)
+    assert password_reset.TOKEN_MINUTES == 30
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            value = after + timedelta(hours=23)
+            return value.astimezone(tz) if tz else value.replace(tzinfo=None)
+
+    monkeypatch.setattr(password_reset, "datetime", Clock)
+    assert email_api.post(CONFIRM, json={"token": token}).status_code == 200
+    assert email_api.post(CONFIRM, json={"token": token}).status_code == 400
+
+
+def test_verification_link_older_than_twenty_four_hours_is_rejected(email_api, monkeypatch):
+    register(email_api)
+    token = demo_token(email_api)
+    future = datetime.now(timezone.utc) + timedelta(hours=25)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return future.astimezone(tz) if tz else future.replace(tzinfo=None)
+
+    monkeypatch.setattr(password_reset, "datetime", Clock)
+    assert email_api.post(CONFIRM, json={"token": token}).status_code == 400
+    assert crud.get(User, where={"email": "verify@example.com"}).email_verified_at is None

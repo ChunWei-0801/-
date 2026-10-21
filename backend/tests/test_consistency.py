@@ -1168,7 +1168,7 @@ def test_主頁不可以變成繞過登入的破口():
     opens = re.findall(r"'([^']+)'", mo.group(1))
     assert opens == ["login", "register", "forgot"],         "沒登入能看的頁被改了：%s" % opens
     anys = re.findall(r"'([^']+)'", re.search(r"var ANY = \[([^\]]*)\]", app).group(1))
-    assert anys == ["reset", "verify-email", "appearance", "tutorial"], "登入與否都能開的頁被改了：%s" % anys
+    assert anys == ["reset", "verify-email", "appearance", "tutorial", "fraud"], "登入與否都能開的頁被改了：%s" % anys
     verify = app[app.index("function vVerifyEmail("):app.index("function paintVerificationAvailability(")]
     for private in ("API.transactions", "API.summary", "API.members", "API.budgets"):
         assert private not in verify, "公開驗證頁不能讀取財務或家庭資料：" + private

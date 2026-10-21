@@ -1,5 +1,14 @@
 # Production acceptance handoff
 
+**Latest release preparation (v173):** the v172 row-isolation fix is live from
+`9b2987773f7d59f2e4bdcc905c63361b6b7fe995`. New public anti-fraud updates,
+dismissible cross-page reminders, referenced financial coaching, current-device
+preserving logout, and 24-hour verification-email presentation pass 916 backend
+and 72 related frontend checks (zero skips). v173 deployment and actual
+government-feed sync audit are pending. No new email was sent and no production
+database backup/restore was completed in this stage. Older entries below are
+historical; the final release record is in WORKLOG-20261021.md.
+
 The deployed application source is `81abbe15a50f6d60fc5550acf581b45d18396467` at
 `https://fambudget-recovery-20261017.onrender.com` (Render reports live on
 2026-10-21 19:15:20 Asia/Taipei; deployment `dep-dbc9sp3bc2fs73bp4ia0`).

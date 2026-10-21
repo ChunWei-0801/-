@@ -83,7 +83,7 @@
    DELETE /api/memories/wall-background
    GET    /api/memories/wall-background/image
 
-   數字（15 支）
+   數字（17 支）
    GET    /api/summary
    GET    /api/budgets
    PUT    /api/budgets
@@ -99,6 +99,8 @@
    POST   /api/exchange/convert
    GET    /api/ai-local/context
    GET    /api/ai-local/knowledge
+   GET    /api/resources/anti-fraud
+   GET    /api/resources/financial
 
    家庭（21 支）
    GET    /api/family
@@ -173,6 +175,25 @@
     return base.replace(/\/$/, '');
   })();
 
+  /* Fixed public resources never read credentials, retry authentication or send ledger data.
+     The localhost mock still fetches these real public resources; it does not invent news. */
+  function publicResource(path) {
+    var controller = global.AbortController ? new AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
+    return fetch((BASE || global.location.origin) + path, {
+      method: 'GET', headers: { Accept: 'application/json' },
+      credentials: 'omit', cache: 'no-store', signal: controller ? controller.signal : undefined
+    }).then(function (response) {
+      if (!response.ok) return fail(response, path);
+      return response.json();
+    }).finally(function () { if (timer) clearTimeout(timer); });
+  }
+  function fraudUpdates(options) {
+    return publicResource('/api/resources/anti-fraud' + (options && options.refresh === true ? '?refresh=true' : ''));
+  }
+  function financialReferences(options) {
+    return publicResource('/api/resources/financial' + qs({language:options && options.language || 'zh-TW'}));
+  }
   var MODE = BASE ? 'http' : 'mock';
   var LATENCY = 240;
   /* v2：拿掉假資料之後換新的鑰匙。舊的 v1 裡是示範帳號的資料（U1、U2…），
@@ -926,6 +947,8 @@
      mock 轉接器
      ============================================================ */
   var mock = {
+    fraudUpdates: function (options) { return fraudUpdates(options); },
+    financialReferences: function (options) { return financialReferences(options); },
 
     me: function () {
       var s = load();
@@ -1309,14 +1332,9 @@
       });
     },
 
-    /* 登出所有裝置（包含這一台）。真後端把這個人所有 sessions 設 revoked_at */
+    /* 登出其他裝置。mock 只有目前裝置，因此沒有其他工作階段可撤銷。 */
     logoutAll: function () {
-      var s = load();
-      return sleep(220).then(function () {
-        s.auth = { loggedIn: false };
-        save();
-        return { revoked: 1 };
-      });
+      return sleep(220).then(function () { return { revoked: 0 }; });
     },
 
     /* 理財習慣。⚠️ 它會被放進財務建議的 prompt，所以：
@@ -2827,7 +2845,7 @@
   /* 登入閘：mock 也跟真後端一樣，沒登入就 401。
      ⚠️ 沒有這一層的話，登出之後某個畫面還在打 API，mock 會拿著 me = null 往下跑，
      錯在「讀不到 null 的 name」這種看不出原因的地方。 */
-  var MOCK_PUBLIC = ['authState', 'renew', 'ttl', 'login', 'register', 'logout', 'requestPasswordReset', 'confirmPasswordReset', 'requestEmailVerification', 'confirmEmailVerification', 'reset'];
+  var MOCK_PUBLIC = ['fraudUpdates', 'financialReferences', 'authState', 'renew', 'ttl', 'login', 'register', 'logout', 'requestPasswordReset', 'confirmPasswordReset', 'requestEmailVerification', 'confirmEmailVerification', 'reset'];
   Object.keys(mock).forEach(function (name) {
     if (MOCK_PUBLIC.indexOf(name) >= 0) return;
     var fn = mock[name];
@@ -2976,6 +2994,8 @@
   }
 
   var http = {
+    fraudUpdates: function (options) { return fraudUpdates(options); },
+    financialReferences: function (options) { return financialReferences(options); },
     me:                function ()      { return req('/api/auth/me'); },
 
     /* ---- 認證 ---------------------------------------------------
@@ -3084,7 +3104,7 @@
     dissolveFamily:    function ()      { return req('/api/family', { method: 'DELETE' }); },
     sessions:          function ()      { return req('/api/auth/sessions'); },
     logoutAll:         function ()      {
-      return req('/api/auth/logout-all', { method: 'POST' }).then(function (d) { setTokens(null); return d; });
+      return req('/api/auth/logout-all', { method: 'POST' });
     },
     reset:             function ()      { return Promise.resolve({ reset: false, note: '真後端不提供重置' }); }
   };
@@ -3156,6 +3176,8 @@
     settleGroup:        ['POST /api/groups/{gid}/settle', '記帳'],
     setGroupNotify:     ['PATCH /api/groups/{gid}/notify', '記帳'],
 
+    fraudUpdates:       ['GET /api/resources/anti-fraud', '數字'],
+    financialReferences: ['GET /api/resources/financial', '數字'],
     aiLocalContext:     ['GET /api/ai-local/context', '數字'],
     aiLocalKnowledge:   ['GET /api/ai-local/knowledge', '數字'],
     summary:            ['GET /api/summary', '數字'],
@@ -3236,6 +3258,8 @@
   /* 畫面一定會讀的欄位。少了任何一個，畫面會在很後面的地方壞掉（讀不到 undefined 的 map），
      看不出是哪一支回錯——所以在這裡先檢查，直接指出是哪一支。 */
   var SHAPE = {
+    fraudUpdates: ['status', 'items', 'source', 'lastSyncedAt', 'lastAttemptAt', 'stale', 'officialLinks'],
+    financialReferences: ['items', 'mode', 'liveBookFeed', 'notice'],
     me: ['user'], login: ['user'], register: ['user'],
     financeProfile: ['finance', 'styles', 'goals', 'habits'],
     requestPasswordReset: ['ok', 'message'], sessions: ['sessions'],
@@ -3264,6 +3288,8 @@
      後面加 ? = 可以是 null（但那一欄一定要在）。
      只列**畫面真的會讀**的欄位；後端多回欄位不算錯。 */
   var ROWS = {
+    fraudUpdates: { items: { id: 's', title: 's', summary: 's', publishedAt: 's', url: 's' } },
+    financialReferences: { items: { id: 's', title: 's', author: 's', publisher: 's', url: 's', principle: 's', application: 's', contentLanguage: 's', sourceVerifiedOn: 'd' } },
     aiLocalKnowledge: { items: { id: 's', title: 's', text: 's', sourceLink: 's', score: 'n' } },
     transactions: { transactions: { id: 's', user: 's', date: 'd', amount: 'n', kind: 's', cat: 's', source: 's' } },
     deleteTransactions: { deleted: 's' },

@@ -215,7 +215,7 @@ PostgreSQL
 │   │   ├── <em>toolkit/</em>          <em>已經寫好的工具（見 03）</em>
 │   │   ├── <em>models/</em>           <em>30 張表，跟 data.js 的 schema 逐欄對齊</em>
 │   │   ├── <em>schemas/</em>          <em>請求主體，欄位名字跟前端送的一樣</em>
-│   │   ├── <s>routers/</s>          <s>106 支路由：一個領域一個資料夾，守衛、契約說明與實作分層</s>
+│   │   ├── <s>routers/</s>          <s>108 支路由：一個領域一個資料夾，守衛、契約說明與實作分層</s>
 │   │   │   ├── <s>auth/</s>         <s>認證</s>
 │   │   │   ├── <s>ledger/</s>       <s>記帳</s>
 │   │   │   ├── <s>analytics/</s>    <s>數字</s>
@@ -248,7 +248,7 @@ PostgreSQL
         <table>
           <thead><tr><th>路徑</th><th>放什麼</th><th>誰動它</th></tr></thead>
           <tbody>
-            <tr><td><span class="fname">frontend/index.html</span></td><td>整個系統的畫面骨架。新增二十五個畫面要在這裡加導覽項目</td><td class="tight">前端</td></tr>
+            <tr><td><span class="fname">frontend/index.html</span></td><td>整個系統的畫面骨架。新增二十六個畫面要在這裡加導覽項目</td><td class="tight">前端</td></tr>
             <tr><td><span class="fname">frontend/js/api.js</span></td><td>★ <b>唯一的資料入口</b>。mock 與 http 兩套實作簽名完全相同，切換只改 <code>&lt;meta name="api-base"&gt;</code>。
             名稱、結餘、比例前端補（<code>fillIn</code>）；出錯時講出是哪一支（<code>FN</code>：函式 → 路由 → 負責人）</td><td class="tight">前端</td></tr>
             <tr><td><span class="fname">frontend/js/app.js</span></td><td>每個畫面怎麼畫、怎麼互動。<b>不直接 fetch</b>，一律走 api.js</td><td class="tight">前端</td></tr>
@@ -261,7 +261,7 @@ PostgreSQL
             <tr><td><span class="fname">backend/app/cli.py</span></td><td>小工具指令：建 .env、檢查設定、建表放系統分類、設定平台管理員</td><td class="tight">已交付</td></tr>
             <tr><td><span class="fname">backend/app/models/</span></td><td>30 張表。<b>資料庫裡存什麼</b>。改欄位三處一起改：data.js → models → Alembic</td><td class="tight">各自</td></tr>
             <tr><td><span class="fname">backend/app/schemas/</span></td><td>請求主體的形狀。<b>API 收什麼</b>——回應用 <code>crud.to_dict</code>，密碼雜湊預設就不會送出去</td><td class="tight">各自</td></tr>
-            <tr><td><span class="fname">backend/app/routers/</span></td><td>106 支路由，<b>一個領域一個資料夾</b>（<code>auth/</code> 認證、<code>ledger/</code> 記帳、<code>analytics/</code> 數字、<code>access/</code> 家庭）。守衛、請求主體、說明與實作依契約運作。<b>不寫計算</b></td><td class="tight">各自</td></tr>
+            <tr><td><span class="fname">backend/app/routers/</span></td><td>108 支路由，<b>一個領域一個資料夾</b>（<code>auth/</code> 認證、<code>ledger/</code> 記帳、<code>analytics/</code> 數字、<code>access/</code> 家庭）。守衛、請求主體、說明與實作依契約運作。<b>不寫計算</b></td><td class="tight">各自</td></tr>
             <tr><td><span class="fname">backend/app/services/</span></td><td>加總、模型、<code>email_verification.py</code> 寄信驗證與 <code>exchange.py</code> 參考行情。路由組裝請求，服務實作核心規則與外部來源呼叫</td><td class="tight">各自</td></tr>
             <tr><td><span class="fname">backend/alembic/</span></td><td>資料庫結構的版本。部署時啟動前自動 <code>alembic upgrade head</code></td><td class="tight">共同</td></tr>
             <tr><td><span class="fname">backend/.env.example</span></td><td>設定範本，依「共用／認證～4」分段；<code>python -m app.cli init-env</code> 從它建出 .env</td><td class="tight">共同</td></tr>

@@ -248,6 +248,8 @@ MEMBERS: list[Member] = [
             ("POST", "/api/exchange/convert"),
             ("GET", "/api/ai-local/context"),
             ("GET", "/api/ai-local/knowledge"),
+            ("GET", "/api/resources/anti-fraud"),
+            ("GET", "/api/resources/financial"),
         ],
         files=[
             "app/routers/analytics/__init__.py",
@@ -261,6 +263,8 @@ MEMBERS: list[Member] = [
             "app/schemas/stats.py",
             "app/schemas/advice.py",
             "app/services/llm/advice.py",
+            "app/routers/resources.py",
+            "app/services/public_resources.py",
             "app/routers/analytics/exchange.py",
             "app/schemas/exchange.py",
             "app/services/exchange.py",

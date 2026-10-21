@@ -198,7 +198,7 @@ def dissolve_family(me: User, db: Session = Depends(get_db)):
 |---|---|---|
 | 認證 | `app/routers/auth/` | 39 支 |
 | 記帳 | `app/routers/ledger/` | 31 支 |
-| 數字 | `app/routers/analytics/`、`app/routers/ai_local.py` | 15 支 |
+| 數字 | `app/routers/analytics/`、`app/routers/ai_local.py`、`app/routers/resources.py` | 17 支 |
 | 家庭 | `app/routers/access/` | 21 支 |
 
 路由屬於哪個領域寫在 `app/ownership.py`，`python -m app.ownership` 會印出各領域的完成度、檢查有沒有路由沒歸屬。

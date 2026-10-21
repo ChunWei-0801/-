@@ -12,12 +12,12 @@ from fastapi import HTTPException
 
 from app.toolkit import crud, errors, mailer, password_reset, tokens
 from app.toolkit.config import settings
-from app.services.mail_content import verification_message
+from app.services.mail_content import VERIFICATION_HOURS, verification_message
 
 GENERIC_MESSAGE = "若此信箱已註冊且尚未驗證，驗證信將送至此信箱。請查看收件匣與垃圾信件匣。"
 DEMO_MESSAGE = "目前為開發展示模式，沒有寄出郵件。請使用下方展示連結完成信箱驗證。"
 INVALID_MESSAGE = "這個信箱驗證連結已失效，請重新申請"
-TOKEN_MINUTES = 30
+TOKEN_MINUTES = VERIFICATION_HOURS * 60
 COOLDOWN_SECONDS = 60
 DAILY_SEND_LIMIT = 5
 _rate_lock = Lock()

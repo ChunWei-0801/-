@@ -17,7 +17,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_valida
 ShortcutId = Literal[
     "quick-entry", "entry", "manual-entry", "exchange", "groups", "stats", "advice",
     "members", "profile", "memories", "settings", "appearance", "logout",
-    "savings-game", "health", "smoking", "calculator", "ai",
+    "savings-game", "health", "smoking", "calculator", "ai", "fraud",
 ]
 JarShape = Literal["pig", "dinosaur", "heart", "photo"]
 HabitId = Annotated[str, Field(min_length=1, max_length=80, pattern=r"^[a-z][a-z0-9-]*$")]
@@ -66,7 +66,7 @@ class PreferencesPatch(LifestyleSchema):
     timezone: str | None = Field(None, min_length=1, max_length=80)
     smokingEnabled: bool | None = Field(None, strict=True)
     calculatorEnabled: bool | None = Field(None, strict=True)
-    shortcuts: list[ShortcutPreference] | None = Field(None, max_length=18)
+    shortcuts: list[ShortcutPreference] | None = Field(None, max_length=19)
     customHabits: list[CustomHabit] | None = Field(None, max_length=100)
     hiddenHabitIds: list[HabitId] | None = Field(None, max_length=200)
 

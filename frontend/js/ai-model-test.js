@@ -1,6 +1,7 @@
 /* Public, synthetic-only local-model acceptance page. No account or ledger API. */
 (function () {
   'use strict';
+  if(window.SafetyCenter)window.SafetyCenter.init();
   var api=window.LocalAI,controller=null,generation=0,running=false,failureDetails=null,statusValue=null,view=null,languageReady=false;
   var ids=['modelLoad','modelCancel','modelUnload','modelCache','modelStatus','modelProgress','modelInput','modelRun','modelBenchmark','modelOutput','modelMetrics','modelMetricsSummary','modelTechnical','modelLanguage'];
   var ui={};ids.forEach(function(id){ui[id]=document.getElementById(id);});

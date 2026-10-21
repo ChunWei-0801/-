@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 106 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 108 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>106 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>108 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">106 ROUTES · 4 MODULES</div>
+    <div class="mono">108 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -493,6 +493,14 @@
       q: ['q（1–500字，必填）', 'language=zh-TW|en', 'limit=1..8（預設4）'],
       note: '檢索固定、經檢查的本機雙語教學與規則片段，回傳分數與文件來源。這是檢索工具，不是模型推論；查無相關內容就回空清單。不接受任意網址、SQL或使用者ID。',
       res: '{"query":"budget","language":"en","method":"bm25","items":[{"id":"rules:budget","title":"Monthly category budgets and overspending","text":"A category budget is a spending limit.","sourceLink":"/docs/tutorial.html#summary","score":1.2}],"totalMatches":1,"truncated":false}' },
+    { n: 113, o: 'm3', m: 'GET', p: '/api/resources/anti-fraud', a: '公開',
+      d: '政府公開防詐消息與同步狀態', q: ['refresh=true（手動更新；最短間隔60秒）'],
+      note: '來源固定為警政署政府開放資料，快取一小時。回傳消息發布時間、官方查證連結、lastSyncedAt／lastAttemptAt及ready／stale／unavailable。公開請求不帶權杖或cookie；提醒橫幅本身不會發出請求。',
+      res: '完整結構以同站 /api/resources/anti-fraud 與 /docs 為準；來源不可用時保留標示過期的最後成功資料，或明示無資料。' },
+    { n: 114, o: 'm3', m: 'GET', p: '/api/resources/financial', a: '公開',
+      d: '附書目與官方來源的理財教育參考', q: ['language=zh-TW|zh-CN|en|ja|ko|es（預設zh-TW）'],
+      note: '本站改寫的教育原則與日常應用，附書名、作者、出版資訊、來源網址與查核日期。mode=curated-referenced-education、liveBookFeed=false；不提供完整書籍、個人投資推薦或報酬保證。不讀任何帳務。',
+      res: '回傳items、mode、liveBookFeed與notice。每筆含id、title、author、publisher、year、isbn、type、url、topics、principle、application、contentLanguage、sourceVerifiedOn。' },
     { n: 66, o: 'sys', m: 'GET', p: '/healthz', a: '公開',
       d: '健康檢查（Render 用）' },
     { n: 67, o: 'sys', m: 'GET', p: '/docs', a: '公開',

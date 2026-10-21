@@ -328,6 +328,26 @@ def test_ai_grounding_mock_reports_unavailable_without_fabricated_data(sent):
         assert rows[0]["request"]["url"].startswith(path + "?")
 
 
+def test_public_resource_adapters_omit_authentication_and_report_real_unavailability(sent):
+    from urllib.parse import parse_qs, urlsplit
+
+    expected={
+        '/api/resources/anti-fraud':('fraudUpdates',{'refresh':['true']}),
+        '/api/resources/financial':('financialReferences',{'language':['ja']}),
+    }
+    for path,(name,query) in expected.items():
+        rows=sent['GET '+path]
+        assert len(rows)==1 and rows[0]['fn']==name
+        request=rows[0]['request']
+        assert request['method']=='GET' and request['credentials']=='omit'
+        assert not any(key.lower()=='authorization' for key in request['headers'])
+        assert request.get('body') is None
+        assert parse_qs(urlsplit(request['url']).query)==query
+        # Both adapters reached the unavailable fixture provider. Neither fabricates news or books.
+        assert rows[0]['response']['status']==501
+        assert 'ERROR' in rows[0]['response'] and 'fallback' not in rows[0]['response']
+
+
 def test_每一支的路徑參數都有宣告_文件頁試打得了():
     """路徑寫了 {aid}，函式或守衛卻沒宣告的話，/docs 上不會出現那一格，試打時填不了。"""
     import re

@@ -61,14 +61,19 @@ def test_logout_revokes_the_access_token_but_keeps_other_device(release_api):
     assert release_api.get("/api/auth/me", headers=headers(second)).status_code == 200
 
 
-def test_logout_all_revokes_access_tokens_on_every_device(release_api):
+def test_logout_all_preserves_current_device_and_revokes_other_access_and_refresh(release_api):
     first = account(release_api)
     second = release_api.post("/api/auth/login", json={
         "email": "release@example.com", "password": "demo1234",
     }).json()
-    assert release_api.post("/api/auth/logout-all", headers=headers(first)).status_code == 200
-    for login in (first, second):
-        assert release_api.get("/api/auth/me", headers=headers(login)).status_code == 401
+    response = release_api.post("/api/auth/logout-all", headers=headers(first))
+    assert response.status_code == 200 and response.json() == {"revoked": 1}
+    assert release_api.get("/api/auth/me", headers=headers(first)).status_code == 200
+    assert release_api.get("/api/auth/me", headers=headers(second)).status_code == 401
+    assert release_api.post("/api/auth/refresh", json={"refreshToken": second["refreshToken"]}).status_code == 401
+    renewed = release_api.post("/api/auth/refresh", json={"refreshToken": first["refreshToken"]})
+    assert renewed.status_code == 200
+    assert release_api.get("/api/auth/me", headers=headers(renewed.json())).status_code == 200
 
 
 def test_changing_password_revokes_other_device_access(release_api):

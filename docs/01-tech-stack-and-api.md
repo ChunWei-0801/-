@@ -37,13 +37,13 @@
 
 | 用 React 的好處 | 對本專案的實際影響 |
 |---|---|
-| 元件化、狀態管理 | 目前二十五個畫面已經寫完，重寫是純成本 |
+| 元件化、狀態管理 | 目前二十六個畫面已經寫完，重寫是純成本 |
 | 生態系豐富 | 我們沒有要用第三方 UI 套件 |
 | 履歷加分 | 冠文已有 React 經驗，其他三人沒有 |
 
 | 用原生的代價 | 實際狀況 |
 |---|---|
-| 沒有元件複用 | 二十五個畫面規模還撐得住，函式化就夠 |
+| 沒有元件複用 | 二十六個畫面規模還撐得住，函式化就夠 |
 | 手寫 DOM 操作 | 已經封裝在 `app.js` 的 render 函式裡 |
 | 沒有型別檢查 | 用 `js/api.js` 這一層集中管住資料形狀 |
 
@@ -153,7 +153,7 @@ final_project/
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
 │   │   ├── models/              30 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             106 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             108 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **106 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **108 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -200,12 +200,12 @@ final_project/
 | 2 | POST | `/api/auth/login` | 認證 | 公開 | 登入。正式環境先確認信箱已驗證，再回傳 access + refresh token |
 | 3 | POST | `/api/auth/refresh` | 認證 | 公開 | 用 refresh token 換新的 access token |
 | 4 | POST | `/api/auth/logout` | 認證 | 登入 | 撤銷目前的 refresh token |
-| 5 | POST | `/api/auth/logout-all` | 認證 | 登入 | 撤銷所有裝置的 token |
+| 5 | POST | `/api/auth/logout-all` | 認證 | 登入 | 撤銷其他裝置的 session；保留目前這台的 access／refresh token |
 | 6 | GET | `/api/auth/me` | 認證 | 登入 | 目前使用者、家庭角色、看得到誰、被誰監管 |
 | 7 | PATCH | `/api/auth/password` | 認證 | 登入 | 修改密碼，同時讓其他 session 失效。舊密碼不對回 400 |
 | 74 | POST | `/api/auth/password-reset` | 認證 | 公開 | 忘記密碼：寄一次性的重設連結（Brevo）。**有沒有這個帳號都回同一句話** |
 | 75 | POST | `/api/auth/password-reset/confirm` | 認證 | 公開 | 用信裡的 token 設新密碼。30 分鐘失效、只能用一次，成功後撤銷所有 sessions |
-| 77 | POST | `/api/auth/email-verification/request` | 認證 | 公開 | 申請信箱驗證信。正式環境寄信；開發示範連結明示未寄信，30 分鐘有效 |
+| 77 | POST | `/api/auth/email-verification/request` | 認證 | 公開 | 申請信箱驗證信。正式環境寄信；開發示範連結明示未寄信，24 小時有效 |
 | 78 | POST | `/api/auth/email-verification/confirm` | 認證 | 公開 | 驗證一次性 token，標記信箱已驗證；重寄後舊連結失效 |
 | 8 | GET | `/api/auth/me/finance` | 認證 | 本人 | 我的理財習慣（財務建議的背景） |
 | 9 | PUT | `/api/auth/me/finance` | 認證 | 本人 | 改理財習慣。body: { style, goals[], habits[], note } |
@@ -455,7 +455,7 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 |---|---|---|
 | **認證** | `backend/app/routers/auth/` | 39 支 |
 | **記帳** | `backend/app/routers/ledger/` | 31 支 |
-| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py` | 15 支 |
+| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 17 支 |
 | **家庭** | `backend/app/routers/access/` | 21 支 |
 
 路由屬於哪個領域，寫在 `backend/app/ownership.py`（`python -m app.ownership` 會印出各領域的完成度）。
@@ -532,3 +532,13 @@ python -m http.server 5174 --directory frontend
 | 112 | GET | `/api/ai-local/knowledge` | 數字 | 登入 | `q` 1..500字、`language=zh-TW\|en`、`limit=1..8`。本機雙語教學／規則的 BM25 檢索，附分數和來源；查無結果回空清單。 |
 
 兩支工具皆沿用登入、停權與平台管理員守衛，只讀資料，不執行模型、不呼叫外部服務、不寫入模型產生的交易。詳細欄位與權限見 `docs/02-前後端串接契約.md` 和執行中服務的 `/openapi.json`。
+
+
+## 4-11　公開防詐消息與理財參考 `/api/resources`
+
+| # | 方法 | 路徑 | 領域 | 權限 | 用途 |
+|---|---|---|---|---|---|
+| 113 | GET | `/api/resources/anti-fraud` | 數字 | 公開 | 固定警政署開放資料的防詐消息；`refresh=true` 可手動要求更新，最短間隔 60 秒、一般快取一小時。回傳發布日期、來源、最近成功／嘗試同步時間及 ready／stale／unavailable 狀態。 |
+| 114 | GET | `/api/resources/financial` | 數字 | 公開 | `language=zh-TW`（另支援 zh-CN、en、ja、ko、es）取得本站改寫的理財教育原則與書名、作者、出版資訊、書目／官方教材來源；非即時書籍全文或投資報酬預測。 |
+
+這兩支只讀公開資料，不接受帳號、交易、自由查詢或任意來源網址。前端以 `credentials: omit` 呼叫且不附登入權杖；跨頁防詐提醒本身不發出資料請求。政府來源失敗時明示舊快取或無資料，不製造新消息。

@@ -760,7 +760,7 @@ def logout(
         登出這一台：把這一台的 sessions 設 revoked_at（不刪列），之後那張 refresh token 就換不到新的了。
         ⚠️ 要做成冪等：重複登出、token 已經失效都回成功——前端不管成不成功都會清掉本機的 token，
            使用者按了登出就一定要登出。
-        access token 撤不掉，它會在 30 分鐘內自己過期；要立刻全部失效用 /api/auth/logout-all。
+        登出後這台的 access token 也會立即失效；要保留這台並撤銷其他裝置，用 /api/auth/logout-all。
 
     【前端怎麼打】
         frontend/js/api.js 的 API.logout()，主體帶著本機的 refreshToken
@@ -871,20 +871,20 @@ def logout(
     return {"ok": True}
 
 
-@router.post("/auth/logout-all", summary="登出所有裝置")
+@router.post("/auth/logout-all", summary="登出其他裝置")
 @login_required
-def logout_all(me: User, db: Session = Depends(get_db)):
-    r"""登出所有裝置
+def logout_all(me: User, payload: dict = Depends(current_token_payload), db: Session = Depends(get_db)):
+    r"""登出其他裝置
 
     POST /api/auth/logout-all
 
     【這支做什麼】
-        登出所有裝置（包含這一台）：這個人所有還沒撤銷的 sessions 都設 revoked_at。
-        帳號可能被盜時用。access token 撤不掉，最多再撐 30 分鐘。
+        保留目前有效工作階段，只將自己的其他 sessions 設 revoked_at。
+        其他裝置的 access 與 refresh token 立即失效；目前裝置的權杖與記住登入狀態持續有效。
 
     【前端怎麼打】
         frontend/js/api.js 的 API.logoutAll()
-        個人資料頁「登入中的裝置」→「登出所有裝置」。前端收到就清掉本機 token、回登入頁。
+        個人資料頁「登入中的裝置」→「登出其他裝置」。前端保留本機 token 與目前畫面。
 
     【誰能打】
         登入、沒被停權就能打（平台管理員也可以）。上面的 @login_required 已經擋好了：
@@ -897,23 +897,24 @@ def logout_all(me: User, db: Session = Depends(get_db)):
     【請求主體】沒有
 
     【成功回應】狀態碼 200
-        {"revoked": 3}（撤銷了幾台，包含這一台）
+        {"revoked": 3}（只計算撤銷的其他裝置，不包含目前這台）
 
     【錯誤回應】
-        只有守衛的 401／403，這支本身不會出錯。
+        401：沒有可識別且有效的目前工作階段；403：帳號被停權。
 
     【會用到的資料表】
         表        讀／寫  用來做什麼
-        sessions  寫      這個人所有還沒撤銷的，設 revoked_at
+        sessions  讀＋寫  驗證目前裝置，只撤銷同帳號其他工作階段
 
     【每一步用的工具與資料庫方法】
         步驟    呼叫         做什麼
-        1 撤銷  crud.save(UserSession, {"revoked_at": now}, where={"user_id": me.id, "revoked_at__isnull": True}, db=db)  回傳改了幾列
+        1 撤銷  crud.save(UserSession, {"revoked_at": now}, where={"user_id": me.id, "id__ne": current.id, "revoked_at__isnull": True}, db=db)  排除目前裝置，回傳改了幾列
                 db.commit()  寫進去
 
     【寫法步驟】
-        1. 我所有還沒撤銷的 sessions 設 revoked_at，記下改了幾列
-        2. db.commit()，回 {"revoked": 幾列}
+        1. 以簽章 access token 的 sid 驗證目前裝置屬於本人且仍有效；缺少或失效回 401，不撤銷任何裝置
+        2. 鎖定使用者及目前工作階段，只撤銷本人其他尚未撤銷的 sessions
+        3. db.commit()，回 {"revoked": 幾列}，保留目前 refresh token 的雜湊與到期時間
 
     【完整寫法】以下程式已實作，可對照步驟閱讀與應用
         第一步：以下為這個檔案共用的 import。
@@ -943,9 +944,24 @@ def logout_all(me: User, db: Session = Depends(get_db)):
 
         第二步：以下為已完成的函式內容；裝飾器、參數與說明字串保持原樣。
 
-            # 這個人所有還沒撤銷的 sessions 一起撤銷（包含這一台）
-            revoked = crud.save(UserSession, {"revoked_at": datetime.now(timezone.utc)},
-                                where={"user_id": me.id, "revoked_at__isnull": True}, db=db)
+            # sid 只信任已驗證的 access token，不接受由主體指定要保留的裝置。
+            try:
+                current_id = uuid.UUID(str(payload["sid"]))
+            except (KeyError, TypeError, ValueError, AttributeError):
+                raise errors.unauthorized("無法辨識目前裝置，請重新登入") from None
+
+            # 同帳號的撤銷操作先鎖使用者，再鎖目前工作階段，避免裝置互相撤銷的鎖順序交錯。
+            crud.get(User, me.id, for_update=True, db=db)
+            now = datetime.now(timezone.utc)
+            current = crud.get(UserSession, where={
+                "id": current_id, "user_id": me.id, "revoked_at__isnull": True, "expires_at__gt": now,
+            }, for_update=True, db=db)
+            if current is None:
+                raise errors.unauthorized("這次登入已失效，請重新登入")
+
+            revoked = crud.save(UserSession, {"revoked_at": now}, where={
+                "user_id": me.id, "id__ne": current.id, "revoked_at__isnull": True,
+            }, db=db)
             db.commit()
             return {"revoked": revoked}
 
@@ -954,14 +970,29 @@ def logout_all(me: User, db: Session = Depends(get_db)):
         2. 瀏覽器打開 http://localhost:8000/docs，找到 POST /api/auth/logout-all
         3. 按右上角 Authorize，貼上登入拿到的 accessToken（先打 POST /api/auth/login）
         4. 按 Try it out，至少試這幾種，結果要跟右邊一樣：
-               用兩個瀏覽器各登入一次，其中一台打  → 200，revoked 是 2
-        5. 兩台的 refreshToken 都換不到新的（POST /api/auth/refresh → 401）
-        6. 前端改成連你的後端（frontend/index.html 的 api-base），個人資料頁「登出所有裝置」，回到登入頁
+               用兩個瀏覽器各登入一次，其中一台打  → 200，revoked 是 1
+        5. 目前裝置仍可讀取資料及續期；另一台的 access 與 refresh token 都回 401
+        6. 個人資料頁按「登出其他裝置」，仍留在目前畫面且記住登入設定不變
         7. 自動檢查：在 backend/ 底下跑 pytest tests/routes -k "logout_all and 你的"，要全部通過
     """
-    # 這個人所有還沒撤銷的 sessions 一起撤銷（包含這一台）
-    revoked = crud.save(UserSession, {"revoked_at": datetime.now(timezone.utc)},
-                        where={"user_id": me.id, "revoked_at__isnull": True}, db=db)
+    # sid 只信任已驗證的 access token，不接受由主體指定要保留的裝置。
+    try:
+        current_id = uuid.UUID(str(payload["sid"]))
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise errors.unauthorized("無法辨識目前裝置，請重新登入") from None
+
+    # 同帳號的撤銷操作先鎖使用者，再鎖目前工作階段，避免裝置互相撤銷的鎖順序交錯。
+    crud.get(User, me.id, for_update=True, db=db)
+    now = datetime.now(timezone.utc)
+    current = crud.get(UserSession, where={
+        "id": current_id, "user_id": me.id, "revoked_at__isnull": True, "expires_at__gt": now,
+    }, for_update=True, db=db)
+    if current is None:
+        raise errors.unauthorized("這次登入已失效，請重新登入")
+
+    revoked = crud.save(UserSession, {"revoked_at": now}, where={
+        "user_id": me.id, "id__ne": current.id, "revoked_at__isnull": True,
+    }, db=db)
     db.commit()
     return {"revoked": revoked}
 
@@ -2764,7 +2795,7 @@ def confirm_email_verification(body: EmailVerificationConfirmIn, request: Reques
     【成功回應】狀態碼 200
         {"ok": true, "emailVerified": true, "email": "user@example.com"}
     【錯誤回應】
-        400：不存在、用過、被重新寄發撤銷或超過三十分鐘的連結；統一訊息。429：驗證嘗試太頻繁。
+        400：不存在、用過、被重新寄發撤銷或超過二十四小時的連結；統一訊息。429：驗證嘗試太頻繁。
     【會用到的資料表】
         users：email_verified_at；email_verifications：token_hash、expires_at、used_at；audit_logs：來源雜湊與次數。
     【每一步用的工具與資料庫方法】

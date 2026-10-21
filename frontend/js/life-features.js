@@ -1,8 +1,8 @@
 (function (global) {
   'use strict';
   var account = null, prefs = {}, prefsError = null, revision = 0, pending = null;
-  var defaultIds = ['quick-entry','entry','manual-entry','exchange','groups','stats','advice','ai','members','profile','savings-game','health','memories','smoking','calculator','settings','appearance','logout'];
-  var labels = ['記一筆','收支明細','手動記帳','國際匯率換算','帳本','統計','財務建議','免費 AI 試用','家庭成員','個人資料與目標','我的存錢筒','身體紀錄與 BMI','記帳小天地','抽菸紀錄','活動計算機','設定與使用教學','主題與背景','登出'];
+  var defaultIds = ['quick-entry','entry','manual-entry','exchange','groups','stats','advice','ai','fraud','members','profile','savings-game','health','memories','smoking','calculator','settings','appearance','logout'];
+  var labels = ['記一筆','收支明細','手動記帳','國際匯率換算','帳本','統計','財務建議','免費 AI 試用','防詐提醒','家庭成員','個人資料與目標','我的存錢筒','身體紀錄與 BMI','記帳小天地','抽菸紀錄','活動計算機','設定與使用教學','主題與背景','登出'];
   function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function message(e) { return e && e.message || '儲存失敗，請稍後重試。'; }
   function notify(s, bad) { if (global.FamBudgetUI) global.FamBudgetUI.toast(s, bad ? 'err' : 'ok'); }
@@ -34,6 +34,7 @@
     var byId={}; tiles.filter(Boolean).forEach(function(t){byId[tileId(t)]=t;});
     byId['savings-game']={nav:'savings-game',label:'我的存錢筒',icon:'goal'};
     byId.health={nav:'health',label:'身體紀錄與 BMI',icon:'profile'};
+    byId.fraud={nav:'fraud',label:global.SafetyCenter?global.SafetyCenter.label('title'):'防詐提醒',icon:'guide'};
     if (prefs.smokingEnabled) byId.smoking={nav:'smoking',label:'抽菸紀錄',icon:'lungs'};
     if (prefs.calculatorEnabled) byId.calculator={id:'lifeCalculatorOpen',label:'活動計算機',icon:'calculator'};
     var order=(prefs.shortcuts||[]).map(function(s){return s.id;});defaultIds.forEach(function(id){if(order.indexOf(id)<0)order.push(id);});
@@ -44,12 +45,13 @@
     d.innerHTML='<div class="life-dialog-head"><h2>'+esc(title)+'</h2><button type="button" class="btn btn--sm" data-life-close aria-label="關閉">✕</button></div>'+html;
     document.body.appendChild(d);d.querySelector('[data-life-close]').onclick=function(){d.close();};d.addEventListener('close',function(){d.remove();});d.showModal();return d;
   }
+  function shortcutLabel(id) { return id==='fraud' && global.SafetyCenter ? global.SafetyCenter.label('title') : labels[defaultIds.indexOf(id)] || id; }
   function openShortcuts() {
     if(prefsError){notify(message(prefsError),true);return;}
     var rows=(prefs.shortcuts||[]).map(function(s){return {id:s.id,visible:s.visible};});defaultIds.forEach(function(id){if(!rows.some(function(s){return s.id===id;}))rows.push({id:id,visible:true});});
     var d=dialog('調整常用功能','<p>勾選要顯示的功能，拖曳列或使用上下按鈕調整順序。設定與登出仍可從右上角設定開啟。</p><div data-life-list></div><p role="status" data-life-status></p><button class="btn btn--go" data-life-save>儲存排列</button>');
     var list=d.querySelector('[data-life-list]'),drag=-1;
-    function draw(){list.innerHTML=rows.map(function(s,i){var disabled=s.id==='smoking'&&!prefs.smokingEnabled||s.id==='calculator'&&!prefs.calculatorEnabled;return '<div class="life-shortcut-row" draggable="true" data-row="'+i+'"><label><input type="checkbox" data-visible="'+i+'" '+(s.visible?'checked':'')+'> '+esc(labels[defaultIds.indexOf(s.id)]||s.id)+(disabled?'（功能未開啟）':'')+'</label><div><button class="btn btn--sm" data-move="-1" data-i="'+i+'" '+(!i?'disabled':'')+' aria-label="'+esc(labels[defaultIds.indexOf(s.id)])+'上移">↑</button> <button class="btn btn--sm" data-move="1" data-i="'+i+'" '+(i===rows.length-1?'disabled':'')+' aria-label="'+esc(labels[defaultIds.indexOf(s.id)])+'下移">↓</button></div></div>';}).join('');}
+    function draw(){list.innerHTML=rows.map(function(s,i){var disabled=s.id==='smoking'&&!prefs.smokingEnabled||s.id==='calculator'&&!prefs.calculatorEnabled;return '<div class="life-shortcut-row" draggable="true" data-row="'+i+'"><label><input type="checkbox" data-visible="'+i+'" '+(s.visible?'checked':'')+'> '+esc(shortcutLabel(s.id))+(disabled?'（功能未開啟）':'')+'</label><div><button class="btn btn--sm" data-move="-1" data-i="'+i+'" '+(!i?'disabled':'')+' aria-label="'+esc(shortcutLabel(s.id))+'上移">↑</button> <button class="btn btn--sm" data-move="1" data-i="'+i+'" '+(i===rows.length-1?'disabled':'')+' aria-label="'+esc(shortcutLabel(s.id))+'下移">↓</button></div></div>';}).join('');}
     function move(a,b){if(b<0||b>=rows.length)return;rows.splice(b,0,rows.splice(a,1)[0]);draw();}
     list.onchange=function(e){if(e.target.dataset.visible!==undefined)rows[Number(e.target.dataset.visible)].visible=e.target.checked;};
     list.onclick=function(e){var b=e.target.closest('[data-move]');if(b)move(Number(b.dataset.i),Number(b.dataset.i)+Number(b.dataset.move));};

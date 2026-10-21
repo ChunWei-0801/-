@@ -7,6 +7,7 @@
   'use strict';
 
   var API = global.API;
+  if (global.SafetyCenter) global.SafetyCenter.init();
   var $view = document.getElementById('view');
   var DATA_CATS = {};   // 分類 id → 名稱，確認訊息要用
   var VERIFY_EMAIL = '';
@@ -478,6 +479,7 @@
       { nav: 'advice', label: '財務建議', icon: 'advice', tone: o.warn ? 'warn' : '',
         badge: o.warn ? o.warn + ' 則要注意' : '' },
       { nav: 'ai', label: '免費 AI 試用', icon: 'advice' },
+      { nav: 'fraud', label: global.SafetyCenter ? global.SafetyCenter.label('title') : '防詐提醒', icon: 'guide' },
       /* ⚠️ 家庭那一支問不到（famOff）時一律寫「家庭成員」：寫「加入家庭」
          等於斷定他沒有家庭，而我們根本沒問到。 */
       { nav: 'members', label: !o.famOff && o.fm && o.fm.family === null ? '加入家庭' : '家庭成員',
@@ -1602,6 +1604,7 @@
             '<div class="card card--flush adl" id="advList"></div>' +
           '</div>';
         paintAdvices();
+        if (global.SafetyCenter) global.SafetyCenter.mountFinancial($view);
         if (sc === 'family') return;
         /* 沒填理財習慣的話提一次——這是它真正派得上用場的地方 */
         return API.financeProfile().then(function (p) {
@@ -1615,7 +1618,8 @@
       if (routeAt !== location.hash) return;});
       });
     }).catch(function (e) {
-      if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
+      if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>';
+      if (global.SafetyCenter) global.SafetyCenter.mountFinancial($view); });
   }
 
   function advLevel(a) {
@@ -3407,7 +3411,7 @@
     });
   }
 
-  /* 登入中的裝置：GET /api/auth/sessions，「登出所有裝置」走 POST /api/auth/logout-all */
+  /* 登入中的裝置：POST /api/auth/logout-all 只登出其他裝置，保留目前登入。 */
   function paintSessions() {
     var box = document.getElementById('sessBox');
     if (!box) return;
@@ -3417,8 +3421,8 @@
           (x.current ? '<span class="pill pill--safe">這一台</span>' : '') +
           '<small>' + (x.lastActiveAt ? '最近活動 ' + esc(String(x.lastActiveAt).slice(0, 16).replace('T', ' ')) : '') + '</small></div>';
       }).join('') + '</div>' +
-      '<div class="sess__a"><small>手機掉了、借別人的電腦忘了登出，按這裡全部登出（包含這一台）。</small>' +
-        '<button class="btn btn--sm btn--danger" id="logoutAll">登出所有裝置</button></div>';
+      '<div class="sess__a"><small data-safety-session-description data-i18n-skip>' + esc(global.SafetyCenter ? global.SafetyCenter.label('sessionDescription') : '手機掉了、借別人的電腦忘了登出，可登出其他裝置；這一台會保持登入。') + '</small>' +
+        '<button class="btn btn--sm btn--danger" id="logoutAll" data-safety-session-label data-i18n-skip>' + esc(global.SafetyCenter ? global.SafetyCenter.label('logoutOthers') : '登出其他裝置') + '</button></div>';
     }).catch(function (e) { box.innerHTML = errState(e); });
   }
 
@@ -3640,7 +3644,11 @@
       API.updateProfile({ language: global.I18n.language() }).then(function () {
         try { localStorage.removeItem(LANGUAGE_PENDING); } catch (e) {}
       }).catch(function () { languageSyncUser = ''; });
-    } else if (user.language) global.I18n.setLanguage(user.language, { silent: true });
+    } else if (user.language) {
+      global.I18n.setLanguage(user.language, { silent: true }).then(function () {
+        if (global.SafetyCenter) global.SafetyCenter.refreshLanguage();
+      });
+    }
   }
   global.addEventListener('fambudget:languagechange', function (event) {
     try { localStorage.setItem(LANGUAGE_PENDING, 'true'); } catch (e) {}
@@ -3787,6 +3795,7 @@
       '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和帳本名稱會保留原文。</p>' + languageSelector() + '</section>' +
       '<section class="card"><h2>帳號安全</h2><p class="flow-help">可在個人資料檢查登入中的裝置，並登出其他裝置。</p><a class="btn" href="#/profile">管理登入裝置</a> <button class="btn btn--danger" id="logout">登出</button></section></div>';
     if (global.LifeFeatures) global.LifeFeatures.mountSettings($view);
+    if (global.SafetyCenter) global.SafetyCenter.mountSettings($view);
   }
   function vTutorial() {
     head('使用教學', '從第一筆記帳開始，慢慢建立自己的財務生活。');
@@ -3812,6 +3821,11 @@
     if (global.Memories && global.Memories.render) global.Memories.render($view);
     else $view.innerHTML = '<div class="page"><div class="card">暫時無法載入小天地，請重新整理後再試。</div></div>';
   }
+  function vFraud() {
+    head(global.SafetyCenter ? global.SafetyCenter.label('title') : '防詐提醒', '');
+    if (global.SafetyCenter) global.SafetyCenter.mountFraud($view);
+    else $view.innerHTML = '<div class="page"><a href="https://165.npa.gov.tw/" target="_blank" rel="noopener noreferrer">165 全民防騙網</a></div>';
+  }
   function vAI() {
     head('免費 AI 家庭助理', '模型在你的裝置執行，先核對再記帳。');
     if (global.AIAssistant) global.AIAssistant.render($view, { user: ME && ME.user });
@@ -3835,7 +3849,7 @@
 
   /* ---------- 路由 ---------- */
   var ROUTES = { '': vHome, entry: vEntry, stats: vStats,
-                 advice: vAdvice, ai: vAI, members: vMembers,
+                 advice: vAdvice, ai: vAI, fraud: vFraud, members: vMembers,
                  login: vLogin, register: vRegister, profile: vProfile,
                  member: vMember, groups: vGroups, admin: vAdmin,
                  setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange, appearance: vAppearance, settings: vSettings, tutorial: vTutorial, memories: vMemories,
@@ -3843,7 +3857,7 @@
 
   var OPEN = ['login', 'register', 'forgot'];      // 沒登入也能看的頁（登入了就送回總覽）
   /* 登入與否都能開：信裡的重設連結可能在「還登入著」的瀏覽器上點開，不能把人送走 */
-  var ANY = ['reset', 'verify-email', 'appearance', 'tutorial'];
+  var ANY = ['reset', 'verify-email', 'appearance', 'tutorial', 'fraud'];
 
   function paint() {
     var requestedHash = location.hash;
@@ -3904,7 +3918,7 @@
         if (appearanceOriginalTheme && page !== 'appearance') { applyTheme(appearanceOriginalTheme); appearanceOriginalTheme = null; }
         if (global.LoginBackground) { global.LoginBackground.unmount(); global.LoginBackground.sync(); global.LoginBackground.ready(); }
         document.body.classList.toggle('is-out', !a.loggedIn);
-        document.body.classList.toggle('public-settings', !a.loggedIn && (page === 'appearance' || page === 'tutorial'));
+        document.body.classList.toggle('public-settings', !a.loggedIn && (page === 'appearance' || page === 'tutorial' || page === 'fraud'));
         /* 勾選模式只屬於收支明細。離開就收掉，不然成員頁的明細也會長出勾選框 */
         if (page !== 'entry') { PICK.on = false; PICK.ids = []; }
         (ROUTES[page] || vHome)(parts[1], parts[2]);
@@ -4146,16 +4160,15 @@
     }
 
     if (t.closest('#logoutAll')) {
+      var sessionButton = t.closest('#logoutAll');
+      sessionButton.disabled = true;
       API.logoutAll().then(function () {
-        if (global.Notify) { global.Notify.stop(); global.Notify.reset(); }
-        ME = null; CATS = [];
-        appearanceSyncUser = ''; languageSyncUser = ''; gateStep = 'login';
-        document.body.classList.remove('is-admin', 'role-child');
-        document.body.classList.add('is-out');
-        location.hash = '#/login';
-        paint();
-        toast('所有裝置都登出了', 'ok');
-      }).catch(function (err) { toast(err.message || '沒有登出成功', 'err'); });
+        paintSessions();
+        toast(global.SafetyCenter ? global.SafetyCenter.label('sessionSuccess') : '已登出其他裝置，這台保持登入', 'ok');
+      }).catch(function (err) {
+        sessionButton.disabled = false;
+        toast(err.message || '沒有登出成功', 'err');
+      });
       return;
     }
 

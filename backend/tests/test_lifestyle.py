@@ -103,6 +103,22 @@ def test_preferences_merge_cross_session_and_validate_options(api):
         assert api.put('/api/lifestyle/preferences',headers=h,json=body).status_code==422
 
 
+def test_full_shortcut_arrangement_including_hidden_fraud_survives_login(api):
+    _,headers=account(api,'fraud-shortcuts')
+    # The customization dialog submits all available entries, including disabled tools.
+    ids=['fraud','quick-entry','entry','manual-entry','exchange','groups','stats','advice',
+         'ai','members','profile','savings-game','health','memories','smoking','calculator',
+         'settings','appearance','logout']
+    shortcuts=[{'id':key,'visible':key!='fraud'} for key in ids]
+    saved=api.put('/api/lifestyle/preferences',headers=headers,json={'shortcuts':shortcuts})
+    assert saved.status_code==200,saved.text
+    login=api.post('/api/auth/login',json={'email':'fraud-shortcuts@example.test','password':'test1234'})
+    fresh={'Authorization':'Bearer '+login.json()['accessToken']}
+    assert api.get('/api/lifestyle/preferences',headers=fresh).json()['shortcuts']==shortcuts
+    _,other=account(api,'other-shortcuts')
+    assert api.get('/api/lifestyle/preferences',headers=other).json()['shortcuts']==[]
+
+
 def test_health_upsert_bmi_month_year_and_owner_privacy(api):
     _,h=account(api,'health');_,other=account(api,'health-other')
     p='/api/lifestyle/health/2024-01-31'

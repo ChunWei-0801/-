@@ -216,6 +216,14 @@
       if (task === 'draft') { context={today:today(),timezone:(global.Intl || Intl).DateTimeFormat().resolvedOptions().timeZone,categories:s.categories.map(function(c) { return {id:String(c.id),name:scrub(c.name),kind:c.kind}; })}; }
       else if (task === 'help') { var knowledge=await fetchKnowledge(s,job); if (!active(s,job)) return; if (!(knowledge.items || []).length) throw new Error(t('noSources')); context={knowledge:{items:knowledge.items.map(function(k) { return {id:k.id,title:k.title,text:k.text}; })}}; }
       else { var data=await fetchContext(s,job,0); if (!active(s,job)) return; context=contextForModel(data); }
+      if(task==='coach' && global.SafetyCenter && global.SafetyCenter.financialContext){
+        var reading=el('section','ait-reference-sources');add(s.facts,reading);
+        try {
+          var references=await global.SafetyCenter.financialContext();if(!active(s,job))return;
+          context.knowledge={items:(references.items||[]).slice(0,3).map(function(item){return {id:String(item.id).slice(0,100),title:scrub(item.title).slice(0,70),text:scrub(item.text).slice(0,450)};})};
+        } catch (_) { if(!active(s,job))return;context.knowledge={items:[]}; }
+        if(global.SafetyCenter.mountFinancialReferences)await global.SafetyCenter.mountFinancialReferences(reading);
+      }
       if (!active(s,job)) return;
       var heading=el('h2','',t('interpretation')), answer=el('pre','ait-answer'); add(s.output,heading,el('p','ait-muted',t('unverified')),answer);
       result=await global.LocalAI.generate({task:task,input:scrub(input),context:context,language:lang(),signal:s.controller.signal,onToken:function(token) { if (active(s,job) && task !== 'draft') answer.textContent+=String(token); }});
@@ -236,7 +244,7 @@
         renderDrafts(s,modelDraft&&Array.isArray(modelDraft.warnings)?modelDraft.warnings.filter(function(value){return typeof value==='string';}).slice(0,10):draft.warnings);
       }
       else answer.textContent=s.modelOutput;
-      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),excludedCandidateCount:excludedCandidates(result.normalization).length,sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,rating:null});
+      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length + (context.knowledge && context.knowledge.items || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),excludedCandidateCount:excludedCandidates(result.normalization).length,sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,rating:null});
       renderMetrics(s); message(s,result.finishReason === 'length' ? t('resultTruncated') : t('finished'),result.finishReason === 'length');
     } catch (error) {
       if (active(s,job)) {
