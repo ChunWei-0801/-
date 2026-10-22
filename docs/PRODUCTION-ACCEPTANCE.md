@@ -1,17 +1,44 @@
 # Production acceptance handoff
 
-The current deployed source is `316f6d96c5296d54c4e2a672f3d52278359e6abe`,
-resource version **176**, at `https://fambudget-recovery-20261017.onrender.com`.
-Render `dep-dbd39g67bikc73adlmr0` reports live, finished
-2026-10-23 00:09:15 Asia/Taipei. The service remains free with auto-deploy off.
-GitHub run [39810873137](https://github.com/ChunWei-0801/-/actions/runs/39810873137)
-passed checks and real Chromium browser jobs for that exact source. Complete
-local backend: 1068 passed. Related frontend: 134 passed, zero skips; two
-additional actual-page note/camera checks and the standalone lifestyle browser
-also passed. All 69 changed remote blobs were verified; the complete source
-history bundle was saved and verified. Original failed environment retained.
+The current deployed source is `510784ac9e490c91b71c2ce9597e8d17f326e015`,
+resource version **177**, at `https://fambudget-recovery-20261017.onrender.com`.
+Render `dep-dbd3kknb9u1s73ddmpng` reports live, finished
+2026-10-23 00:33:10 Asia/Taipei. The existing service remains free with auto-deploy off.
+GitHub workflow [39814053933](https://github.com/ChunWei-0801/-/actions/runs/39814053933)
+reports completed/success for that exact source; the actual Chromium job log
+records 44 passed, zero failures/skips, followed by the standalone lifestyle
+browser pass and successful Complete job step. Local affected frontend: 36
+passed, zero skips. No backend or migration changed. All eight remote changed
+blobs and the complete source-history bundle were verified. The original failed
+environment and its data remain intact.
 
-## v176 accessibility, receipt entry and multiple savings jars
+## v177 user withdrew voice and speech
+
+The user opted out of voice input, reading aloud, voice/style selection and
+family recording. Both entry pages no longer load the voice CSS/JS. App init,
+route/account hooks and settings mounting are removed; public AI init is also
+removed. Existing IndexedDB recordings were not deleted or uploaded. Historical
+unloaded source and translations remain available for recovery. Do not instruct
+the user to clear site data. Photo OCR, notes, multiple independent jars,
+shortcut dragging, reports/downloads, coach/helper and route effects remain.
+
+Open `/?v=177#/` to test. The public no-write model page is
+`/ai-test.html?v=177`: load explicitly, then use the four-case quick check.
+Fresh Qwen model quality/speed and real production interactions remain pending
+user-device acceptance, separate from synthetic/recorded-output browser checks.
+
+Runtime 1008 still has no TCP database grants. Render service and environment
+API reads succeed (200), but database connection-info returns a Cloudflare
+403 HTML challenge. Required backup credentials were prepared privately from
+the authorized service environment; no values were printed or committed.
+The external database hostname is still unverified, and the user was asked
+for that hostname only, never a password/full URL. Once known, the supported
+environment configuration/review must allow that database TCP destination;
+HTTP website allowlisting alone does not open PostgreSQL. No database connection
+was attempted under the absent grant. Production full encrypted backup, private
+offsite storage and isolated restore remain incomplete. See WORKLOG-20261023.md.
+
+## v176 accessibility, receipt entry and multiple savings jars (historical)
 
 - Direct dashboard touch/mouse/keyboard shortcut arrangement persists only on
   explicit completion, with cancel/retry. Hidden shortcut settings remain.
@@ -139,7 +166,7 @@ See `FREE-LLM.md` and `WORKLOG-20261021.md` for details.
 ## Existing acceptance and backup handoff
 
 The user saved and published the updated environment policy on 2026-10-19.
-The latest observed runtime revision is 943 (2026-10-22) and still lacks the
+The latest observed runtime revision is 1008 (2026-10-23 Asia/Taipei) and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
