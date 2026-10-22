@@ -80,3 +80,6 @@
 worker計時含每輪處理、第一段模型輸出、串流輸出與最終resetChat清理；controller另記完整請求及自動載入。firstTokenMs可能來自之後被拒絕的一輪，decodeMs是首段輸出至串流結束而非純GPU時間。requestMs才是完整generate等待；實際模型下載與啟動另列，不捏造缺失時間、進度或預估。登入版非草稿串流以畫面更新批次呈現；草稿通過檢查才顯示，必要欄位標明待補，技術JSON收合，取消保留原輸入。
 
 本輪完整隔離後端1036項、相關前端106項（零跳過，含真正Chromium）通過。包含歷次使用者失敗原輸出的worker/controller/UI重播、錯誤修復、計時邊界、分母、防重複／取消、隱私匯出、六語言與手機版回歸。這些是程式／記錄重播檢查，並非新的Qwen品質或速度觀察。managed cloud仍沒有可用GPU或模型權重，不能在此測得提升百分比；部署狀態與使用者實機驗收以最新WORKLOG及PRODUCTION-ACCEPTANCE為準。
+
+
+版本175來源 `62c76d6e46916e827559e8c1a89adf0037b87b52` 已通過GitHub run [39763322169](https://github.com/ChunWei-0801/-/actions/runs/39763322169) 的checks及真正Chromium，Render於2026-10-22 18:31:24（臺灣時間）回報live。先測 `/ai-test.html?v=175`；測試頁可產生草稿、執行四例及八次流程比較，不寫入帳務。模型實際提升幅度仍待這台裝置觀察，不預填成功或速度百分比。

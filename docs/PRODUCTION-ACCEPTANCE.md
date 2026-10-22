@@ -1,13 +1,41 @@
 # Production acceptance handoff
 
-The current deployed source is `1ea4609a7174e847367fbe7c8b54d5bc3aabf792`,
-resource version **174**, at `https://fambudget-recovery-20261017.onrender.com`.
-Render `dep-dbcsjb4s728c738458b0` reports live, finished
-2026-10-22 16:32:37 Asia/Taipei. The service remains free with auto-deploy off.
-GitHub run [39747878274](https://github.com/ChunWei-0801/-/actions/runs/39747878274)
+The current deployed source is `62c76d6e46916e827559e8c1a89adf0037b87b52`,
+resource version **175**, at `https://fambudget-recovery-20261017.onrender.com`.
+Render `dep-dbcub7qvcj2c73ft9180` reports live, finished
+2026-10-22 18:31:24 Asia/Taipei. The service remains free with auto-deploy off.
+GitHub run [39763322169](https://github.com/ChunWei-0801/-/actions/runs/39763322169)
 passed checks and real Chromium browser jobs. Complete local backend: 1036
-passed. Related frontend: 87 passed, zero skips. All 49 stage-two remote blobs
-and eight stage-one blobs were verified. Original failed environment retained.
+passed. Related frontend: 106 passed, zero skips. All 23 changed remote blobs
+were verified. Original failed environment retained.
+
+## v175 local AI latency and accuracy work
+
+- Same pinned free Qwen 0.5B and schema/source/amount guards. Default compact-v1
+  shortens instructions, removes unrelated few-shot examples and unmentioned
+  calendar aliases; one bounded repair now cites safe, specific error metadata.
+  Valid empty extraction is not rerun, which saves a pass but can retain a false
+  empty prediction. Existing baseline flow remains for actual comparison.
+- Public no-write test `/ai-test.html?v=175`: four synthetic cases cover mixed
+  expenses, salary, winnings and third-party rejection. A folded optional panel
+  runs eight counterbalanced baseline/compact observations on the same model.
+  Failed cases continue; cancellation preserves completed synthetic results.
+- Raw-model and assisted scores stay separate, with exact fields distinct from
+  amount/kind detection. Failed/cancelled references remain in end-to-end
+  denominators; only verified real empty replies can pass negative cases.
+  Unstarted cases never count as model attempts. Exports whitelist fixed case
+  and model identifiers plus counts/timings, excluding input and transaction data.
+- Worker total includes final resetChat; controller requestMs includes automatic
+  loading and message overhead. First output is not a usable draft or pure GPU
+  timing. UI separates loading, real elapsed time and reviewable drafts, folds
+  diagnostics, highlights fields to complete and batches non-draft stream updates.
+- The 24-reference registry, 69 controller/worker/evaluation checks and 106
+  related frontend checks are synthetic/contract evidence. Historical literal
+  failed-output replay also passed through real worker/controller/Chromium.
+  No fresh model inference was possible in this cloud environment; **no new
+  accuracy percentage or observed speedup has been claimed**. User-device
+  comparison and acceptance remain pending. Do not reuse prior timings as proof
+  of this prompt's performance. See FREE-LLM.md and WORKLOG-20261022.md.
 
 ## v174 activity and transaction changes
 
@@ -29,8 +57,8 @@ and eight stage-one blobs were verified. Original failed environment retained.
   opposite directions with disclosed rule assistance and preserved raw model
   predictions; synthetic tests are not fresh model-quality measurements.
 
-Test the refreshed site with `/?v=174#/`, details `/#/entry`, activities
-`/#/groups`, devices `/#/profile`, and no-write AI `/ai-test.html?v=174`.
+For the v174 activity changes, test the refreshed site with `/?v=175#/`, details `/#/entry`, activities
+`/#/groups`, devices `/#/profile`, and no-write AI `/ai-test.html?v=175`.
 No real friend was messaged and no production test transactions were created.
 New device/production interaction acceptance remains pending user testing.
 See WORKLOG-20261022.md for the full release record.
@@ -58,7 +86,7 @@ See WORKLOG-20261022.md for the full release record.
   The three verified private historical/QA backups remain separate evidence.
 - Original failed environment retained; changes committed and pushed in stages.
 
-Public no-write AI test: `/ai-test.html?v=174`. Public fraud page: `/#/fraud`.
+Public no-write AI test: `/ai-test.html?v=175`. Public fraud page: `/#/fraud`.
 Reload first so an old tab does not keep the previous logout implementation.
 Reference-site research is documented in `LLM-REFERENCE-REVIEW.md`; historical
 public code does not establish that external site's current model or state.
@@ -67,7 +95,7 @@ See `FREE-LLM.md` and `WORKLOG-20261021.md` for details.
 ## Existing acceptance and backup handoff
 
 The user saved and published the updated environment policy on 2026-10-19.
-The latest observed runtime revision is 926 (2026-10-22) and still lacks the
+The latest observed runtime revision is 934 (2026-10-22) and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
