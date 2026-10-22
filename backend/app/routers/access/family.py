@@ -512,7 +512,7 @@ def dissolve_family(me: User, db: Session = Depends(get_db)):
         2 離開        crud.save(FamilyMember, {"status": "removed"}, where={"family_id": …, "user_id__in": people}, db=db)  有 where = 一次改很多列
         3 監管        crud.save(Guardianship, {"ended_at": now}, where={"ended_at__isnull": True, "or": [...]}, db=db)  監管人或被照看的人是這一家的
                       crud.save(Allowance, {"amount": 0}, where={"payer_id__in": people, "ward_id__in": people}, db=db)  零用金歸零（設定，不是紀錄）
-        4 帳本        crud.remove(GroupMember, {"group_id": g.id, "user_id__in": people, "user_id__ne": g.created_by}, db=db)  開帳的人以外的家人都移出
+        4 帳本        crud.remove(GroupMember, {"group_id": g.id, "user_id__in": people, "user_id__ne": g.created_by, "independent": False}, db=db)  開帳的人以外的家人都移出
         5 邀請        crud.save(FamilyInvite, {"status": "cancelled", …}, where={"family_id": …, "status": "pending"}, db=db)  邀請與邀請碼一起作廢
         6 存檔        db.commit()                                                全部在同一個交易裡寫進去
         ⚠️ 全部帶 db=db、最後才 commit：解散到一半失敗的話，會留下「人還在、監管沒了」這種說不清的狀態。
@@ -571,7 +571,7 @@ def dissolve_family(me: User, db: Session = Depends(get_db)):
 
             # 4. 家人之間的帳本互相移出：每本帳只留下開帳的人
             for g in crud.find(Group, {"created_by__in": people}, db=db):
-                crud.remove(GroupMember, {"group_id": g.id, "user_id__in": people, "user_id__ne": g.created_by}, db=db)
+                crud.remove(GroupMember, {"group_id": g.id, "user_id__in": people, "user_id__ne": g.created_by, "independent": False}, db=db)
 
             # 5. 還沒回覆的邀請與邀請碼作廢，寫稽核
             crud.save(FamilyInvite, {"status": "cancelled", "responded_at": now},
@@ -620,7 +620,7 @@ def dissolve_family(me: User, db: Session = Depends(get_db)):
 
     # 4. 家人之間的帳本互相移出：每本帳只留下開帳的人
     for g in crud.find(Group, {"created_by__in": people}, db=db):
-        crud.remove(GroupMember, {"group_id": g.id, "user_id__in": people, "user_id__ne": g.created_by}, db=db)
+        crud.remove(GroupMember, {"group_id": g.id, "user_id__in": people, "user_id__ne": g.created_by, "independent": False}, db=db)
 
     # 5. 還沒回覆的邀請與邀請碼作廢，寫稽核
     crud.save(FamilyInvite, {"status": "cancelled", "responded_at": now},
@@ -2096,10 +2096,10 @@ def remove_member(user_id: str, me: User, db: Session = Depends(get_db)):
             crud.save(Allowance, {"amount": 0}, where={"or": [{"payer_id": uid}, {"ward_id": uid}]}, db=db)
             his = crud.find(Group, {"created_by": uid}, fields="id", db=db)
             if his:
-                crud.remove(GroupMember, {"group_id__in": his, "user_id__in": people, "user_id__ne": uid}, db=db)
+                crud.remove(GroupMember, {"group_id__in": his, "user_id__in": people, "user_id__ne": uid, "independent": False}, db=db)
             theirs = crud.find(Group, {"created_by__in": people, "created_by__ne": uid}, fields="id", db=db)
             if theirs:
-                crud.remove(GroupMember, {"group_id__in": theirs, "user_id": uid}, db=db)
+                crud.remove(GroupMember, {"group_id__in": theirs, "user_id": uid, "independent": False}, db=db)
             crud.save(FamilyInvite, {"status": "cancelled", "responded_at": now},
                       where={"inviter_id": uid, "status": "pending"}, db=db)
             crud.save(FamilyMember, {"status": "removed"}, where={"family_id": fam.id, "user_id": uid}, db=db)
@@ -2167,10 +2167,10 @@ def remove_member(user_id: str, me: User, db: Session = Depends(get_db)):
     crud.save(Allowance, {"amount": 0}, where={"or": [{"payer_id": uid}, {"ward_id": uid}]}, db=db)
     his = crud.find(Group, {"created_by": uid}, fields="id", db=db)
     if his:
-        crud.remove(GroupMember, {"group_id__in": his, "user_id__in": people, "user_id__ne": uid}, db=db)
+        crud.remove(GroupMember, {"group_id__in": his, "user_id__in": people, "user_id__ne": uid, "independent": False}, db=db)
     theirs = crud.find(Group, {"created_by__in": people, "created_by__ne": uid}, fields="id", db=db)
     if theirs:
-        crud.remove(GroupMember, {"group_id__in": theirs, "user_id": uid}, db=db)
+        crud.remove(GroupMember, {"group_id__in": theirs, "user_id": uid, "independent": False}, db=db)
     crud.save(FamilyInvite, {"status": "cancelled", "responded_at": now},
               where={"inviter_id": uid, "status": "pending"}, db=db)
     crud.save(FamilyMember, {"status": "removed"}, where={"family_id": fam.id, "user_id": uid}, db=db)

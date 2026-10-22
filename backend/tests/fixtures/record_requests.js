@@ -91,6 +91,19 @@ async function rec(name, ...args) {
   await rec('me');
   await rec('createCategory', { name: '寵物', kind: 'expense' });
   const g = await rec('createGroup', { name: '家用', color: 'book-indigo', note: '日常開銷' });
+  // Cross-account invitations deliberately have no mock implementation. Record
+  // their real private HTTP transport while retaining the explicit mock 503.
+  sessionStorage.setItem('fambudget.auth', JSON.stringify({accessToken:'contract-activity-access',refreshToken:'contract-activity-refresh'}));
+  await rec('lookupGroupUser', {groupId:g.id,email:'meiling@wang.tw'});
+  await rec('groupInvites', g.id);
+  await rec('receivedGroupInvites');
+  await rec('inviteGroupMember', g.id, mom.user.id);
+  await rec('createGroupInviteCode', g.id, {label:'旅行朋友'});
+  await rec('cancelGroupInvite', g.id, '301');
+  await rec('acceptGroupInvite', '302');
+  await rec('declineGroupInvite', '303');
+  await rec('joinGroup', 'ABCD2345');
+  sessionStorage.removeItem('fambudget.auth');
   await rec('groups', {});
   await rec('updateGroup', g.id, { note: '日常開銷，全家共用' });
   await rec('addGroupMember', g.id, kid.user.id);
@@ -98,6 +111,10 @@ async function rec(name, ...args) {
   const t1 = await rec('createTransaction', { date: '2026-09-13', amount: 1280, kind: 'expense', cat: 'C01', groupId: g.id, merchant: '全聯', note: '一週的菜' });
   await A.createTransaction({ date: '2026-09-01', amount: 62000, kind: 'income', cat: 'I01', groupId: g.id, merchant: '', note: '九月薪水' });
   await rec('transactions', { from: '2026-09-01', to: '2026-09-30' });
+  sessionStorage.setItem('fambudget.auth', JSON.stringify({accessToken:'contract-activity-access',refreshToken:'contract-activity-refresh'}));
+  await rec('transactionArchives', {userId:dad.user.id,groupId:g.id,from:'2026-09-01',to:'2026-09-30',
+    categoryId:'C01',kind:'expense',source:'manual',q:'全聯'});
+  sessionStorage.removeItem('fambudget.auth');
   await rec('updateTransaction', t1.id, { amount: 1350, note: '一週的菜＋水果' });
   const p1 = await rec('nlpParse', '早餐55');
   const pb = await rec('nlpParseBatch', '早上買早餐55，晚上加油1200');

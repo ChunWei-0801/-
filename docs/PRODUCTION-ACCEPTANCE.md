@@ -10,6 +10,13 @@ passed both checks and real Chromium browser jobs. Local complete backend:
 feature CI attempt failed from a browser-only file in a job without Playwright;
 the workflow was corrected before deployment without reducing assertions.
 
+**v174 preparation:** activity terminology and selection, Taipei year/month
+folders, activity-name search, independent cross-family invitations (0007
+additive migration), current-device omission, and lottery-direction checks
+now pass 1036 complete backend and 87 related frontend checks (zero skips).
+This stage is not yet deployed; see WORKLOG-20261022.md. Current live source
+above remains v173 until deployment status is verified.
+
 ## Current changes and evidence limits
 
 - AI row isolation keeps source-grounded candidates and excludes fabricated

@@ -348,6 +348,59 @@ def test_public_resource_adapters_omit_authentication_and_report_real_unavailabi
         assert 'ERROR' in rows[0]['response'] and 'fallback' not in rows[0]['response']
 
 
+def test_activity_invitation_adapters_require_token_and_mock_never_fabricates_invites(sent):
+    from urllib.parse import parse_qs, urlsplit
+
+    methods={
+        ('GET','/api/groups/lookup'):'lookupGroupUser',
+        ('GET','/api/groups/{gid}/invites'):'groupInvites',
+        ('GET','/api/groups/invites'):'receivedGroupInvites',
+        ('POST','/api/groups/{gid}/invites'):'inviteGroupMember',
+        ('POST','/api/groups/{gid}/invite-codes'):'createGroupInviteCode',
+        ('DELETE','/api/groups/{gid}/invites/{invite_id}'):'cancelGroupInvite',
+        ('POST','/api/groups/invites/{invite_id}/accept'):'acceptGroupInvite',
+        ('DELETE','/api/groups/invites/{invite_id}'):'declineGroupInvite',
+        ('POST','/api/groups/join'):'joinGroup',
+    }
+    for (method,path),name in methods.items():
+        rows=sent[method+' '+path]
+        assert len(rows)==1 and rows[0]['fn']==name
+        request,response=rows[0]['request'],rows[0]['response']
+        assert request['headers'].get('Authorization')=='Bearer contract-activity-access'
+        assert request.get('credentials')!='omit' and request['method']==method
+        assert response['status']==503 and 'ERROR' in response and 'fallback' not in response
+        assert '模擬模式不提供跨帳號邀請' in response['ERROR']
+        if name=='lookupGroupUser':
+            query=parse_qs(urlsplit(request['url']).query)
+            assert set(query)=={'groupId','email'} and query['email']==['meiling@wang.tw']
+        elif name=='inviteGroupMember':
+            assert set(request['body'])=={'userId'}
+        elif name=='createGroupInviteCode':
+            assert request['body']=={'label':'旅行朋友'}
+        elif name=='joinGroup':
+            assert request['body']=={'code':'ABCD2345'}
+        else:
+            assert request.get('body') is None
+
+
+def test_transaction_archive_adapter_sends_same_private_filters_and_returns_real_mock_counts(sent):
+    from urllib.parse import parse_qs, urlsplit
+
+    rows=sent['GET /api/transactions/archives']
+    assert len(rows)==1 and rows[0]['fn']=='transactionArchives'
+    request,response=rows[0]['request'],rows[0]['response']
+    assert request['headers'].get('Authorization')=='Bearer contract-activity-access'
+    assert request.get('body') is None and request.get('credentials')!='omit'
+    query=parse_qs(urlsplit(request['url']).query)
+    assert set(query)=={'userId','groupId','from','to','categoryId','kind','source','q'}
+    assert query['q']==['全聯'] and query['from']==['2026-09-01'] and query['to']==['2026-09-30']
+    assert response['timezone']=='Asia/Taipei' and response['total']==1
+    assert len(response['years'])==1 and response['years'][0]['year']==2026
+    month=response['years'][0]['months'][0]
+    assert month['period']=='2026-09' and month['count']==1
+    assert isinstance(month['closed'],bool) and month['from']=='2026-09-01' and month['to']=='2026-09-30'
+
+
 def test_每一支的路徑參數都有宣告_文件頁試打得了():
     """路徑寫了 {aid}，函式或守衛卻沒宣告的話，/docs 上不會出現那一格，試打時填不了。"""
     import re

@@ -3818,3 +3818,31 @@ body.public-settings .main { padding-top: 24px; }
 body.public-settings .page { max-width: 1160px; margin: auto; }
 @media(min-width:761px) { .appearance-actions { bottom: 18px; } }
 @media(max-width:760px) { .appearance-layout,.settings-grid { grid-template-columns: minmax(0,1fr); } .appearance-preview { position: static; } .appearance-preview__balance { margin: 15px 0; } .appearance-actions { bottom: 80px; } body.is-out .appearance-actions { bottom: 12px; } .settings-intro { padding: 18px; } .tutorial-topic summary { font-size: 15px; padding: 16px; } .settings-shortcuts { align-items: flex-start; flex-direction: column; } }
+
+/* Activity-only selector and friend invitations share the desktop/mobile flow. */
+.gsw__empty{display:inline-flex;align-items:center;min-height:44px;max-width:210px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-input,12px);color:var(--ink-soft);font-size:13px;line-height:1.45;text-decoration:none;overflow-wrap:anywhere}
+#view .sess__empty{margin:0;padding:18px;color:var(--ink-faint);font-size:14px;line-height:1.6}
+#view .activity-invites{padding:20px;min-width:0;line-height:1.7;overflow-wrap:anywhere}
+#view .activity-invites h2,#view .activity-invites h3,#view .activity-invites h4{margin:0 0 12px;line-height:1.45}
+#view .activity-invites h4{margin-top:20px;font-size:14px}
+#view .activity-invites p{margin:8px 0}
+#view .activity-join,#view .activity-invite-search,#view .activity-code-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px;min-width:0}
+#view .activity-invites .fld{flex:1 1 220px;min-width:0;margin:0}
+#view .activity-invites input{box-sizing:border-box;max-width:100%;min-width:0;min-height:44px}
+#view .activity-invites .btn{min-height:44px;max-width:100%;white-space:normal}
+#view .activity-feedback{min-height:1.7em;color:var(--success,var(--ink));font-size:13px}
+#view .activity-feedback.is-error,#view .activity-found.is-error,#view .activity-pending.is-error{color:var(--danger)}
+#view .activity-found{margin-top:12px;padding:0 0 12px;font-size:14px}
+#view .activity-invitation,#view .activity-pending-row{padding:14px 0;border-top:1px solid var(--line);min-width:0}
+#view .activity-invitation strong,#view .activity-pending-row b{font-size:14px;display:block}
+#view .activity-invitation small,#view .activity-pending-row small,#view .activity-code-result>small{display:block;color:var(--ink-faint);font-size:12px}
+#view .activity-actions,#view .activity-pending-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+#view .activity-pending-row>div{flex:1 1 150px;min-width:0}
+#view .activity-code-result{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px}
+#view .activity-code-result .activity-code{flex:1 1 170px;min-width:0;font-family:var(--code);letter-spacing:.06em;padding:10px 12px}
+#view .activity-code-result>.flow-help,#view .activity-code-result>small{flex-basis:100%}
+#view [data-activity-invite-owner]{border-top:1px solid var(--line);margin-top:14px;padding:20px 0}
+@media(max-width:480px){.phead__tools .gsw__empty{max-width:150px;font-size:12px;padding:8px}.phead__tools .gsw__n{max-width:110px}#view .activity-invites{padding:16px}#view [data-activity-invite-owner]{padding:16px 0}#view .activity-join>.btn,#view .activity-invite-search>.btn,#view .activity-code-form>.btn{flex:1 1 100%}#view .activity-invites .fld{flex-basis:100%}#view .activity-actions>.btn{flex:1 1 120px}}
+.txr__g{font-size:12px;min-width:90px;max-width:160px;color:var(--ink-soft);overflow-wrap:anywhere}.txr__gm{display:none}
+@media(max-width:700px){.txr__g{display:none}.txr__gm{display:block;margin-top:5px;font-size:11.5px;line-height:1.5;color:var(--ink-faint);overflow-wrap:anywhere}}
+#view .activity-mock-note{padding:10px 12px;border-left:3px solid var(--warn);background:var(--wash);font-size:13px;color:var(--ink-soft)}

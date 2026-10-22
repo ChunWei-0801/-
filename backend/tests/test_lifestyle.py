@@ -253,7 +253,7 @@ def test_upgrade_keeps_all_existing_rows_and_photo_bytes(tmp_path):
     with sqlite3.connect(database) as c:
         assert before=={n:c.execute('SELECT * FROM "'+n+'"').fetchall() for n in names}
         assert c.execute('PRAGMA integrity_check').fetchone()==('ok',)
-        assert c.execute('SELECT version_num FROM alembic_version').fetchone()==('0006',)
+        assert c.execute('SELECT version_num FROM alembic_version').fetchone()==('0007',)
         assert c.execute('SELECT count(*) FROM lifestyle_preferences').fetchone()==(0,)
     engine=create_engine(url)
     with engine.connect() as c:assert compare_metadata(MigrationContext.configure(c,opts={'compare_type':True}),db.Base.metadata)==[]

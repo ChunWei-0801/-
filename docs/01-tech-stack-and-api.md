@@ -62,7 +62,7 @@
 | **Pydantic** | v2 | 請求／回應驗證 | **強制結構化輸出的關鍵**，LLM 回傳也用它驗 |
 | **pydantic-settings** | 2.6+ | 環境變數管理 | 設定集中，不散落在各處 |
 | **SQLAlchemy** | 2.0 | ORM | 2.0 的型別標註對新手比較友善 |
-| **Alembic** | 1.14+ | 資料庫遷移 | 30 張表一定會改，沒有遷移工具會很痛苦 |
+| **Alembic** | 1.14+ | 資料庫遷移 | 31 張表一定會改，沒有遷移工具會很痛苦 |
 | **psycopg** | 3.2+ | PostgreSQL 驅動 | `[binary]` 版有預編譯輪檔，不用編譯 |
 | **PyJWT** | 2.10+ | JWT 簽發驗證 | 比 python-jose 維護更活躍 |
 | **passlib[bcrypt]** | 1.7+ | 密碼雜湊 | **絕不自己實作密碼雜湊** |
@@ -151,9 +151,9 @@ final_project/
 │   │   ├── ownership.py         分工的單一事實來源（誰負責哪支路由、哪些檔案）
 │   │   ├── catalog.py           固定清單（角色、權限表、理財選項、系統分類…），正本是 data.js
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
-│   │   ├── models/              30 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
+│   │   ├── models/              31 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             108 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             118 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **108 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **118 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -454,7 +454,7 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 | 領域 | 資料夾 | 路由 |
 |---|---|---|
 | **認證** | `backend/app/routers/auth/` | 39 支 |
-| **記帳** | `backend/app/routers/ledger/` | 31 支 |
+| **記帳** | `backend/app/routers/ledger/` | 41 支 |
 | **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 17 支 |
 | **家庭** | `backend/app/routers/access/` | 21 支 |
 
@@ -542,3 +542,21 @@ python -m http.server 5174 --directory frontend
 | 114 | GET | `/api/resources/financial` | 數字 | 公開 | `language=zh-TW`（另支援 zh-CN、en、ja、ko、es）取得本站改寫的理財教育原則與書名、作者、出版資訊、書目／官方教材來源；非即時書籍全文或投資報酬預測。 |
 
 這兩支只讀公開資料，不接受帳號、交易、自由查詢或任意來源網址。前端以 `credentials: omit` 呼叫且不附登入權杖；跨頁防詐提醒本身不發出資料請求。政府來源失敗時明示舊快取或無資料，不製造新消息。
+
+
+## 4-12　活動朋友邀請與明細年月整理
+
+| # | 方法 | 路徑 | 領域 | 權限 | 用途 |
+|---|---|---|---|---|---|
+| 115 | GET | `/api/transactions/archives` | 記帳 | 登入 | 完整授權明細的年月包裹。與明細使用相同授權與篩選；不接受page。依Asia/Taipei日界線回傳有紀錄的年／月完整筆數、currentPeriod、asOf、closed與日期範圍。只整理呈現，不搬移交易、不鎖定歷史月份。 |
+| 116 | GET | `/api/groups/lookup` | 記帳 | 建立者 | 用完整email查找活動朋友。僅活動建立者可查，每帳號每分鐘至多10次，與家庭查找共用額度。只回最少姓名、頭像與available/member/invited/unavailable狀態，不回家庭或帳務資料。 |
+| 117 | GET | `/api/groups/invites` | 記帳 | 登入 | 本人收到且仍有效的活動邀請。只列邀請給本人的pending、未過期且活動仍可加入的帳號邀請，最多100項；不加入家庭、不提供其他活動資料。 |
+| 118 | POST | `/api/groups/join` | 記帳 | 登入 | 使用單次邀請碼加入活動。單次七天邀請碼，每帳號每分鐘至多10次嘗試。成功只增加該活動成員資格，不更動家庭或家庭角色；不公開其他私人紀錄。 |
+| 119 | POST | `/api/groups/invites/{invite_id}/accept` | 記帳 | 被邀請的人 | 接受活動帳號邀請。無請求主體，只接受登入本人被邀請的有效帳號邀請。原子地消耗邀請並新增該活動資格；已回覆或活動已關閉時拒絕。 |
+| 120 | DELETE | `/api/groups/invites/{invite_id}` | 記帳 | 被邀請的人 | 婉拒收到的活動帳號邀請。只有被邀請本人可婉拒仍pending的帳號邀請，不改動家庭、既有活動成員或任何交易。 |
+| 121 | GET | `/api/groups/{gid}/invites` | 記帳 | 建立者 | 查看活動待處理邀請。活動建立者查看該活動pending、未過期邀請，最多100項；可在封存／結算後整理邀請。不回原始邀請碼或雜湊。 |
+| 122 | POST | `/api/groups/{gid}/invite-codes` | 記帳 | 建立者 | 產生單次七天活動邀請碼。label必填1–30字，排除全空白；活動須開放。明碼只在建立成功時回傳，資料庫只存雜湊；待處理邀請最多100項。 |
+| 123 | POST | `/api/groups/{gid}/invites` | 記帳 | 建立者 | 用帳號邀請朋友加入活動。僅活動建立者可邀請可用且尚未加入的帳號；重複pending邀請拒絕。受邀人同意後才取得該活動資格，不可直接拉入其他家庭。 |
+| 124 | DELETE | `/api/groups/{gid}/invites/{invite_id}` | 記帳 | 建立者 | 取消活動邀請或邀請碼。活動建立者只能取消該活動仍pending的邀請或邀請碼。封存／結算後仍可取消；不刪除成員或交易。 |
+
+全部端點均須登入且平台管理員不可使用。活動資格僅公開該活動範圍，不改變家庭、家庭角色或監管。受邀本人同意／用碼加入後的 `group_members.independent=true` 不隨家庭退出清理；舊家庭直接分享資格仍按原規則撤銷，活動建立者仍可移出成員。`0007` 遷移只增加活動邀請表與資格欄位，不清空或搬移舊交易。

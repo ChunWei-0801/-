@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models._types import BigID, utcnow
@@ -67,3 +67,23 @@ class GroupMember(Base):
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
     # 這本帳有動靜要不要通知我。預設 false
     notify: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # 明確活動邀請取得的成員資格不隨家庭退出而撤銷。舊家庭分享維持原撤權規則。
+    independent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+
+
+class GroupInvite(Base):
+    """活動邀請，獨立於家庭角色；邀請碼只保存雜湊。"""
+
+    __tablename__ = "group_invites"
+    __table_args__ = (CheckConstraint("status IN ('pending', 'accepted', 'declined', 'cancelled')", name="ck_group_invite_status"),)
+
+    id: Mapped[int] = mapped_column(BigID, primary_key=True)
+    group_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("groups.id"), nullable=False, index=True)
+    inviter_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=False)
+    invitee_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("users.id"), nullable=True, index=True)
+    code_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True)
+    label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

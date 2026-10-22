@@ -59,7 +59,7 @@
     });
   }
 
-  /* 帳本清單與通知是**從按鈕往下浮出來的下拉面板**。
+  /* 活動清單與通知是**從按鈕往下浮出來的下拉面板**。
 
      ⚠️ 以前把它們搬進版面（頂列和內容之間），佔真實空間把內容往下推。
      改版之後頁首多了標題那一段，搬進去的面板就插在標題底下，整頁往下跳——
@@ -150,7 +150,7 @@
   var ME = null;
   var F = { userId: 'all', kind: 'all', source: 'all', q: '' };
 
-  /* 目前在看哪一本帳。'all' = 全部（我看得到的所有帳本合起來）。
+  /* 目前在看哪一個活動。'all' = 全部（我看得到的所有活動合起來）。
      存在 localStorage，重新整理不會跳回去。 */
   var GKEY = 'fambudget.group';
   var GROUP = (function () {
@@ -241,7 +241,7 @@
     setTimeout(finish, a.effect.getTiming().duration + 250);
   }
 
-  /* 從 DOM 拿掉的區塊（帳本、財務建議的展開內容）：收完再移除 */
+  /* 從 DOM 拿掉的區塊（活動、財務建議的展開內容）：收完再移除 */
   function slideAway(el, done) {
     if (!el) { if (done) done(); return; }
     slideClose(el, function () { el.remove(); if (done) done(); });
@@ -310,7 +310,7 @@
   /* 一頁上好幾支 API 一起打的時候用這個包起來。
 
      ⚠️ 不要接住錯誤之後回一個空的清單頂著——
-        那等於把「這一支還沒做」畫成「你還沒有帳本」，是在講一句不是真的話。
+        那等於把「這一支還沒做」畫成「你還沒有活動」，是在講一句不是真的話。
         soft() 把錯誤原封不動帶回來（放在 __err），哪一區用到哪一支，
         那一區就自己換成 errState() 的通知卡。後端做好之後，
         同一個位置自動變回正常內容，前端一行都不用改。 */
@@ -438,7 +438,7 @@
 
      照富邦新版的首頁：沒有側欄，所有功能都嵌在這一頁上。
        1. 疊卡       後面露出收入、支出，最前面是這個月還可以花
-       2. 常用功能   收支明細、帳本、統計、財務建議、家庭成員、個人資料、使用說明（電腦版多一顆記一筆）
+       2. 常用功能   收支明細、活動、統計、財務建議、家庭成員、個人資料、使用說明（電腦版多一顆記一筆）
        3. 預算       一個分類一張小卡，右上角「看統計 ›」
        4. 今天       今天記的每一筆——一打開就知道今天的動向
        全家模式在預算後面多「每個人的這個月」，今天的紀錄也換成全家的
@@ -474,7 +474,7 @@
       { nav: 'entry', label: '收支明細', icon: 'entry', badge: o.count ? o.count + ' 筆' : '' },
       o.fam ? null : { manual: true, label: '手動記帳', icon: 'entry' },
       { nav: 'exchange', label: '國際匯率換算', icon: 'stats' },
-      { nav: 'groups', label: '帳本', icon: 'groups', badge: o.groups ? o.groups + ' 本' : '' },
+      { nav: 'groups', label: '活動', icon: 'groups', badge: o.groups ? o.groups + ' 個' : '' },
       { nav: 'stats', label: '統計', icon: 'stats' },
       { nav: 'advice', label: '財務建議', icon: 'advice', tone: o.warn ? 'warn' : '',
         badge: o.warn ? o.warn + ' 則要注意' : '' },
@@ -500,7 +500,7 @@
   function tile(t) {
     /* id ＝ 這一格按下去要做事，不是換頁（目前只有登出，處理在下面的委派裡） */
     var attr = t.id ? ' id="' + t.id + '"'
-      : t.manual ? ' data-manual-entry' : t.quick ? ' data-quick="entry"' : t.nav !== undefined ? ' data-nav="' + t.nav + '"' : '';
+      : t.manual ? ' data-manual-entry' : t.quick ? ' data-quick="entry"' : t.nav !== undefined ? ' data-nav="' + t.nav + '"' + (t.nav === 'entry' ? ' data-personal-details' : '') : '';
     var tag = t.href ? 'a' : 'button';
     return '<' + tag + ' class="dtile' + (t.tone ? ' dtile--' + t.tone : '') + '"' + attr + (t.href ? ' href="' + t.href + '"' : '') + '>' +
       '<span class="dtile__ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
@@ -704,11 +704,11 @@
       '<a class="sec__link" href="#/entry">看全部 ›</a></div>';
 
     if (!rows.length) {
-      /* ⚠️ 選了某一本帳的時候，「今天還沒有記帳」會讓人以為真的沒記——其實是被帳本篩掉了 */
+      /* ⚠️ 選了某一個活動的時候，「今天還沒有記帳」會讓人以為真的沒記——其實是被活動篩掉了 */
       var one = GROUP !== 'all';
       return h + '<div class="card tdy tdy--empty">' +
         (one
-          ? emptyState('這本帳今天還沒有紀錄', '右上角切回「全部帳本」，就看得到今天所有的紀錄。')
+          ? emptyState('這個活動今天還沒有紀錄', '右上角切回「全部活動」，就看得到今天所有的紀錄。')
           : emptyState('今天還沒有記帳', fam ? '家人今天記的帳會出現在這裡。' : '花了什麼，說一句話就記好了。')) +
         (fam ? '' : '<div class="tdy__go"><button class="btn btn--go btn--sm" data-quick="entry">記一筆</button></div>') +
       '</div>';
@@ -806,13 +806,13 @@
   }
 
   function barChart(rows) {
-    /* ⚠️ 選了單一帳本時 summary 會回 null——每個人的月數列沒有分帳本，
+    /* ⚠️ 選了單一活動時 summary 會回 null——每個人的月數列沒有分活動，
        硬畫出來就是一張假的圖。這裡回一句話，不要讓整頁掛掉。
 
        這個防護漏掉過一次：家庭總覽加了 if (d.monthly)，統計頁沒加，
-       於是「選了某一本帳 → 打開統計」整頁變成「讀取失敗」。 */
+       於是「選了某一個活動 → 打開統計」整頁變成「讀取失敗」。 */
     if (!rows || !rows.length) {
-      return emptyState('近 6 個月看不到', '月趨勢只有在「全部帳本」時算得出來。');
+      return emptyState('近 6 個月看不到', '月趨勢只有在「全部活動」時算得出來。');
     }
     var max = Math.max.apply(null, rows.map(function (r) { return Math.max(r.income, r.expense); })) || 1;
     return '<div class="bars">' + rows.map(function (r, i) {
@@ -840,18 +840,26 @@
      卡片式的排版每一筆的資訊位置都不一樣，掃過去很累。 */
   /* 畫過的每一筆記在這裡，修改表單用 id 找回整筆（明細頁、成員頁都會畫） */
   var TXSEEN = {};
-  /* 帳本清單（含封存），判斷一筆紀錄的帳本結算了沒。loadTx 會更新 */
+  /* 活動清單（含封存），判斷一筆紀錄的活動結算了沒。loadTx 會更新 */
   var TXGROUPS = [];
   /* 多選刪除。on = 勾選模式；ids = 勾了哪幾筆 */
   var PICK = { on: false, ids: [] };
 
-  /* 這筆能不能改、能不能刪：自己的，而且帳本沒結算。
+  /* 這筆能不能改、能不能刪：自己的，而且活動沒結算。
      ⚠️ 只是決定要不要畫按鈕。真正的檢查在 API（403／409），按鈕藏起來不是權限控制。 */
   function txLocked(t) {
     var g = TXGROUPS.filter(function (x) { return x.id === t.group; })[0];
     return !!(g && g.settledAt);
   }
   function txCan(t) { return isMine(t) && !txLocked(t); }
+
+  function txActivity(t) {
+    if (typeof t.groupName === 'string' && t.groupName.trim()) return t.groupName;
+    var group = TXGROUPS.filter(function (g) { return g.id === t.group; })[0];
+    var personal = global.I18n ? global.I18n.translate('個人收支') : '個人收支';
+    if (group) return group.name === '個人帳本' || group.name === '收支明細' ? personal : group.name;
+    return t.group ? (global.I18n ? global.I18n.translate('未提供活動名稱') : '未提供活動名稱') : personal;
+  }
 
   function txRow(t, hit) {
     TXSEEN[t.id] = t;
@@ -873,7 +881,9 @@
         '<span data-i18n-skip>' + esc(t.merchant || t.catName) + '</span>' +
         (t.note ? ' <em data-i18n-skip>' + esc(t.note) + '</em>' : '') +
         (t.raw ? '<br><span class="txr__raw" data-i18n-skip>「' + esc(t.raw) + '」</span>' : '') +
+        '<span class="txr__gm"><span>活動：</span><span data-i18n-skip>' + esc(txActivity(t)) + '</span></span>' +
       '</td>' +
+      '<td class="txr__g" data-i18n-skip>' + esc(txActivity(t)) + '</td>' +
       '<td class="txr__u" data-i18n-skip>' + esc(t.userName) + '</td>' +
       '<td class="txr__s">' + (t.source === 'nlp' ? '段落' : '手動') + '</td>' +
       '<td class="txr__a' + (t.kind === 'income' ? ' is-in' : '') + '">' +
@@ -883,7 +893,7 @@
         (PICK.on ? '' : can
           ? '<button class="txr__ed" data-edit="' + esc(t.id) + '">修改</button>' +
             '<button class="del" data-del="' + esc(t.id) + '">刪除</button>'
-          : (isMine(t) ? '<span class="txr__lock" title="這本帳已經結算，紀錄不能改也不能刪">已結算</span>' : '')) +
+          : (isMine(t) ? '<span class="txr__lock" title="這個活動已經結算，紀錄不能改也不能刪">已結算</span>' : '')) +
       '</td></tr>';
   }
 
@@ -894,7 +904,7 @@
     return '<div class="txw card card--flush"><table class="txt">' +
       '<thead><tr>' +
         (PICK.on ? '<th class="txr__ck"><input type="checkbox" id="pickAll" aria-label="全選可以刪的紀錄"></th>' : '') +
-        '<th>日期</th><th class="txr__c">分類</th><th>項目</th><th class="txr__u">記錄者</th><th class="txr__s">來源</th>' +
+        '<th>日期</th><th class="txr__c">分類</th><th>項目</th><th class="txr__g">活動</th><th class="txr__u">記錄者</th><th class="txr__s">來源</th>' +
         '<th class="rt">金額</th><th></th>' +
       '</tr></thead><tbody>' +
       rows.map(function (t) { return txRow(t, hit); }).join('') +
@@ -1005,10 +1015,12 @@
 
     /* 篩選放在標題那一列，跟「記一筆」並排——不要自己佔一整條 */
     h += foldHead('entry', '所有紀錄', '記一筆', '', null, filterBar(), pickToggle());
-    h += '<div id="txList">' + skeleton(6) + '</div></div>';
+    h += '<div id="txArchive"></div><div id="txList">' + skeleton(6) + '</div></div>';
     $view.innerHTML = h;
 
     foldRestore();
+    if (TXARCHIVE) TXARCHIVE.destroy();
+    TXARCHIVE = global.TransactionArchive ? global.TransactionArchive.mount(document.getElementById('txArchive'), {api:API,onChange:function () { PICK.ids=[]; loadTx(); }}) : null;
     loadTx();
   }
 
@@ -1194,7 +1206,7 @@
   }
 
   function batchRow(it, i) {
-    var kc = cats(it.kind);
+    var kc = it.kind === 'expense' || it.kind === 'income' ? cats(it.kind) : [];
     function miss(f) { return it.missing && it.missing.indexOf(f) >= 0; }
     function cell(field, inner, conf) {
       var low = conf !== undefined && conf > 0 && conf < 0.85;
@@ -1213,10 +1225,12 @@
       cell('amount', '<input data-b="amount" aria-label="第 ' + (i + 1) + ' 筆金額" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="缺" value="' +
            (it.amount === null || it.amount === undefined ? '' : it.amount) + '">', it.conf.amount) +
       cell('kind', '<select data-b="kind" aria-label="第 ' + (i + 1) + ' 筆收支方向">' +
+           '<option value=""' + (!it.kind ? ' selected' : '') + '>請選擇收支</option>' +
            '<option value="expense"' + (it.kind === 'expense' ? ' selected' : '') + '>支出</option>' +
            '<option value="income"' + (it.kind === 'income' ? ' selected' : '') + '>收入</option>' +
            '</select>', it.conf.kind) +
-      cell('cat', '<select data-b="cat" aria-label="第 ' + (i + 1) + ' 筆分類">' + kc.map(function (c) {
+      cell('cat', '<select data-b="cat" aria-label="第 ' + (i + 1) + ' 筆分類">' +
+           '<option value=""' + (!it.cat ? ' selected' : '') + '>請選擇分類</option>' + kc.map(function (c) {
              return '<option value="' + c.id + '"' + (c.id === it.cat ? ' selected' : '') +
                '>' + esc(c.name) + '</option>';
            }).join('') + '</select>', it.conf.cat) +
@@ -1242,6 +1256,8 @@
       if (batch[i].amount === null || batch[i].amount === '' || isNaN(batch[i].amount)) m.push('amount');
       if (!Number.isFinite(batch[i].amount) || batch[i].amount <= 0) m.push('amount');
       if (!batch[i].date) m.push('date');
+      if (batch[i].kind !== 'expense' && batch[i].kind !== 'income') m.push('kind');
+      if (!cats(batch[i].kind).some(function (c) { return c.id === batch[i].cat && c.kind === batch[i].kind; })) m.push('cat');
       batch[i].missing = m;
       row.classList.toggle('has-miss', m.length > 0);
       var hint = row.querySelector('.btbl__hint');
@@ -1249,7 +1265,7 @@
         hint.textContent = '已補上金額，請核對後確認。';
       }
 
-      ['amount', 'date'].forEach(function (f) {
+      ['amount', 'date', 'kind', 'cat'].forEach(function (f) {
         var inp = row.querySelector('[data-b="' + f + '"]');
         if (!inp) return;
         var wrap = inp.parentElement;
@@ -1266,14 +1282,14 @@
   function syncSaveState() {
     var btn = document.getElementById('paraSave');
     if (!btn || !batch) return;
-    var bad = batch.filter(function (x) { return x.missing && x.missing.length; }).length;
+    var bad = batch.filter(function (x) { return x.missing && x.missing.length || (x.kind !== 'expense' && x.kind !== 'income') || !cats(x.kind).some(function (c) { return c.id === x.cat && c.kind === x.kind; }); }).length;
     var n = document.getElementById('paraN');
     var lbl = document.getElementById('paraLbl');
     if (n) n.textContent = batch.length;
     if (lbl) lbl.textContent = bad > 0 ? ('還有 ' + bad + ' 筆缺欄位，共') : '確認並寫入';
     var status = document.getElementById('batchStatus');
     if (status && batch.length) status.textContent = batch.length + ' 筆待確認' +
-      (bad ? '，其中 ' + bad + ' 筆需要補齊日期或輸入大於 0 的金額。' : '，欄位已填齊，請核對後確認寫入。');
+      (bad ? '，其中 ' + bad + ' 筆需要核對日期、正數金額、收支與分類。' : '，欄位已填齊，請核對後確認寫入。');
     btn.disabled = bad > 0 || batch.length === 0;
   }
 
@@ -1327,21 +1343,28 @@
   }
 
   var TXROWS = [];
+  var TXARCHIVE = null, TXLOAD = 0;
   function loadTx() {
     var box = document.getElementById('txList');
     if (!box) return;
-    Promise.all([
-      API.transactions(Object.assign({}, F, { groupId: GROUP })),
-      soft(API.groups({ includeArchived: true }))
-    ]).then(function (r) {
+    var serial = ++TXLOAD, archive = TXARCHIVE;
+    var base = Object.assign({}, F, {groupId: GROUP});
+    Promise.resolve(archive ? archive.prepare(base) : base).then(function (query) {
+      if (serial !== TXLOAD || !box.isConnected) return null;
+      return Promise.all([
+        query === null ? Promise.resolve({transactions:[],total:0}) : API.transactions(query),
+        soft(API.groups({ includeArchived: true }))
+      ]);
+    }).then(function (r) {
+      if (!r || serial !== TXLOAD || !box.isConnected) return;
       TXROWS = r[0].transactions;
-      /* 帳本清單只用來把 group id 換成名字。那一支還沒做的話，
-         明細照樣列得出來（明細本身是另一支），但要講一句為什麼沒有帳本名稱——
-         不講的話那一欄空白，看起來像「這幾筆沒有歸到任何帳本」。 */
       TXGROUPS = r[1].__err ? [] : (r[1].groups || []);
+      if (archive) { archive.setGroups(TXGROUPS); archive.setResult(r[0]); }
       renderTx();
       if (r[1].__err) box.insertAdjacentHTML('afterbegin', errState(r[1].__err));
-    }).catch(function (e) { box.innerHTML = errState(e); });
+    }).catch(function (e) {
+      if (serial === TXLOAD && box.isConnected) box.innerHTML = errState(e);
+    });
   }
 
   /* 只重畫，不重新問資料（切換勾選模式、全選的時候） */
@@ -1372,7 +1395,7 @@
         '<button class="btn btn--sm" data-pick-off>取消</button>' +
         '<button class="btn btn--sm btn--danger" data-pick-del' + (n ? '' : ' disabled') + '>' +
           (n ? '刪除 ' + n + ' 筆' : '刪除') + '</button>'
-      : '<span class="pkb__n">這裡沒有你可以刪的紀錄——別人的紀錄、結算過的帳本都不能刪</span>' +
+      : '<span class="pkb__n">這裡沒有你可以刪的紀錄——別人的紀錄、結算過的活動都不能刪</span>' +
         '<span class="pkb__sp"></span><button class="btn btn--sm" data-pick-off>取消</button>';
     var all = document.getElementById('pickAll');
     if (all) {
@@ -1414,7 +1437,7 @@
     var t = TXSEEN[id];
     if (!t || txEdOn) return;
     txEdOn = true; txEdRow = t;
-    /* 可以換去的帳本：沒結算、沒封存的；原本那本一定要在選項裡 */
+    /* 可以換去的活動：沒結算、沒封存的；原本那本一定要在選項裡 */
     var gs = TXGROUPS.filter(function (g) { return g.id === t.group || (!g.settledAt && !g.archived); });
     var fld = function (label, input, wide) {
       return '<div class="prs__f' + (wide ? ' txe__w' : '') + '"><label>' + label + '</label>' + input + '</div>';
@@ -1435,7 +1458,7 @@
               '<option value="income"' + (t.kind === 'income' ? ' selected' : '') + '>收入</option></select>') +
             fld('分類', '<select id="txeCat">' + txEdCats(t.kind, t.cat) + '</select>') +
             (gs.length > 1
-              ? fld('帳本', '<select id="txeGroup">' + gs.map(function (g) {
+              ? fld('活動', '<select id="txeGroup">' + gs.map(function (g) {
                   return '<option value="' + esc(g.id) + '"' + (g.id === t.group ? ' selected' : '') + '>' + esc(g.name) + '</option>';
                 }).join('') + '</select>', true)
               : '') +
@@ -1530,7 +1553,7 @@
         '</div></div>';
 
       if (month && !d.monthly) {
-        h += '<div class="card">' + emptyState('選了單一帳本時看不到趨勢', '切回「全部帳本」就看得到。') + '</div>';
+        h += '<div class="card">' + emptyState('選了單一活動時看不到趨勢', '切回「全部活動」就看得到。') + '</div>';
       } else {
         h += '<div class="duo">' +
           '<section class="duo__c"><div class="card card--flush">' +
@@ -1787,9 +1810,9 @@
 
     h += '<div class="mtiles">' + d.members.map(function (u, i) {
       var full = (d.visible || []).indexOf(u.id) >= 0;
-      /* ⚠️ 只有共用帳本的人也點得進去（只看得到共用帳本那部分）。
-         以前這裡只看 visible，於是只跟我共用帳本的家人那張卡沒有「看紀錄」，
-         看起來像完全不能看，其實共用帳本裡的紀錄都看得到。 */
+      /* ⚠️ 只有共用活動的人也點得進去（只看得到共用活動那部分）。
+         以前這裡只看 visible，於是只跟我共用活動的家人那張卡沒有「看紀錄」，
+         看起來像完全不能看，其實共用活動裡的紀錄都看得到。 */
       var shared = !full && (d.queryable || []).indexOf(u.id) >= 0;
       var go = full || shared;
       var wards = d.guardianships.filter(function (g) { return g.guardian === u.id; });
@@ -1806,7 +1829,7 @@
           (by.length ? '<span>由 ' + names(by, 'guardianName') + ' 照看</span>' : '') +
         '</div>' +
         (u.id === d.me ? '' : full ? '<span class="mt__go">看紀錄</span>'
-          : shared ? '<span class="mt__go mt__go--part">看共用帳本</span>' : '') +
+          : shared ? '<span class="mt__go mt__go--part">看共用活動</span>' : '') +
         /* 自己：家裡還有別的家長時，可以把自己改成子女（唯一的家長不行，家裡會沒人管） */
         (parent && u.id === d.me && d.members.filter(function (x) { return x.role === 'parent'; }).length > 1
           ? '<div class="mt__acts"><button class="mt__x" data-role-child="' + esc(u.id) + '">改成子女</button></div>'
@@ -2007,7 +2030,7 @@
     '</div>';
   }
 
-  /* 加入或建立家庭之後，身分變了：帳號選單、帳本清單、目前這一頁都要重畫 */
+  /* 加入或建立家庭之後，身分變了：帳號選單、活動清單、目前這一頁都要重畫 */
   function afterFamilyChange(msg) {
     ME = null;
     FOLD.finv = false;
@@ -2049,14 +2072,14 @@
            真正的把關在 API：帶了沒權限的 userId 會回 403（不是空陣列——
            回空的話，前端分不出「這個人沒記帳」和「你不能看」）。 */
         /* 兩種看得到的方式，能看到的範圍不一樣，要講清楚是哪一種：
-             監管    → 這個人的全部紀錄，跨所有帳本
-             同帳本  → 只有你們共用的那幾本裡的紀錄 */
+             監管    → 這個人的全部紀錄，跨所有活動
+             同活動  → 只有你們共用的那幾本裡的紀錄 */
         var supervised = (me.visible || []).indexOf(id) >= 0;
         var shared = (me.queryable || []).indexOf(id) >= 0;
 
         if (!supervised && !shared) {
           $view.innerHTML = '<div class="page">' + backLink() + '<div class="card">' +
-            emptyState('看不到' + u.name + '的紀錄', '你們沒有監管關係，也沒有共用的帳本。') + '</div></div>';
+            emptyState('看不到' + u.name + '的紀錄', '你們沒有監管關係，也沒有共用的活動。') + '</div></div>';
           return;
         }
         var partial = !supervised;
@@ -2083,7 +2106,7 @@
           ava(u, 'ava--xl') +
           '<div class="pcard__m"><div class="pcard__n">' + esc(u.name) + '</div>' +
             '<div class="pcard__r">' + esc(ROLE_TW[u.role] || '') + (mine ? '　·　你自己' : '') + '</div>' +
-            (partial ? '<div class="pcard__h">只看得到你們共用帳本裡的紀錄</div>' : '') +
+            (partial ? '<div class="pcard__h">只看得到你們共用活動裡的紀錄</div>' : '') +
           '</div>' +
           '<div class="pcard__stat"><b>' + tx.total + '</b><span>筆紀錄</span></div>' +
         '</div></section>' +
@@ -2119,23 +2142,23 @@
 
 
   /* ============================================================
-     帳本
+     活動
 
-     記帳除了有「分類」，還有「這筆算在哪一本帳上」。
-     分類回答錢花在什麼，帳本回答這筆屬於哪一份預算。
-     每一本帳可以各自設一個每月存款目標。
+     記帳除了有「分類」，還有「這筆算在哪一個活動上」。
+     分類回答錢花在什麼，活動回答這筆屬於哪一份預算。
+     每個活動可以各自設一個每月存款目標。
      ============================================================ */
   function vGroups() {
     var routeAt = location.hash;
-    head('帳本', '家用、旅遊、自己的零用，分開記');
+    head('活動', '家用、旅遊、自己的零用，分開記');
     $view.innerHTML = '<div class="page">' + skeleton(4) + '</div>';
 
-    Promise.all([API.groups({ includeArchived: true }), API.members()])
+    Promise.all([API.groups({ includeArchived: true }), soft(API.members())])
       .then(function (r) {
       if (routeAt !== location.hash) return;
-      var d = r[0], fam = r[1];
+      var d = r[0], fam = r[1].__err ? {members:[]} : r[1];
 
-      /* 展開的時候要用到，先記下來——點開一本帳不用再打一次 API */
+      /* 展開的時候要用到，先記下來——點開一個活動不用再打一次 API */
       LG.fam = fam;
       LG.byId = {};
       d.groups.forEach(function (g) { LG.byId[g.id] = g; });
@@ -2145,13 +2168,13 @@
 
       /* 常設／活動分成兩區，不是兩個分頁。
          分頁會把一半藏起來——只有一本活動帳的時候，為它開一個分頁太重，
-         手機上多一層隱藏狀態也跟「看得到現在在哪一本」相反。
-         區塊則是全部看得到、只是分群；沒有活動帳本時整個區塊不出現。 */
+         手機上多一層隱藏狀態也跟「看得到現在在哪個活動」相反。
+         區塊則是全部看得到、只是分群；沒有期間活動時整個區塊不出現。 */
       var standing = live.filter(function (g) { return g.kind !== 'temp'; });
       var temps = live.filter(function (g) { return g.kind === 'temp' && !g.settled; });
       var done = live.filter(function (g) { return g.kind === 'temp' && g.settled; });
 
-      /* 開一本新的：跟「記一筆」同一個做法，縮成標題右邊的按鈕 */
+      /* 建立活動新的：跟「記一筆」同一個做法，縮成標題右邊的按鈕 */
       var gnewForm =
         '<form class="card gnew" id="gnewF">' +
           '<label class="fld fld--wide"><span>名字</span>' +
@@ -2168,7 +2191,7 @@
                 return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
               }).join('') +
             '</select></label>' +
-          /* 只有活動帳本要填結束日 */
+          /* 只有期間活動要填結束日 */
           '<label class="fld" id="gnEndWrap" hidden><span>結束日</span>' +
             '<input type="date" id="gnEnd"></label>' +
           '<div class="form__act"><button class="btn btn--go btn--sm" type="submit">建立</button></div>' +
@@ -2185,22 +2208,30 @@
         '</li>';
       }).join('') + '</ul></div>';
 
-      var h = '<div class="page"><div class="duo">' +
+      var h = '<div class="page"><section class="card" id="activityInvitations"></section><div class="duo">' +
         '<section class="duo__c">' +
-          foldBlock('gnew', '常設帳本', '開一本', gnewForm, standing.length + ' 本', 'books') +
+          foldBlock('gnew', '常設活動', '建立活動', gnewForm, standing.length + ' 個', 'books') +
           ledgerList(standing) +
-          (gone.length ? foldBlock('garch', '已封存', '看看', archHTML, String(gone.length) + ' 本', 'archive') : '') +
+          (gone.length ? foldBlock('garch', '已封存', '看看', archHTML, String(gone.length) + ' 個', 'archive') : '') +
         '</section>' +
         '<section class="duo__c">' +
-          '<div class="sec"><h2 class="sec__t">活動帳本</h2><span class="sec__n">' + temps.length + ' 本</span></div>' +
+          '<div class="sec"><h2 class="sec__t">期間活動</h2><span class="sec__n">' + temps.length + ' 本</span></div>' +
           (temps.length
             ? ledgerList(temps)
-            : '<div class="card">' + emptyState('沒有進行中的活動', '出國、搬家這種有結束日的花費，開一本活動帳本來記。') + '</div>') +
-          (done.length ? foldBlock('gdone', '已結算', '看看', ledgerList(done), String(done.length) + ' 本') : '') +
+            : '<div class="card">' + emptyState('沒有進行中的活動', '出國、搬家這種有結束日的花費，建立有結束日期的活動來記。') + '</div>') +
+          (done.length ? foldBlock('gdone', '已結算', '看看', ledgerList(done), String(done.length) + ' 個') : '') +
         '</section>' +
       '</div>';
 
       $view.innerHTML = h + '</div>';
+      if (global.ActivityInvites) {
+        global.ActivityInvites.mountReceived(document.getElementById('activityInvitations'), function (group) {
+          if (routeAt !== location.hash) return;
+          if (group && group.id) setGroup(group.id);
+          paintGroups(); vGroups();
+        });
+        mountActivityOwners($view);
+      }
       /* ⚠️ 重畫之後一定要叫它——不然使用者展開表單、按了建立，
          畫面重畫完就無聲收合，看起來像沒有反應。 */
       foldRestore();
@@ -2210,18 +2241,18 @@
 
 
   /* ============================================================
-     帳本清單：收合列
+     活動清單：收合列
 
-     跟財務建議同一個做法——一本帳平常只佔一行：
+     跟財務建議同一個做法——一個活動平常只佔一行：
        顏色 · 名稱 · 狀態 · 成員 · 筆數
      點開才出現成員、月目標、通知、結算／封存。
 
-     ⚠️ 原本一本帳就是一張 150px 高的卡：月目標輸入框、三顆按鈕、
+     ⚠️ 原本一個活動就是一張 150px 高的卡：月目標輸入框、三顆按鈕、
      通知勾選全部攤開，三本帳就佔掉一整個螢幕，而且那些東西
      每天根本不會動。真正每天要看的只有「有哪幾本、各記了多少」。
 
-     ⚠️ 成員管理也在這裡。以前另外有一個「誰在哪一本帳裡」區塊，
-     同一本帳的資訊被拆成上下兩處，要對著名字找。
+     ⚠️ 成員管理也在這裡。以前另外有一個「誰在哪一個活動裡」區塊，
+     同一個活動的資訊被拆成上下兩處，要對著名字找。
      ============================================================ */
   var LG = { open: null, fam: null, byId: {} };
 
@@ -2233,7 +2264,7 @@
     var open = LG.open === g.id;
     return '<div class="lg' + (open ? ' on' : '') + '" data-lgid="' + esc(g.id) + '">' +
       '<button class="lg__h" data-lg="' + esc(g.id) + '" aria-expanded="' + open + '">' +
-        /* ⚠️ 帳本沒有圖示方塊。名字已經說清楚是哪一本了；
+        /* ⚠️ 活動沒有圖示方塊。名字已經說清楚是哪個活動了；
            顏色只用一個小方點，跟切換器上的一樣。 */
         '<span class="gsw__d lg__dot" style="background:' + tint(g.color) + '"></span>' +
         '<span class="lg__t">' + esc(g.name) + '</span>' +
@@ -2258,28 +2289,29 @@
     var byId = {};
     fam.members.forEach(function (m) { byId[m.id] = m; });
 
-    /* 結算之後唯讀：不能再加減人。改成員等於改「誰看得到這本帳」，
+    /* 結算之後唯讀：不能再加減人。改成員等於改「誰看得到這個活動」，
        結算過的帳不該在事後被改掉這件事。 */
     var editable = g.canEdit && !g.settled;
     var outside = editable
       ? fam.members.filter(function (m) { return g.members.indexOf(m.id) < 0; })
       : [];
 
-    var who = g.members.map(function (u) {
+    var who = g.members.map(function (u, index) {
       var m = byId[u] || {};
+      var memberName = Array.isArray(g.memberNames) && g.memberNames[index] || m.name || u;
       var owner = u === g.owner;
-      return '<span class="chip' + (owner ? ' chip--own' : '') + '">' + esc(m.name || u) +
-        (owner ? '<i>開帳本的人</i>' : '') +
+      return '<span class="chip' + (owner ? ' chip--own' : '') + '">' + esc(memberName) +
+        (owner ? '<i>開活動的人</i>' : '') +
         (editable && !owner
-          ? '<button data-gdel="' + esc(g.id) + '|' + esc(u) + '" title="移出這本帳" ' +
-            'aria-label="把' + esc(m.name || u) + '移出這本帳">×</button>'
+          ? '<button data-gdel="' + esc(g.id) + '|' + esc(u) + '" title="移出這個活動" ' +
+            'aria-label="把' + esc(memberName) + '移出這個活動">×</button>'
           : '') +
         '</span>';
     }).join('');
 
     var add = outside.length
-      ? '<select class="lg__add" data-gaddsel="' + esc(g.id) + '" aria-label="把家人加進這本帳">' +
-          '<option value="">＋ 加人</option>' +
+      ? '<select class="lg__add" data-gaddsel="' + esc(g.id) + '" aria-label="把家人加進這個活動">' +
+          '<option value="">＋ 加入家人</option>' +
           outside.map(function (m) {
             return '<option value="' + esc(m.id) + '">' + esc(m.name) + '</option>';
           }).join('') +
@@ -2290,14 +2322,15 @@
       (g.note ? '<p class="lg__note">' + esc(g.note) + '</p>' : '') +
       '<dl class="lg__f">' +
         '<dt>成員</dt><dd><div class="lg__who">' + who + add + '</div>' +
-          (g.canEdit ? '' : '<div class="lg__hint">只有開這本帳的人可以加減成員</div>') + '</dd>' +
+          (g.canEdit ? '' : '<div class="lg__hint">只有開這個活動的人可以加減成員</div>') + '</dd>' +
         '<dt>月目標</dt><dd>' +
           '<input class="goal__i" type="number" min="0" data-ggoal="' + esc(g.id) + '" ' +
-            'value="' + (g.goal || 0) + '" aria-label="這本帳的每月存款目標"></dd>' +
+            'value="' + (g.goal || 0) + '" aria-label="這個活動的每月存款目標"></dd>' +
         '<dt>通知</dt><dd>' +
           '<label class="lg__chk"><input type="checkbox" data-gnotify="' + esc(g.id) + '"' +
-            (g.notify ? ' checked' : '') + '><span>這本帳有動靜就通知我</span></label></dd>' +
+            (g.notify ? ' checked' : '') + '><span>這個活動有動靜就通知我</span></label></dd>' +
       '</dl>' +
+      (editable ? '<section data-activity-invite-owner="' + esc(g.id) + '"></section>' : '') +
       '<div class="lg__acts">' +
         '<button class="btn btn--sm" data-gopen="' + esc(g.id) + '">看這本的 ' + g.count + ' 筆紀錄 →</button>' +
         '<span class="lg__sp"></span>' +
@@ -2305,17 +2338,25 @@
           ? '<button class="gx gx--go" data-gsettle="' + esc(g.id) + '">結算</button>' : '') +
         (g.canEdit
           ? '<button class="gx" data-garch="' + esc(g.id) +
-            '" title="收起這本帳。紀錄不會被刪掉，之後可以復原">封存</button>' : '') +
-        /* 結算過的活動帳本才能移除：帳本不見、紀錄留在各自的收支明細裡 */
+            '" title="收起這個活動。紀錄不會被刪掉，之後可以復原">封存</button>' : '') +
+        /* 結算過的期間活動才能移除：活動不見、紀錄留在各自的收支明細裡 */
         (g.canEdit && g.settled
           ? '<button class="gx gx--warn" data-gremove="' + esc(g.id) + '|' + esc(g.name) +
-            '" title="帳本移除、不能復原；裡面的紀錄會留在各自的收支明細">移除</button>' : '') +
+            '" title="活動移除、不能復原；裡面的紀錄會留在各自的收支明細">移除</button>' : '') +
       '</div>' +
     '</div>';
   }
 
-  /* 點一本打開、再點收起；一次只開一本，跟財務建議一樣。
+  /* 點一本打開、再點收起；一次只開一個活動，跟財務建議一樣。
      只換那兩列，不重打 API，也不重畫整頁。 */
+  function mountActivityOwners(root) {
+    if (!global.ActivityInvites || !root) return;
+    root.querySelectorAll('[data-activity-invite-owner]').forEach(function (node) {
+      var g = LG.byId[node.getAttribute('data-activity-invite-owner')];
+      if (g && g.canEdit && !g.settled) global.ActivityInvites.mountOwner(node, g);
+    });
+  }
+
   function ledgerToggle(id) {
     var prev = LG.open;
     LG.open = (prev === id) ? null : id;
@@ -2327,17 +2368,18 @@
       if (h) h.setAttribute('aria-expanded', on ? 'true' : 'false');
     }
 
-    // 收起原本開著的那一本：先播完往上收，再從 DOM 拿掉
+    // 收起原本開著的那個活動：先播完往上收，再從 DOM 拿掉
     if (prev) {
       var pn = rowOf(prev);
       if (pn) { mark(pn, false); slideAway(pn.querySelector('.lg__b')); }
     }
-    // 打開新的那一本
+    // 打開新的那個活動
     if (LG.open && LG.byId[LG.open]) {
       var nn = rowOf(LG.open);
       if (nn) {
         mark(nn, true);
         nn.insertAdjacentHTML('beforeend', ledgerBody(LG.byId[LG.open]));
+        mountActivityOwners(nn.lastElementChild);
         slideOpen(nn.lastElementChild);
       }
     }
@@ -2382,13 +2424,13 @@
          '這些關係在「成員與權限」都看得到。</p>'
     },
     books: {
-      t: '帳本是什麼',
+      t: '活動是什麼',
       b: '<p>把不同用途的錢分開記，例如「家用」「旅遊基金」。</p>' +
-         '<p>右上角切換帳本之後，數字都只看那一本。</p>'
+         '<p>右上角切換活動之後，數字都只看那個活動。</p>'
     },
     archive: {
       t: '封存',
-      b: '<p>把用不到的帳本收起來。<b>紀錄一筆都不會刪</b>，隨時可以復原。</p>'
+      b: '<p>把用不到的活動收起來。<b>紀錄一筆都不會刪</b>，隨時可以復原。</p>'
     },
     alerts: {
       t: '花到幾成提醒我',
@@ -2482,8 +2524,8 @@
 
      兩種強度：
        'password'  只要密碼。用在「刪一筆紀錄」這種救不回來但範圍小的。
-       'full'      密碼 ＋ 一段 64 碼。用在影響很大的，例如把人移出帳本
-                   （他會失去那本帳所有紀錄的存取，包含自己記的）。
+       'full'      密碼 ＋ 一段 64 碼。用在影響很大的，例如把人移出活動
+                   （他會失去那個活動所有紀錄的存取，包含自己記的）。
 
      那段 64 碼**故意不給複製按鈕**。要使用者自己用滑鼠圈起來複製，
      這個動作本身就是一道減速帶——手滑點下去的人不會剛好完成它。
@@ -2610,8 +2652,8 @@
       t: '這個月還能花多少',
       b: '收入扣掉你想存的，剩下的就是能放心花的錢。' },
     { sel: '#gswBtn', hash: '#/',
-      t: '切換帳本',
-      b: '家用、旅遊基金可以分開記。切過去之後，數字都只看那一本。' },
+      t: '切換活動',
+      b: '家用、旅遊基金可以分開記。切過去之後，數字都只看那個活動。' },
     { sel: '#bell', hash: '#/',
       t: '通知',
       b: '家人記帳、或是你花到設定的比例時，這裡會亮。' }
@@ -2638,7 +2680,7 @@
 
   function tourAsk() {
     if (tourDone()) return;
-    /* ⚠️ 導覽的每一步都指向財務功能（記帳、帳本、通知），
+    /* ⚠️ 導覽的每一步都指向財務功能（記帳、活動、通知），
        平台管理員的首頁上一個都沒有——框會圈在看不見的元素上。 */
     API.me().then(function (m) {
       if (m.user.isPlatformAdmin || tourDone() || document.getElementById('tourAsk')) return;
@@ -2874,7 +2916,7 @@
     grant_guardianship: '建立監管關係', end_guardianship: '解除監管',
     change_role: '變更角色', create_family: '建立家庭', view_ward: '查看被監管者',
     invite_member: '邀請家人', join_family: '加入家庭',
-    remove_member: '移出家庭', leave_family: '退出家庭', remove_group: '移除帳本',
+    remove_member: '移出家庭', leave_family: '退出家庭', remove_group: '移除活動',
     dissolve_family: '解散家庭', change_password: '改密碼', reset_password: '重設密碼',
     verify_password_failed: '密碼確認失敗', lookup_user: '用帳號找人'
   };
@@ -2998,7 +3040,7 @@
              這是這類 App 的共同做法，而且比一整段文字好掃。 */
           '<ul class="lp__f">' +
             '<li><b>一段話整理好幾筆</b><i>「早餐55，午餐320」解析後，核對欄位再確認寫入</i></li>' +
-            '<li><b>家庭權限清楚</b><i>依帳本成員與監管關係分享紀錄，從家庭成員查看權限</i></li>' +
+            '<li><b>家庭權限清楚</b><i>依活動成員與監管關係分享紀錄，從家庭成員查看權限</i></li>' +
             '<li><b>花超前先提醒</b><i>到你設的比例就通知，不用等月底才發現</i></li>' +
           '</ul>' +
           '<button class="lp__go" id="lpGo">' +
@@ -3172,7 +3214,7 @@
       var u = m.user;
       ME = m;
       var skipAll = '<p class="gate__alt"><button type="button" class="gate__lnk" data-su-done="skip">全部先跳過，直接開始用</button></p>' +
-        '<p class="flow-help">若還沒有帳本，完成後會建立「個人帳本」供你記帳。之後可到帳本頁管理。</p>';
+        '<p class="flow-help">個人收支可直接記錄；需要與朋友共用時，再到活動頁建立活動。</p>';
 
       if (SETUP.step === 0) {
         authShell('每個月想存多少？',
@@ -3235,7 +3277,7 @@
           '<a class="btn" href="#/appearance">瀏覽主題與背景</a></div>' +
         '<div class="su__nav"><button type="button" class="btn" data-su-back>上一步</button>' +
           '<button type="button" class="btn btn--go" data-su-done="finish">完成，開始記帳</button></div>' +
-          '<p class="flow-help">若還沒有帳本，完成後會建立「個人帳本」供你記帳。</p>', true);
+          '<p class="flow-help">個人收支可直接記錄；需要共用時再建立活動。</p>', true);
     }).catch(function (e) {
       if (routeAt !== location.hash) return; $view.innerHTML = '<div class="page">' + errState(e) + '</div>'; });
   }
@@ -3246,12 +3288,7 @@
     SETUP_BUSY = true;
     var controls = Array.prototype.slice.call(document.querySelectorAll('[data-su-done]'));
     controls.forEach(function (button) { button.disabled = true; });
-    API.groups({ includeArchived: true }).then(function (d) {
-      if (d.groups.length) return;
-      return API.createGroup({ name: '個人帳本', kind: 'standing', color: 'book-indigo' }).then(function () {
-        setGroup('all');
-      });
-    }).then(function () { return API.updateProfile({ onboarded: true }); }).then(function () {
+    Promise.resolve().then(function () { setGroup('all'); return API.updateProfile({ onboarded: true }); }).then(function () {
       SETUP_BUSY = false;
       ME = null;
       SETUP.step = 0;
@@ -3381,7 +3418,7 @@
             '<div class="form__act"><button class="btn btn--sm" type="submit">更改密碼</button></div>' +
           '</form>' +
 
-          '<div class="sec"><h2 class="sec__t">登入中的裝置</h2></div>' +
+          '<div class="sec"><h2 class="sec__t">其他登入裝置</h2></div>' +
           '<div class="card card--flush" id="sessBox">' + skeleton(1) + '</div>' +
         '</section>' +
 
@@ -3416,11 +3453,11 @@
     var box = document.getElementById('sessBox');
     if (!box) return;
     API.sessions().then(function (d) {
-      box.innerHTML = '<div class="sess">' + (d.sessions || []).map(function (x) {
+      var others = (d.sessions || []).filter(function (x) { return !x.current; });
+      box.innerHTML = '<div class="sess">' + (others.length ? others.map(function (x) {
         return '<div class="sess__i"><b>' + esc(x.device || '裝置') + '</b>' +
-          (x.current ? '<span class="pill pill--safe">這一台</span>' : '') +
           '<small>' + (x.lastActiveAt ? '最近活動 ' + esc(String(x.lastActiveAt).slice(0, 16).replace('T', ' ')) : '') + '</small></div>';
-      }).join('') + '</div>' +
+      }).join('') : '<p class="sess__empty">目前沒有其他登入中的裝置；這台裝置會保持登入。</p>') + '</div>' +
       '<div class="sess__a"><small data-safety-session-description data-i18n-skip>' + esc(global.SafetyCenter ? global.SafetyCenter.label('sessionDescription') : '手機掉了、借別人的電腦忘了登出，可登出其他裝置；這一台會保持登入。') + '</small>' +
         '<button class="btn btn--sm btn--danger" id="logoutAll" data-safety-session-label data-i18n-skip>' + esc(global.SafetyCenter ? global.SafetyCenter.label('logoutOthers') : '登出其他裝置') + '</button></div>';
     }).catch(function (e) { box.innerHTML = errState(e); });
@@ -3517,7 +3554,7 @@
         '<span class="anew__t">花到</span>' +
         '<input type="number" id="anPct" min="1" max="200" value="80" required aria-label="百分比">' +
         '<span class="anew__t">%，</span>' +
-        '<select id="anGroup" aria-label="哪一本帳">' + goals.map(function (g) {
+        '<select id="anGroup" aria-label="哪一個活動">' + goals.map(function (g) {
           return '<option value="' + (g.groupId || '') + '">' + esc(g.groupName) + '</option>';
         }).join('') + '</select>' +
         '<button class="btn btn--sm btn--go" type="submit">加入</button>' +
@@ -3570,20 +3607,31 @@
     return '<span class="ava' + cls + '">' + esc((u && u.avatar) || '') + '</span>';
   }
 
-  /* 帳本切換器。只有一本帳的時候不顯示——一個只有一個選項的下拉是雜訊。 */
+  /* 活動切換器。只有一個活動的時候不顯示——一個只有一個選項的下拉是雜訊。 */
   function paintGroups() {
     var box = document.getElementById('gsw');
     if (!box) return;
-    API.groups().then(function (d) {
-      var gs = d.groups || [];
-      box.hidden = gs.length < 2;
-      if (box.hidden) { setGroup('all'); return; }
+    Promise.all([API.groups(), ME ? Promise.resolve(ME) : API.me()]).then(function (result) {
+      var d = result[0], selectorUser = result[1] && result[1].user;
+      var all = d.groups || [];
+      var gs = all.filter(function (g) {
+        var personalName = g.name === '個人帳本' || g.name === '收支明細';
+        var mine = selectorUser && g.owner === selectorUser.id;
+        return !(personalName && g.kind !== 'temp' && mine && Array.isArray(g.members) && g.members.length === 1 && g.members[0] === g.owner);
+      });
+      box.hidden = false;
+      if (!gs.length) {
+        setGroup('all');
+        box.innerHTML = '<a class="gsw__empty" href="#/groups">目前尚未建立活動</a>';
+        pushForDrawer();
+        return;
+      }
 
-      // 選到的帳本如果已經看不到了（被移出或封存），退回全部
+      // 選到的活動如果已經看不到了（被移出或封存），退回全部
       if (GROUP !== 'all' && !gs.some(function (g) { return g.id === GROUP; })) setGroup('all');
 
       var cur = GROUP === 'all'
-        ? { name: '全部帳本', color: 'var(--ink-faint)' }
+        ? { name: '選擇活動', color: 'var(--ink-faint)' }
         : gs.filter(function (g) { return g.id === GROUP; })[0];
 
       /* 兩種長相都畫出來，由 body 上的 class 決定顯示哪一種：
@@ -3591,8 +3639,8 @@
            方案二（bar-icon）圖示 ＋ 一般下拉
          挑定之後把另一邊刪掉就好。 */
       box.innerHTML =
-        '<button class="ic gsw__b" id="gswBtn" title="帳本：' + esc(cur.name) + '" ' +
-          'aria-label="切換帳本，目前是' + esc(cur.name) + '">' +
+        '<button class="ic gsw__b" id="gswBtn" title="活動：' + esc(cur.name) + '" ' +
+          'aria-label="切換活動，目前是' + esc(cur.name) + '">' +
           '<svg class="gsw__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">' +
             '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10v16H5.5A1.5 1.5 0 0 1 4 18.5z"/>' +
             '<path d="M10 4h8.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H10"/></svg>' +
@@ -3603,9 +3651,6 @@
             'stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>' +
         '</button>' +
         '<div class="gsw__p" id="gswPanel" hidden>' +
-          '<button class="gsw__i' + (GROUP === 'all' ? ' on' : '') + '" data-group="all">' +
-            '<span class="gsw__d" style="background:var(--ink-faint)"></span>' +
-            '<span class="gsw__m"><b>全部帳本</b><i>我看得到的全部合起來</i></span></button>' +
           gs.map(function (g) {
             return '<button class="gsw__i' + (g.id === GROUP ? ' on' : '') +
               '" data-group="' + esc(g.id) + '">' +
@@ -3615,7 +3660,7 @@
                 g.count + ' 筆' + (g.goal ? '　目標 ' + money(g.goal) : '') +
               '</i></span></button>';
           }).join('') +
-          '<a class="gsw__more" href="#/groups">管理帳本 →</a>' +
+          '<a class="gsw__more" href="#/groups">管理活動 →</a>' +
         '</div>';
       pushForDrawer();
     }).catch(function () { box.hidden = true; });
@@ -3792,7 +3837,7 @@
       '<a class="card settings-link" href="#/tutorial"><span>🧭</span><h2>使用教學與導覽</h2><p>了解各項功能，隨時重新開啟逐步操作導覽。</p></a>' +
       '<a class="card settings-link" href="#/ai"><span>✨</span><h2>免費 AI 試用</h2><p>先試用裝置端模型、照片記帳與有依據的帳務問答。</p></a>' +
       '<a class="card settings-link" href="#/memories"><span>🧩</span><h2>記帳小天地</h2><p>設定拼圖照片、目標片數與自己的成就牆。</p></a></nav>' +
-      '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和帳本名稱會保留原文。</p>' + languageSelector() + '</section>' +
+      '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和活動名稱會保留原文。</p>' + languageSelector() + '</section>' +
       '<section class="card"><h2>帳號安全</h2><p class="flow-help">可在個人資料檢查登入中的裝置，並登出其他裝置。</p><a class="btn" href="#/profile">管理登入裝置</a> <button class="btn btn--danger" id="logout">登出</button></section></div>';
     if (global.LifeFeatures) global.LifeFeatures.mountSettings($view);
     if (global.SafetyCenter) global.SafetyCenter.mountSettings($view);
@@ -3801,12 +3846,12 @@
     head('使用教學', '從第一筆記帳開始，慢慢建立自己的財務生活。');
     var topics = [
       ['開始使用與驗證信箱', '建立帳號後，到你填寫的電子信箱找驗證信，點擊連結並確認。沒收到時先檢查垃圾郵件，再回信箱驗證頁重新寄送；驗證完成後即可登入。'],
-      ['手動記下實際花費', '到「收支明細」選擇手動記帳，填日期、收入或支出、實際金額、分類及帳本，核對後確認。你可加上店家、備註與購物照片，方便日後回想。'],
+      ['手動記下實際花費', '到「收支明細」選擇手動記帳，填日期、收入或支出、實際金額、分類及活動，核對後確認。你可加上店家、備註與購物照片，方便日後回想。'],
       ['用一段話整理多筆', '按「記一筆」，輸入例如「早餐55，午餐120」。解析後請逐筆核對日期、分類與金額，補齊缺漏再確認儲存。畫面會標示目前使用的解析方式。'],
-      ['查看或修正紀錄', '在收支明細可搜尋店家或備註，依收入、支出與記錄者篩選。自己的紀錄可修改或刪除；已結算帳本的紀錄不能變更。照片按鈕可查看當時的購物回憶。'],
+      ['查看或修正紀錄', '在收支明細可搜尋店家或備註，依收入、支出與記錄者篩選。自己的紀錄可修改或刪除；已結算活動的紀錄不能變更。照片按鈕可查看當時的購物回憶。'],
       ['目標、預算與統計', '點總覽的大頭貼進入個人資料，設定每月想存的金額與分類預算。回總覽查看可再支出金額，在統計頁看各分類支出與趨勢。'],
-      ['國際匯率換算', '在匯率換算選擇原幣、目標幣與金額。換算結果會顯示來源與日期；按帶入記帳後，再把金額核對成實際扣款。帳本目前統一以新臺幣彙總。'],
-      ['與家人共享帳本', '到家庭成員建立家庭，產生邀請碼讓家人加入，再建立或分享帳本。只有被授權的帳本與監管關係可查看資料；加入家庭不會自動公開全部私人紀錄。'],
+      ['國際匯率換算', '在匯率換算選擇原幣、目標幣與金額。換算結果會顯示來源與日期；按帶入記帳後，再把金額核對成實際扣款。活動目前統一以新臺幣彙總。'],
+      ['與家人共享活動', '到家庭成員建立家庭，產生邀請碼讓家人加入，再建立或分享活動。只有被授權的活動與監管關係可查看資料；加入家庭不會自動公開全部私人紀錄。'],
       ['選擇風格與語言', '到設定的「主題與背景」，瀏覽配色與三種背景，也可選照片或拍照，調整顯示方式與亮度，預覽滿意後按套用。登入頁與登入後會沿用相同背景。設定也能更換語言。'],
       ['記帳小天地與成就牆', '選一張喜歡的照片作為拼圖，設定片數與每週或每月的節奏。每筆有效記帳收集一片，拼完後才可開始下一張。完成的作品會依年月留在你命名的成就牆。'],
       ['在手機上使用', '手機瀏覽器可使用相同功能。底部「記一筆」方便新增，照片可選相簿或拍照；背景照片原檔保存在裝置，帳號會同步適合其他裝置顯示的版本。']
@@ -3860,6 +3905,8 @@
   var ANY = ['reset', 'verify-email', 'appearance', 'tutorial', 'fraud'];
 
   function paint() {
+    if (TXARCHIVE) { TXARCHIVE.destroy(); TXARCHIVE=null; }
+    TXLOAD++;
     var requestedHash = location.hash;
     if (global.AIAssistant && !/^#\/ai(?:\/|$)/.test(requestedHash)) global.AIAssistant.cleanup();
     // #/member/U3/T1051 → ['member', 'U3', 'T1051']
@@ -4035,7 +4082,11 @@
     }
 
     var nav = t.closest('[data-nav]');
-    if (nav) { location.hash = '#/' + nav.dataset.nav; return; }
+    if (nav) {
+      if (nav.hasAttribute('data-personal-details')) { setGroup('all'); paintGroups(); }
+      location.hash = '#/' + nav.dataset.nav;
+      return;
+    }
 
     /* 成員那一列點下去看他的紀錄。
        存款目標的輸入框也在這一列裡，點它不能跳走。 */
@@ -4047,7 +4098,7 @@
       danger({
         title: '把' + rmName + '移出家庭',
         detail: '他的紀錄<b>一筆都不會刪</b>。<br>' +
-                '你們之間的監管關係、零用金會結束，他也會離開家人開的帳本——之後彼此就看不到了。',
+                '你們之間的監管關係、零用金會結束，他也會離開家人開的活動——之後彼此就看不到了。',
         level: 'password',
         ok: '確定移出',
         onOk: function () {
@@ -4123,7 +4174,7 @@
       var dName = t.closest('[data-family-dissolve]').dataset.name;
       danger({
         title: '解散「' + dName + '」',
-        detail: '每個人都會離開這個家庭：監管關係、零用金結束，家人之間的帳本互相移出，還沒用的邀請與邀請碼作廢。<br>' +
+        detail: '每個人都會離開這個家庭：監管關係、零用金結束，家人之間的活動互相移出，還沒用的邀請與邀請碼作廢。<br>' +
                 '<b>紀錄一筆都不會刪</b>，每一筆都還在記的人自己的收支明細裡。這個動作<b>不能復原</b>。',
         level: 'full',
         ok: '解散家庭',
@@ -4141,7 +4192,7 @@
       danger({
         title: '退出「' + famName + '」',
         detail: '你的紀錄<b>一筆都不會刪</b>，之後也可以再被邀請回來。<br>' +
-                '退出後你跟家人之間就互相看不到了，你也會離開家人開的帳本。',
+                '退出後你跟家人之間就互相看不到了，你也會離開家人開的活動。',
         level: 'password',
         ok: '確定退出',
         onOk: function () {
@@ -4324,7 +4375,7 @@
       return;
     }
 
-    /* ---- 帳本切換器 ---- */
+    /* ---- 活動切換器 ---- */
     if (t.closest('#gswBtn')) {
       var gp = document.getElementById('gswPanel');
       if (gp) {
@@ -4337,7 +4388,7 @@
     var gpick = t.closest('[data-group]');
     if (gpick) {
       setGroup(gpick.dataset.group);
-      // 先把面板往上收完，再重畫——不然一換帳本面板就瞬間消失
+      // 先把面板往上收完，再重畫——不然一換活動面板就瞬間消失
       slideClose(document.getElementById('gswPanel'), function () { paintGroups(); paint(); });
       return;
     }
@@ -4362,7 +4413,7 @@
     var gnot = t.closest('[data-gnotify]');
     if (gnot) {
       API.setGroupNotify(gnot.dataset.gnotify, gnot.checked).then(function (r) {
-        toast(r.notify ? '這本帳有動靜會通知你' : '已關閉這本帳的通知', 'ok');
+        toast(r.notify ? '這個活動有動靜會通知你' : '已關閉這個活動的通知', 'ok');
       }).catch(function (err) {
         gnot.checked = !gnot.checked;
         toast(err.message || '設定失敗', 'err');
@@ -4371,12 +4422,12 @@
     }
 
     /* 結算。⚠️ 它不搬動任何一筆紀錄，也不改變誰看得到——
-       只是把這本帳標記結束、之後不能再往裡面記。 */
+       只是把這個活動標記結束、之後不能再往裡面記。 */
     var gset = t.closest('[data-gsettle]');
     if (gset) {
       var gid = gset.dataset.gsettle;
       danger({
-        title: '結算這本活動帳本',
+        title: '結算這本期間活動',
         detail: '結算之後<b>不能再往裡面記帳</b>，紀錄會留著、也還看得到。' +
                 '<br>已經花掉的錢本來就算在你的收支裡，<b>數字不會變</b>。',
         level: 'password',
@@ -4469,7 +4520,7 @@
       return;
     }
 
-    /* ---- 帳本管理 ---- */
+    /* ---- 活動管理 ---- */
     var lgh = t.closest('[data-lg]');
     if (lgh) { ledgerToggle(lgh.dataset.lg); return; }
 
@@ -4483,7 +4534,7 @@
     var garch = t.closest('[data-garch]');
     if (garch) {
       /* 兩段式：第一下先問，第二下才真的做。
-         ⚠️ 封存會讓那本帳從切換器和統計裡消失，看起來跟刪除一樣——
+         ⚠️ 封存會讓那個活動從切換器和統計裡消失，看起來跟刪除一樣——
          使用者按下去之前必須知道會發生什麼。 */
       if (garch.dataset.sure !== '1') {
         garch.dataset.sure = '1';
@@ -4518,9 +4569,9 @@
       var rm = grem.dataset.gremove.split('|');
       danger({
         title: '移除「' + rm[1] + '」',
-        detail: '這本帳會從帳本清單和切換器消失，<b>不能復原</b>。' +
+        detail: '這個活動會從活動清單和切換器消失，<b>不能復原</b>。' +
                 '<br>裡面的紀錄<b>不會刪掉</b>：每一筆都還在記帳的人自己的收支明細裡，統計數字也不會變。' +
-                '<br>只是之後不能再單獨看這本帳；只靠這本帳看得到別人紀錄的家人，就看不到了。',
+                '<br>只是之後不能再單獨看這個活動；只靠這個活動看得到別人紀錄的家人，就看不到了。',
         level: 'full',
         ok: '確定移除',
         onOk: function () {
@@ -4537,8 +4588,8 @@
     if (gdel) {
       var b = gdel.dataset.gdel.split('|');
       danger({
-        title: '把這個人移出帳本',
-        detail: '他之後<b>看不到別人記在這本帳的紀錄</b>，也不能再往這本帳記。' +
+        title: '把這個人移出活動',
+        detail: '他之後<b>看不到別人記在這個活動的紀錄</b>，也不能再往這個活動記。' +
                 '<br>他自己記過的那些<b>不會刪掉</b>，還在他自己的收支明細裡。',
         level: 'full',
         ok: '確定移出',
@@ -4664,7 +4715,7 @@
     if (t.closest('#paraSave')) {
       if (BATCH_SAVING || !batch || !batch.length) return;
       syncBatch();
-      var bad = batch.filter(function (x) { return x.missing && x.missing.length; }).length;
+      var bad = batch.filter(function (x) { return x.missing && x.missing.length || (x.kind !== 'expense' && x.kind !== 'income') || !cats(x.kind).some(function (c) { return c.id === x.cat && c.kind === x.kind; }); }).length;
       if (bad) { toast('還有 ' + bad + ' 筆缺欄位', 'err'); return; }
       var n = batch.length;
       BATCH_SAVING = true;
@@ -4673,7 +4724,7 @@
       var saveControls = Array.prototype.slice.call(document.querySelectorAll('#paraOut input, #paraOut select, #paraOut button'));
       saveControls.forEach(function (control) { control.disabled = true; });
       saveButton.innerHTML = '<span class="btn__sp"></span>寫入中…';
-      // 記進目前正在看的那一本帳
+      // 記進目前正在看的那一個活動
       if (GROUP !== 'all' && batch.length) batch[0].groupId = GROUP;
       API.nlpConfirmBatch(batch).then(function () {
         var out = document.getElementById('paraOut');
@@ -4716,7 +4767,7 @@
 
       /* 存進去之後要刪掉得驗密碼，所以寫入前先讓人看一眼。
          把要寫的內容放在按鈕上，再按一次才真的寫——
-         段落記帳本來就有確認步驟，單筆手動不該比它更容易出錯。 */
+         段落記活動來就有確認步驟，單筆手動不該比它更容易出錯。 */
       if (btn.dataset.sure !== '1' || btn.dataset.confirmation !== JSON.stringify(v)) {
         var cn = (DATA_CATS[v.cat] || v.cat);
         btn.dataset.sure = '1';
@@ -4739,7 +4790,7 @@
       API.createTransaction({
         date: v.date, amount: Number(v.amount), kind: v.kind, cat: v.cat,
         merchant: v.merchant, note: v.note,
-        // 記進目前正在看的那一本帳；看「全部」就交給後端決定
+        // 記進目前正在看的那一個活動；看「全部」就交給後端決定
         groupId: GROUP === 'all' ? null : GROUP
       }).then(function () {
         renderMode(); loadTx(); toast('已寫入一筆', 'ok');
@@ -5073,7 +5124,7 @@
           ? (document.getElementById('gnEnd') || {}).value : null
       }).then(function (g) {
         busy(f, false);
-        /* 開完就收起來。開帳本是一次性動作，不像記帳會連記好幾筆——
+        /* 開完就收起來。開活動是一次性動作，不像記帳會連記好幾筆——
            建好之後該看到的是「我現在有哪幾本」，不是一張空白表單。 */
         FOLD.gnew = false;
         paintGroups(); vGroups();
@@ -5214,7 +5265,7 @@
       var gv = Number(gg.value);
       if (isNaN(gv) || gv < 0) { toast('目標要是 0 以上的數字', 'err'); return; }
       API.setSavingsGoal(null, gv, gg.dataset.ggoal).then(function (r) {
-        toast('「' + (r.groupName || '這本帳') + '」的月目標改為 ' + money(gv), 'ok');
+        toast('「' + (r.groupName || '這個活動') + '」的月目標改為 ' + money(gv), 'ok');
         paintGroups();
       }).catch(function (err) { toast('設定失敗：' + err.message, 'err'); });
       return;
@@ -5244,7 +5295,13 @@
     if (s) { F[s.dataset.f] = s.value; loadTx(); }
     if (e.target.closest && e.target.closest('[data-b]')) {
       // 收支方向改了，分類選項要跟著換
-      if (e.target.dataset.b === 'kind') { syncBatch(); renderBatch({ items: batch, note: '' }); }
+      if (e.target.dataset.b === 'kind') {
+        syncBatch();
+        var changedRow = e.target.closest('.btbl__r');
+        var changed = changedRow && batch[Number(changedRow.dataset.bi)];
+        if (changed) { changed.cat = null; if (changed.missing.indexOf('cat') < 0) changed.missing.push('cat'); }
+        renderBatch({ items: batch, note: '' });
+      }
       else syncBatch();
     }
   });

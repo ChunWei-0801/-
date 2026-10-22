@@ -37,3 +37,18 @@ class GroupMemberIn(BaseModel):
 
 class NotifyIn(BaseModel):
     notify: bool
+
+
+class GroupInviteCodeIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    label: str = Field(min_length=1, max_length=30)
+
+
+class GroupInviteIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    userId: str = Field(min_length=1, max_length=20)
+
+
+class GroupJoinIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=64)

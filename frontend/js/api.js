@@ -50,8 +50,9 @@
    POST   /api/admin/users/{user_id}/suspend
    DELETE /api/admin/users/{user_id}/suspend
 
-   記帳（31 支）
+   記帳（41 支）
    GET    /api/transactions
+   GET    /api/transactions/archives
    POST   /api/transactions
    PATCH  /api/transactions/{tx_id}
    DELETE /api/transactions/{tx_id}
@@ -63,6 +64,15 @@
    GET    /api/categories
    POST   /api/categories
    GET    /api/groups
+   GET    /api/groups/lookup
+   GET    /api/groups/invites
+   POST   /api/groups/join
+   POST   /api/groups/invites/{invite_id}/accept
+   DELETE /api/groups/invites/{invite_id}
+   GET    /api/groups/{gid}/invites
+   POST   /api/groups/{gid}/invite-codes
+   POST   /api/groups/{gid}/invites
+   DELETE /api/groups/{gid}/invites/{invite_id}
    POST   /api/groups
    PATCH  /api/groups/{gid}
    DELETE /api/groups/{gid}
@@ -968,9 +978,50 @@
   /* ============================================================
      mock 轉接器
      ============================================================ */
+  function mockActivityInviteUnavailable() {
+    return Promise.reject(oops('活動邀請需要連線到後端服務；模擬模式不提供跨帳號邀請。', 503));
+  }
+  function transactionArchiveIndex(rows) {
+    var clock = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('Z', '+08:00');
+    var period = clock.slice(0, 7), months = {}, years = {};
+    rows.forEach(function (row) { var key = row.date.slice(0, 7); months[key] = (months[key] || 0) + 1; });
+    Object.keys(months).sort().reverse().forEach(function (key) {
+      var year = Number(key.slice(0, 4)), month = Number(key.slice(5));
+      var pack = years[year] || (years[year] = { year: year, count: 0, months: [] });
+      pack.count += months[key];
+      pack.months.push({ period: key, year: year, month: month, count: months[key], closed: key < period,
+        from: key + '-01', to: key + '-' + new Date(Date.UTC(year, month, 0)).getUTCDate() });
+    });
+    return { timezone: 'Asia/Taipei', currentPeriod: period, asOf: clock, total: rows.length,
+      years: Object.keys(years).map(function (year) { return years[year]; }).sort(function (a, b) { return b.year - a.year; }) };
+  }
   var mock = {
     fraudUpdates: function (options) { return fraudUpdates(options); },
     financialReferences: function (options) { return financialReferences(options); },
+    lookupGroupUser: function () { return mockActivityInviteUnavailable(); },
+    groupInvites: function () { return mockActivityInviteUnavailable(); },
+    receivedGroupInvites: function () { return mockActivityInviteUnavailable(); },
+    inviteGroupMember: function () { return mockActivityInviteUnavailable(); },
+    createGroupInviteCode: function () { return mockActivityInviteUnavailable(); },
+    cancelGroupInvite: function () { return mockActivityInviteUnavailable(); },
+    acceptGroupInvite: function () { return mockActivityInviteUnavailable(); },
+    declineGroupInvite: function () { return mockActivityInviteUnavailable(); },
+    joinGroup: function () { return mockActivityInviteUnavailable(); },
+    transactionArchives: function (filters) {
+      var params = Object.assign({}, filters || {}), rows = [], page = 1;
+      delete params.page;
+      function next() {
+        return mock.transactions(Object.assign({}, params, { page: page++ })).then(function (result) {
+          rows = rows.concat(result.transactions);
+          if (rows.length < result.total) {
+            if (!result.transactions.length) throw oops('模擬明細分頁不完整，請重新整理。', 500);
+            return next();
+          }
+          return transactionArchiveIndex(rows);
+        });
+      }
+      return next();
+    },
 
     me: function () {
       var s = load();
@@ -1923,7 +1974,8 @@
           if (f.kind && f.kind !== 'all' && t.kind !== f.kind) return false;
           if (f.source && f.source !== 'all' && (t.source || 'manual') !== f.source) return false;
           if (f.q) {
-            var hay = (t.merchant + ' ' + (t.note || '') + ' ' + (t.raw || '')).toLowerCase();
+            var activityName = t.groupName || (groupOf(t.group) || {}).name || '';
+            var hay = (t.merchant + ' ' + (t.note || '') + ' ' + (t.raw || '') + ' ' + activityName).toLowerCase();
             if (hay.indexOf(f.q.toLowerCase()) < 0) return false;
           }
           return true;
@@ -1933,11 +1985,14 @@
           if (a.date !== b.date) return a.date < b.date ? 1 : -1;
           return txOrder(b) - txOrder(a);
         });
+        var page = Number(f.page || 1);
+        if (!Number.isInteger(page) || page < 1) throw oops('頁碼必須是正整數', 422);
         return {
-          transactions: rows.map(function (t) {
+          transactions: rows.slice((page - 1) * 200, page * 200).map(function (t) {
             var c = catOf(s, t.cat);
             return Object.assign(clone(t), {
               userName: memberOf(t.user).name,
+              groupName: t.groupName || (groupOf(t.group) || {}).name || '',
               catName: c ? c.name : '',
               catColor: c ? c.color : '#5B7085'
             });
@@ -3074,6 +3129,16 @@
     aiLocalKnowledge:  function (f)     { return req('/api/ai-local/knowledge' + qs(f)); },
     summary:           function (f)     { return req('/api/summary' + qs(f)); },
     transactions:      function (f)     { return req('/api/transactions' + qs(f)); },
+    transactionArchives: function (f)   { return req('/api/transactions/archives' + qs(f || {})); },
+    lookupGroupUser:   function (p)     { p = p || {}; return req('/api/groups/lookup' + qs({ groupId: p.groupId, email: p.email })); },
+    groupInvites:      function (g)     { return req('/api/groups/' + encodeURIComponent(g) + '/invites'); },
+    receivedGroupInvites: function ()   { return req('/api/groups/invites'); },
+    inviteGroupMember: function (g, u)  { return req('/api/groups/' + encodeURIComponent(g) + '/invites', { method: 'POST', body: { userId: u } }); },
+    createGroupInviteCode: function (g, p) { return req('/api/groups/' + encodeURIComponent(g) + '/invite-codes', { method: 'POST', body: { label: (p || {}).label } }); },
+    cancelGroupInvite: function (g, i)  { return req('/api/groups/' + encodeURIComponent(g) + '/invites/' + encodeURIComponent(i), { method: 'DELETE' }); },
+    acceptGroupInvite: function (i)     { return req('/api/groups/invites/' + encodeURIComponent(i) + '/accept', { method: 'POST' }); },
+    declineGroupInvite: function (i)    { return req('/api/groups/invites/' + encodeURIComponent(i), { method: 'DELETE' }); },
+    joinGroup:         function (c)     { return req('/api/groups/join', { method: 'POST', body: { code: c } }); },
     nlpParse:          function (t)     { return req('/api/nlp/parse', { method: 'POST', body: { text: t } }); },
     nlpParseBatch:     function (t)     { return req('/api/nlp/parse-batch', { method: 'POST', body: { text: t } }); },
     nlpConfirm:        function (p)     { return req('/api/nlp/confirm', { method: 'POST', body: p }); },
@@ -3151,6 +3216,16 @@
         路由與負責人跟 backend/app/ownership.py 對齊，有測試擋。
      ============================================================ */
   var FN = {
+    transactionArchives: ['GET /api/transactions/archives', '記帳'],
+    lookupGroupUser: ['GET /api/groups/lookup', '記帳'],
+    groupInvites: ['GET /api/groups/{gid}/invites', '記帳'],
+    receivedGroupInvites: ['GET /api/groups/invites', '記帳'],
+    inviteGroupMember: ['POST /api/groups/{gid}/invites', '記帳'],
+    createGroupInviteCode: ['POST /api/groups/{gid}/invite-codes', '記帳'],
+    cancelGroupInvite: ['DELETE /api/groups/{gid}/invites/{invite_id}', '記帳'],
+    acceptGroupInvite: ['POST /api/groups/invites/{invite_id}/accept', '記帳'],
+    declineGroupInvite: ['DELETE /api/groups/invites/{invite_id}', '記帳'],
+    joinGroup: ['POST /api/groups/join', '記帳'],
     me:                 ['GET /api/auth/me', '認證'],
     authState:          [null, '前端'],
     renew:              [null, '前端'],
@@ -3280,6 +3355,12 @@
   /* 畫面一定會讀的欄位。少了任何一個，畫面會在很後面的地方壞掉（讀不到 undefined 的 map），
      看不出是哪一支回錯——所以在這裡先檢查，直接指出是哪一支。 */
   var SHAPE = {
+    transactionArchives: ['timezone', 'currentPeriod', 'asOf', 'total', 'years'],
+    lookupGroupUser: ['user', 'status'],
+    groupInvites: ['sent'], receivedGroupInvites: ['received'],
+    inviteGroupMember: ['id', 'status'], createGroupInviteCode: ['id', 'code', 'expiresAt', 'label', 'status'],
+    cancelGroupInvite: ['id', 'status'], acceptGroupInvite: ['group', 'status'],
+    declineGroupInvite: ['id', 'status'], joinGroup: ['group', 'status'],
     fraudUpdates: ['status', 'items', 'source', 'lastSyncedAt', 'lastAttemptAt', 'stale', 'officialLinks'],
     financialReferences: ['items', 'mode', 'liveBookFeed', 'notice'],
     me: ['user'], login: ['user'], register: ['user'],
@@ -3310,6 +3391,9 @@
      後面加 ? = 可以是 null（但那一欄一定要在）。
      只列**畫面真的會讀**的欄位；後端多回欄位不算錯。 */
   var ROWS = {
+    transactionArchives: { years: { year: 'n', count: 'n', months: 'a' } },
+    groupInvites: { sent: { id: 's', groupId: 's', groupName: 's', inviterId: 's', inviterName: 's', inviteeId: 's?', inviteeName: 's?', label: 's?', status: 's', expiresAt: 't', createdAt: 't', isCode: 'b' } },
+    receivedGroupInvites: { received: { id: 's', groupId: 's', groupName: 's', inviterId: 's', inviterName: 's', inviteeId: 's?', inviteeName: 's?', label: 's?', status: 's', expiresAt: 't', createdAt: 't', isCode: 'b' } },
     fraudUpdates: { items: { id: 's', title: 's', summary: 's', publishedAt: 's', url: 's' } },
     financialReferences: { items: { id: 's', title: 's', author: 's', publisher: 's', url: 's', principle: 's', application: 's', contentLanguage: 's', sourceVerifiedOn: 'd' } },
     aiLocalKnowledge: { items: { id: 's', title: 's', text: 's', sourceLink: 's', score: 'n' } },

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 108 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 118 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>108 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>118 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">108 ROUTES · 4 MODULES</div>
+    <div class="mono">118 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -501,6 +501,46 @@
       d: '附書目與官方來源的理財教育參考', q: ['language=zh-TW|zh-CN|en|ja|ko|es（預設zh-TW）'],
       note: '本站改寫的教育原則與日常應用，附書名、作者、出版資訊、來源網址與查核日期。mode=curated-referenced-education、liveBookFeed=false；不提供完整書籍、個人投資推薦或報酬保證。不讀任何帳務。',
       res: '回傳items、mode、liveBookFeed與notice。每筆含id、title、author、publisher、year、isbn、type、url、topics、principle、application、contentLanguage、sourceVerifiedOn。' },
+    { n: 115, o: 'm2', m: 'GET', p: '/api/transactions/archives', a: '登入',
+      d: "完整授權明細的年月包裹", q: ["userId", "groupId", "from", "to", "categoryId", "kind", "source", "q"],
+      note: "與明細使用相同授權與篩選；不接受page。依Asia/Taipei日界線回傳有紀錄的年／月完整筆數、currentPeriod、asOf、closed與日期範圍。只整理呈現，不搬移交易、不鎖定歷史月份。",
+      res: "{timezone,currentPeriod,asOf,total,years:[{year,count,months:[{period,year,month,count,closed,from,to}]}]}" },
+    { n: 116, o: 'm2', m: 'GET', p: '/api/groups/lookup', a: '建立者',
+      d: "用完整email查找活動朋友", q: ["groupId（必填）", "email（完整信箱）"],
+      note: "僅活動建立者可查，每帳號每分鐘至多10次，與家庭查找共用額度。只回最少姓名、頭像與available/member/invited/unavailable狀態，不回家庭或帳務資料。",
+      res: "{user:{id,name,avatar,avatarUrl},status}" },
+    { n: 117, o: 'm2', m: 'GET', p: '/api/groups/invites', a: '登入',
+      d: "本人收到且仍有效的活動邀請",
+      note: "只列邀請給本人的pending、未過期且活動仍可加入的帳號邀請，最多100項；不加入家庭、不提供其他活動資料。",
+      res: "{received:[InviteMetadata]}" },
+    { n: 118, o: 'm2', m: 'POST', p: '/api/groups/join', a: '登入',
+      d: "使用單次邀請碼加入活動", body: "{\n  \"code\": \"ABCD2345\"\n}",
+      note: "單次七天邀請碼，每帳號每分鐘至多10次嘗試。成功只增加該活動成員資格，不更動家庭或家庭角色；不公開其他私人紀錄。",
+      res: "{group:{id,name},status:\"accepted\"}" },
+    { n: 119, o: 'm2', m: 'POST', p: '/api/groups/invites/{invite_id}/accept', a: '被邀請的人',
+      d: "接受活動帳號邀請",
+      note: "無請求主體，只接受登入本人被邀請的有效帳號邀請。原子地消耗邀請並新增該活動資格；已回覆或活動已關閉時拒絕。",
+      res: "{group:{id,name},status:\"accepted\"}" },
+    { n: 120, o: 'm2', m: 'DELETE', p: '/api/groups/invites/{invite_id}', a: '被邀請的人',
+      d: "婉拒收到的活動帳號邀請",
+      note: "只有被邀請本人可婉拒仍pending的帳號邀請，不改動家庭、既有活動成員或任何交易。",
+      res: "{id,status:\"declined\"}" },
+    { n: 121, o: 'm2', m: 'GET', p: '/api/groups/{gid}/invites', a: '建立者',
+      d: "查看活動待處理邀請",
+      note: "活動建立者查看該活動pending、未過期邀請，最多100項；可在封存／結算後整理邀請。不回原始邀請碼或雜湊。",
+      res: "{sent:[InviteMetadata]}" },
+    { n: 122, o: 'm2', m: 'POST', p: '/api/groups/{gid}/invite-codes', a: '建立者',
+      d: "產生單次七天活動邀請碼", body: "{\n  \"label\": \"旅遊朋友\"\n}",
+      note: "label必填1–30字，排除全空白；活動須開放。明碼只在建立成功時回傳，資料庫只存雜湊；待處理邀請最多100項。",
+      res: "{id,code,label,expiresAt,status:\"pending\"}" },
+    { n: 123, o: 'm2', m: 'POST', p: '/api/groups/{gid}/invites', a: '建立者',
+      d: "用帳號邀請朋友加入活動", body: "{\n  \"userId\": \"42\"\n}",
+      note: "僅活動建立者可邀請可用且尚未加入的帳號；重複pending邀請拒絕。受邀人同意後才取得該活動資格，不可直接拉入其他家庭。",
+      res: "{id,status:\"pending\"}" },
+    { n: 124, o: 'm2', m: 'DELETE', p: '/api/groups/{gid}/invites/{invite_id}', a: '建立者',
+      d: "取消活動邀請或邀請碼",
+      note: "活動建立者只能取消該活動仍pending的邀請或邀請碼。封存／結算後仍可取消；不刪除成員或交易。",
+      res: "{id,status:\"cancelled\"}" },
     { n: 66, o: 'sys', m: 'GET', p: '/healthz', a: '公開',
       d: '健康檢查（Render 用）' },
     { n: 67, o: 'sys', m: 'GET', p: '/docs', a: '公開',

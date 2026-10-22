@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#16493F">
-<meta name="description" content="家庭記帳 FamBudget — 記錄生活收支、管理預算與家庭帳本，讓每一筆花費都留下回憶。">
+<meta name="description" content="家庭記帳 FamBudget — 記錄生活收支、管理預算與家庭活動，讓每一筆花費都留下回憶。">
 
 <!-- ============================================================
      後端接口：留空 = 同源 API；本機 5174 靜態前端自動連到 8000。
@@ -30,7 +30,7 @@
   })();
 </script>
 <link rel="stylesheet" href="css/tokens.css?v=165">
-<link rel="stylesheet" href="css/app.css?v=165">
+<link rel="stylesheet" href="css/app.css?v=174">
 <link rel="stylesheet" href="css/themes.css?v=165">
 <link rel="stylesheet" href="css/login-background.css?v=165">
 <link rel="stylesheet" href="css/exchange.css?v=165">
@@ -44,8 +44,9 @@
 <link rel="stylesheet" href="css/calculator.css?v=166">
 <link rel="stylesheet" href="css/report-charts.css?v=166">
 <link rel="stylesheet" href="css/financial-reports.css?v=166">
-<link rel="stylesheet" href="css/safety-center.css?v=173">
+<link rel="stylesheet" href="css/safety-center.css?v=174">
 <link rel="stylesheet" href="css/ai-assistant.css?v=167">
+  <link rel="stylesheet" href="css/transaction-archive.css?v=174">
 </head>
 <body>
 
@@ -82,7 +83,7 @@
 
   <main class="main">
     <div id="runtimeNote" class="runtime-note" role="status" hidden></div>
-    <!-- 第一層標題：頁面。右邊是這一頁的切換與工具（我｜全家、帳本、搜尋） -->
+    <!-- 第一層標題：頁面。右邊是這一頁的切換與工具（我｜全家、活動、搜尋） -->
     <div class="phead" id="phead">
       <!-- 總覽才有的頭貼。其他頁面 head() 會把它收起來 -->
       <span class="phead__av" id="pav" hidden></span>
@@ -123,24 +124,26 @@
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script src="js/stars.js?v=165"></script>
-<script src="js/data.js?v=165"></script>
-<script src="js/api.js?v=173"></script>
+<script src="js/data.js?v=174"></script>
+<script src="js/api.js?v=174"></script>
 <script src="js/notify.js?v=165"></script>
 <script src="js/login-background.js?v=165"></script>
 <script src="js/exchange.js?v=165"></script>
-<script src="js/i18n.js?v=173"></script>
+<script src="js/i18n.js?v=174"></script>
 <script src="js/media.js?v=165"></script>
 <script src="js/memories.js?v=165"></script>
-<script src="js/safety-center.js?v=173"></script>
-<script src="js/life-features.js?v=173"></script>
+<script src="js/safety-center.js?v=174"></script>
+<script src="js/life-features.js?v=174"></script>
 <script src="js/report-charts.js?v=166"></script>
 <script src="js/wellness.js?v=166"></script>
 <script src="js/savings-game.js?v=166"></script>
 <script src="js/smoking.js?v=166"></script>
 <script src="js/calculator.js?v=166"></script>
 <script src="js/financial-reports.js?v=166"></script>
-<script src="js/local-ai-engine.js?v=173"></script>
-<script src="js/ai-assistant.js?v=173"></script>
-<script src="js/app.js?v=173"></script>
+<script src="js/local-ai-engine.js?v=174"></script>
+<script src="js/ai-assistant.js?v=174"></script>
+<script src="js/activity-invites.js?v=174"></script>
+<script src="js/transaction-archive.js?v=174"></script>
+<script src="js/app.js?v=174"></script>
 </body>
 </html>

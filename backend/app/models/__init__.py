@@ -10,7 +10,7 @@ from app.models.audit import AuditLog  # noqa: F401
 from app.models.budget import Budget, SavingsGoal  # noqa: F401
 from app.models.category import Category  # noqa: F401
 from app.models.family import Family, FamilyMember, FamilyInvite  # noqa: F401
-from app.models.group import Group, GroupMember  # noqa: F401
+from app.models.group import Group, GroupMember, GroupInvite  # noqa: F401
 from app.models.guardianship import Guardianship, Allowance  # noqa: F401
 from app.models.nlp import NlpParse  # noqa: F401
 from app.models.notification import Notification  # noqa: F401
@@ -29,3 +29,5 @@ from app.models.lifestyle import LifestylePreferences, HealthEntry, SmokingSetti
 
 __all__ += ["LifestylePreferences", "HealthEntry", "SmokingSettings", "SmokingEntry", "SavingsJar"]
 TABLES.update({"lifestyle_preferences": LifestylePreferences, "health_entries": HealthEntry, "smoking_settings": SmokingSettings, "smoking_entries": SmokingEntry, "savings_jars": SavingsJar})
+__all__ += ["GroupInvite"]
+TABLES["group_invites"] = GroupInvite

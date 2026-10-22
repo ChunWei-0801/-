@@ -132,7 +132,8 @@ const server = http.createServer((req,res) => {
     assert.equal(new URL(app.url()).hash,'#/profile','Logout other devices keeps the current route');
     assert.equal(await app.evaluate(async()=>(await API.authState()).loggedIn),true);
     assert.equal(await app.evaluate(async()=>(await API.me()).user.id),beforeUser);
-    assert.equal(await app.locator('#sessBox .pill--safe').count(),1,'Current device remains in refreshed sessions');
+    assert.equal(await app.locator('#sessBox .pill--safe').count(),0,'Current device is omitted from the other-device list');
+    assert.match(await app.locator('#sessBox .sess__empty').innerText(),/目前沒有其他登入中的裝置/);
     assert.equal(await app.locator('body.is-out').count(),0,'Current app remains in its authenticated layout');
     await appContext.close();
     console.log('PASS: actual public router reads no private API; actual logout-other-devices click preserves identity, route and authenticated layout.');

@@ -1566,7 +1566,7 @@ def test_帳本頁進來只看得到帳本():
     assert mo, "app.js 裡找不到 vGroups"
     body = mo.group(1)
 
-    assert "foldBlock('gnew', '常設帳本'" in body, "「開一本」應該掛在常設帳本的標題上"
+    assert "foldBlock('gnew', '常設活動'" in body, "「開一本」應該掛在常設帳本的標題上"
     assert "ledgerList(" in body, "帳本清單應該是收合列"
     assert "'誰在哪一本帳裡'" not in app, "「誰在哪一本帳裡」已經併進每一本帳的展開內容"
     assert "<table" not in body, "帳本不用表格"
@@ -1576,7 +1576,7 @@ def test_帳本頁進來只看得到帳本():
     assert "data-gdel" in lb and "data-gaddsel" in lb, "成員的加減應該在帳本展開的內容裡"
 
     plain = re.findall(r'<h2 class="sec__t">([^<\']+)', body)
-    assert set(plain) <= {"活動帳本"}, "帳本頁多了攤開的區塊：%s" % plain
+    assert set(plain) <= {"期間活動"}, "帳本頁多了攤開的區塊：%s" % plain
 
 
 def test_不再出現監視感的提示語():

@@ -159,10 +159,13 @@ MEMBERS: list[Member] = [
             "⚠️ 帳本成員是可見範圍的其中一條路，但規則不要自己寫——\n"
             "  一律呼叫 toolkit/scope.py，有測試擋著重寫。\n"
             "分類也在這裡：它是記帳時要選的欄位，統計只是拿它分組。\n"
+            "活動邀請由建立者發出，受邀本人同意或使用單次邀請碼才加入；不變更家庭與家庭角色。\n"
+            "明細年月包裹只統計完整授權範圍的筆數，不移動紀錄或鎖定歷史月份。\n"
             "不屬於他的：統計加總（那是數字，前端和這裡都不做任何加總）。"
         ),
         routes=[
             ("GET", "/api/transactions"),
+            ("GET", "/api/transactions/archives"),
             ("POST", "/api/transactions"),
             ("PATCH", "/api/transactions/{tx_id}"),
             ("DELETE", "/api/transactions/{tx_id}"),
@@ -181,6 +184,15 @@ MEMBERS: list[Member] = [
             ("DELETE", "/api/groups/{gid}/members/{user_id}"),
             ("POST", "/api/groups/{gid}/settle"),
             ("PATCH", "/api/groups/{gid}/notify"),
+            ("GET", "/api/groups/lookup"),
+            ("GET", "/api/groups/invites"),
+            ("POST", "/api/groups/join"),
+            ("POST", "/api/groups/invites/{invite_id}/accept"),
+            ("DELETE", "/api/groups/invites/{invite_id}"),
+            ("GET", "/api/groups/{gid}/invites"),
+            ("POST", "/api/groups/{gid}/invite-codes"),
+            ("POST", "/api/groups/{gid}/invites"),
+            ("DELETE", "/api/groups/{gid}/invites/{invite_id}"),
             ("GET", "/api/transactions/{transaction_id}/photos"),
             ("POST", "/api/transactions/{transaction_id}/photos"),
             ("GET", "/api/transaction-photos/{photo_id}/image"),
@@ -200,6 +212,7 @@ MEMBERS: list[Member] = [
             "app/routers/ledger/nlp.py",
             "app/routers/ledger/categories.py",
             "app/routers/ledger/groups.py",
+            "app/routers/ledger/group_invites.py",
             "app/models/category.py",
             "app/models/group.py",
             "app/schemas/group.py",

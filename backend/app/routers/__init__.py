@@ -19,8 +19,8 @@
 from app.routers.access import family, notifications  # noqa: F401
 from app.routers.analytics import advices, alerts, budgets, stats, exchange  # noqa: F401
 from app.routers.auth import admin, auth  # noqa: F401
-from app.routers.ledger import categories, groups, nlp, transactions  # noqa: F401
+from app.routers.ledger import categories, groups, group_invites, nlp, transactions  # noqa: F401
 from app.routers import appearance, memories, lifestyle, ai_local, resources  # noqa: F401
 
 #: main.py 依序掛上（prefix 一律是 /api）
-ALL = [auth, admin, transactions, nlp, categories, groups, stats, budgets, alerts, advices, family, notifications, exchange, memories, appearance, lifestyle, ai_local, resources]
+ALL = [auth, admin, transactions, nlp, categories, groups, group_invites, stats, budgets, alerts, advices, family, notifications, exchange, memories, appearance, lifestyle, ai_local, resources]

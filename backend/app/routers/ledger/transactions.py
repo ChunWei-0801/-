@@ -36,6 +36,98 @@ router = APIRouter(tags=["記帳"])
 OWNER = "記帳"
 
 
+
+def _transaction_filters(
+    me, db, request, *, userId=None, groupId=None, from_=None, to=None,
+    categoryId=None, kind=None, source=None, q=None, allow_page=True,
+):
+    """One authorization/filter path for paged detail and its year/month index.
+
+    Activity-name matches are intersected with the same visible transaction
+    scope; joining an activity must never grant access to a member's other data.
+    """
+    from sqlalchemy import func, or_, select
+
+    allowed = {"userId", "groupId", "from", "to", "categoryId", "kind", "source", "q"}
+    if allow_page:
+        allowed.add("page")
+    unknown = sorted(set(request.query_params) - allowed)
+    if unknown:
+        raise errors.unprocessable("不認得的篩選參數：" + "、".join(unknown))
+    users, groups = visible_scope(me, db)
+    conditions = [or_(Transaction.user_id.in_(users), Transaction.group_id.in_(groups))]
+    if userId and userId != "all":
+        target = int(userId) if userId.isdigit() else 0
+        members = crud.find(GroupMember, {"group_id__in": groups}, fields="user_id", db=db)
+        if target not in users and target not in members:
+            raise errors.forbidden("你沒有權限看這個人的紀錄")
+        conditions.append(Transaction.user_id == target)
+    if groupId and groupId != "all":
+        group_id = int(groupId) if groupId.isdigit() else 0
+        if group_id not in groups:
+            raise errors.forbidden("你不在這個活動裡")
+        conditions.append(Transaction.group_id == group_id)
+    try:
+        if from_:
+            conditions.append(Transaction.occurred_on >= date.fromisoformat(from_))
+        if to:
+            conditions.append(Transaction.occurred_on <= date.fromisoformat(to))
+    except ValueError:
+        raise errors.unprocessable("日期要是 YYYY-MM-DD") from None
+    if categoryId:
+        conditions.append(Transaction.category_id == (int(categoryId) if categoryId.isdigit() else 0))
+    if kind and kind != "all":
+        if kind not in ("income", "expense", "transfer"):
+            raise errors.unprocessable("kind 只能是 income、expense 或 transfer")
+        conditions.append(Transaction.kind == kind)
+    if source and source != "all":
+        if source not in ("manual", "nlp", "import"):
+            raise errors.unprocessable("source 只能是 manual、nlp 或 import")
+        conditions.append(Transaction.source == source)
+    if q and q.strip():
+        word = q.strip().lower()
+        matching_groups = select(Group.id).where(func.lower(Group.name).contains(word, autoescape=True))
+        conditions.append(or_(
+            func.lower(Transaction.merchant).contains(word, autoescape=True),
+            func.lower(Transaction.note).contains(word, autoescape=True),
+            Transaction.group_id.in_(matching_groups),
+        ))
+    return conditions
+
+
+def _archive_payload(me, db, request, *, now=None, **filters):
+    """Logical packaging only: no row moves, write, monthly job or edit lock."""
+    import calendar
+    from zoneinfo import ZoneInfo
+    from sqlalchemy import extract, func, select
+
+    conditions = _transaction_filters(me, db, request, allow_page=False, **filters)
+    local_now = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo("Asia/Taipei"))
+    current_period = local_now.strftime("%Y-%m")
+    year_key = extract("year", Transaction.occurred_on).label("year")
+    month_key = extract("month", Transaction.occurred_on).label("month")
+    statement = (select(year_key, month_key, func.count(Transaction.id))
+                 .where(*conditions).group_by(year_key, month_key)
+                 .order_by(year_key.desc(), month_key.desc()))
+    years = []
+    total = 0
+    for year, month, count in db.execute(statement):
+        year, month, count = int(year), int(month), int(count)
+        period = "%04d-%02d" % (year, month)
+        if not years or years[-1]["year"] != year:
+            years.append({"year": year, "count": 0, "months": []})
+        years[-1]["months"].append({
+            "period": period, "year": year, "month": month, "count": count,
+            "closed": period < current_period,
+            "from": date(year, month, 1).isoformat(),
+            "to": date(year, month, calendar.monthrange(year, month)[1]).isoformat(),
+        })
+        years[-1]["count"] += count
+        total += count
+    return {"timezone": "Asia/Taipei", "currentPeriod": current_period,
+            "asOf": local_now.isoformat(), "total": total, "years": years}
+
+
 @router.get("/transactions", summary="收支明細")
 @block_admin
 def list_transactions(
@@ -84,7 +176,7 @@ def list_transactions(
         categoryId  字串  只看某個分類
         kind        字串  income／expense／transfer。all 等於沒帶
         source      字串  manual／nlp／import。all 等於沒帶
-        q           字串  關鍵字，比對店家與備註（不分大小寫）
+        q           字串  關鍵字，比對店家、備註與活動名稱（不分大小寫）
         page        整數  第幾頁，從 1 開始，一頁 200 筆。0 或負數 FastAPI 自動回 422
         範例：GET /api/transactions?userId=3&from=2026-09-01&to=2026-09-30
         ⚠️ 不認得的參數（例如打錯成 user=3）要回 422，不要默默忽略——忽略的話「篩選沒生效」完全看不出來。
@@ -163,52 +255,10 @@ def list_transactions(
 
         第二步：目前函式主體已採用以下寫法。
 
-            # 1. 不認得的查詢參數直接擋（默默忽略的話，篩選沒生效也看不出來）
-            allowed = {"userId", "groupId", "from", "to", "categoryId", "kind", "source", "q", "page"}
-            unknown = sorted(set(request.query_params) - allowed)
-            if unknown:
-                raise errors.unprocessable("不認得的篩選參數：" + "、".join(unknown))
-
-            # 2. 我看得到的人、看得到的帳本；兩條路一定是「或」
-            users, groups = visible_scope(me, db)
-            where = {"and": [{"or": [{"user_id__in": users}, {"group_id__in": groups}]}]}
-
-            # 3. 帶了 userId：要是我查得到的人，不然 403（不要回空陣列）
-            if userId and userId != "all":
-                target = int(userId) if userId.isdigit() else 0
-                members = crud.find(GroupMember, {"group_id__in": groups}, fields="user_id", db=db)
-                if target not in users and target not in members:
-                    raise errors.forbidden("你沒有權限看這個人的紀錄")
-                where["user_id"] = target
-
-            # 4. 帶了 groupId：要是我加入的帳本
-            if groupId and groupId != "all":
-                group_id = int(groupId) if groupId.isdigit() else 0
-                if group_id not in groups:
-                    raise errors.forbidden("你不在這本帳裡")
-                where["group_id"] = group_id
-
-            # 5. 其他篩選
-            try:
-                if from_:
-                    where["occurred_on__gte"] = date.fromisoformat(from_)
-                if to:
-                    where["occurred_on__lte"] = date.fromisoformat(to)
-            except ValueError:
-                raise errors.unprocessable("日期要是 YYYY-MM-DD") from None
-            if categoryId:
-                where["category_id"] = int(categoryId) if categoryId.isdigit() else 0
-            if kind and kind != "all":
-                if kind not in ("income", "expense", "transfer"):
-                    raise errors.unprocessable("kind 只能是 income、expense 或 transfer")
-                where["kind"] = kind
-            if source and source != "all":
-                if source not in ("manual", "nlp", "import"):
-                    raise errors.unprocessable("source 只能是 manual、nlp 或 import")
-                where["source"] = source
-            if q and q.strip():
-                word = q.strip()
-                where["and"].append({"or": [{"merchant__icontains": word}, {"note__icontains": word}]})
+            where = _transaction_filters(
+                me, db, request, userId=userId, groupId=groupId, from_=from_, to=to,
+                categoryId=categoryId, kind=kind, source=source, q=q,
+            )
 
             # 6. 查一頁：新的在前，一頁 200 筆
             result = crud.find(Transaction, where, order_by=("-occurred_on", "-id"), page=page, size=200, db=db)
@@ -221,6 +271,7 @@ def list_transactions(
                     parses[p.transaction_id] = p
 
             # 8. 轉成前端要的樣子
+            group_names = {g.id: g.name for g in crud.find(Group, {"id__in": {t.group_id for t in rows}}, db=db)} if rows else {}
             out = []
             for t in rows:
                 item = crud.to_dict(
@@ -228,6 +279,7 @@ def list_transactions(
                     fields=("id", "user_id", "occurred_on", "amount", "group_id", "kind", "category_id", "source"),
                     rename={"user_id": "user", "occurred_on": "date", "group_id": "group", "category_id": "cat"},
                 )
+                item["groupName"] = group_names.get(t.group_id, "")
                 item["merchant"] = t.merchant or ""
                 item["note"] = t.note or ""
                 p = parses.get(t.id)
@@ -248,7 +300,7 @@ def list_transactions(
                userId 填一個跟你毫無關係的人  → 403
                網址後面自己加 &user=3         → 422
                from=2026-09-01&to=2026-09-01  → 只剩那一天的
-               q 填店家名字的一部分           → 只剩店家或備註有那幾個字的
+               q 填店家名字的一部分           → 只剩店家、備註或活動名稱有那幾個字的
         5. 照看孩子的家長登入，userId 填孩子 → 孩子記在任何一本帳的紀錄都看得到
         6. 前端改成連你的後端（frontend/index.html 的 api-base），收支明細頁的篩選一個一個試，結果要跟條件一致
         7. 自動檢查：在 backend/ 底下跑 pytest tests/routes -k "list_transactions and 你的"，要全部通過
@@ -259,52 +311,10 @@ def list_transactions(
 
 
 
-    # 1. 不認得的查詢參數直接擋（默默忽略的話，篩選沒生效也看不出來）
-    allowed = {"userId", "groupId", "from", "to", "categoryId", "kind", "source", "q", "page"}
-    unknown = sorted(set(request.query_params) - allowed)
-    if unknown:
-        raise errors.unprocessable("不認得的篩選參數：" + "、".join(unknown))
-
-    # 2. 我看得到的人、看得到的帳本；兩條路一定是「或」
-    users, groups = visible_scope(me, db)
-    where = {"and": [{"or": [{"user_id__in": users}, {"group_id__in": groups}]}]}
-
-    # 3. 帶了 userId：要是我查得到的人，不然 403（不要回空陣列）
-    if userId and userId != "all":
-        target = int(userId) if userId.isdigit() else 0
-        members = crud.find(GroupMember, {"group_id__in": groups}, fields="user_id", db=db)
-        if target not in users and target not in members:
-            raise errors.forbidden("你沒有權限看這個人的紀錄")
-        where["user_id"] = target
-
-    # 4. 帶了 groupId：要是我加入的帳本
-    if groupId and groupId != "all":
-        group_id = int(groupId) if groupId.isdigit() else 0
-        if group_id not in groups:
-            raise errors.forbidden("你不在這本帳裡")
-        where["group_id"] = group_id
-
-    # 5. 其他篩選
-    try:
-        if from_:
-            where["occurred_on__gte"] = date.fromisoformat(from_)
-        if to:
-            where["occurred_on__lte"] = date.fromisoformat(to)
-    except ValueError:
-        raise errors.unprocessable("日期要是 YYYY-MM-DD") from None
-    if categoryId:
-        where["category_id"] = int(categoryId) if categoryId.isdigit() else 0
-    if kind and kind != "all":
-        if kind not in ("income", "expense", "transfer"):
-            raise errors.unprocessable("kind 只能是 income、expense 或 transfer")
-        where["kind"] = kind
-    if source and source != "all":
-        if source not in ("manual", "nlp", "import"):
-            raise errors.unprocessable("source 只能是 manual、nlp 或 import")
-        where["source"] = source
-    if q and q.strip():
-        word = q.strip()
-        where["and"].append({"or": [{"merchant__icontains": word}, {"note__icontains": word}]})
+    where = _transaction_filters(
+        me, db, request, userId=userId, groupId=groupId, from_=from_, to=to,
+        categoryId=categoryId, kind=kind, source=source, q=q,
+    )
 
     # 6. 查一頁：新的在前，一頁 200 筆
     result = crud.find(Transaction, where, order_by=("-occurred_on", "-id"), page=page, size=200, db=db)
@@ -317,6 +327,7 @@ def list_transactions(
             parses[p.transaction_id] = p
 
     # 8. 轉成前端要的樣子
+    group_names = {g.id: g.name for g in crud.find(Group, {"id__in": {t.group_id for t in rows}}, db=db)} if rows else {}
     out = []
     for t in rows:
         item = crud.to_dict(
@@ -324,6 +335,7 @@ def list_transactions(
             fields=("id", "user_id", "occurred_on", "amount", "group_id", "kind", "category_id", "source"),
             rename={"user_id": "user", "occurred_on": "date", "group_id": "group", "category_id": "cat"},
         )
+        item["groupName"] = group_names.get(t.group_id, "")
         item["merchant"] = t.merchant or ""
         item["note"] = t.note or ""
         p = parses.get(t.id)
@@ -334,6 +346,63 @@ def list_transactions(
             item["parsed"] = {"conf": 1, "catConf": 1}
         out.append(item)
     return {"transactions": out, "total": result["total"]}
+
+
+@router.get("/transactions/archives", summary="收支明細年月包裹")
+@block_admin
+def transaction_archives(
+    me: User,
+    request: Request,
+    userId: str | None = None,
+    groupId: str | None = None,
+    from_: str | None = Query(None, alias="from"),
+    to: str | None = None,
+    categoryId: str | None = None,
+    kind: str | None = None,
+    source: str | None = None,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """收支明細年月包裹
+
+    與 GET /transactions 使用同一可見範圍及篩選，唯讀彙總有紀錄的年／月。
+    不接受 page：每個月的 count 是完整授權範圍的筆數，不是某頁樣本。
+    年與月由新到舊；months[] 提供 period/year/month/count/closed/from/to。
+    timezone 固定 Asia/Taipei，currentPeriod 與 asOf 由伺服器當下時間決定。
+    closed 表示該月已結束，每個月的台北時間一日零時自動切換；只整理畫面，
+    不移動、刪除或鎖定交易，補記與修改仍走既有權限。
+
+    【完整寫法】
+        第一步：共用匯入
+
+            from datetime import date, datetime, timezone
+
+            from fastapi import APIRouter, Depends, Query, Request
+            from sqlalchemy.orm import Session
+
+            from app.guards import block_admin, current_user, own, visible_scope
+            from app.models import Category, Group, GroupMember, Guardianship, NlpParse, Notification, Transaction, User
+            from app.schemas.transaction import TransactionIn, TransactionPatchIn
+            from app.toolkit import crud, errors, ledger, money, notify
+            from app.toolkit.db import get_db
+            from app.services.ledger import transaction_amount, confidence
+
+        第二步：由共同篩選與年月統計函式回傳
+
+            return _archive_payload(
+                me, db, request, userId=userId, groupId=groupId, from_=from_, to=to,
+                categoryId=categoryId, kind=kind, source=source, q=q,
+            )
+
+    【做完怎麼確認】
+        在隔離資料庫建立跨年／跨月紀錄，確認只有有紀錄的年月與完整筆數。
+        台北時間月底邊界前後，上一個月由 closed=false 轉為 true，交易仍可編輯。
+        userId/groupId/q 篩選與交易清單相同，不得看到無權限的人或其他活動資料。
+    """
+    return _archive_payload(
+        me, db, request, userId=userId, groupId=groupId, from_=from_, to=to,
+        categoryId=categoryId, kind=kind, source=source, q=q,
+    )
 
 
 @router.post("/transactions", status_code=201, summary="手動新增一筆")

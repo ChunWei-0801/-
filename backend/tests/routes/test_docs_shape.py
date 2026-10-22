@@ -40,22 +40,26 @@ LEGACY_MODULE_NAMES = {
     "app.routers.access.notifications",
 }
 PUBLIC_PRODUCT_MODULE_NAMES = {"app.routers.resources"}
-PRODUCT_MODULE_NAMES = {"app.routers.memories", "app.routers.appearance", "app.routers.lifestyle", "app.routers.ai_local"} | PUBLIC_PRODUCT_MODULE_NAMES
+PRODUCT_MODULE_NAMES = {"app.routers.memories", "app.routers.appearance", "app.routers.lifestyle", "app.routers.ai_local", "app.routers.ledger.group_invites"} | PUBLIC_PRODUCT_MODULE_NAMES
+PRODUCT_ROUTES_IN_LEGACY_MODULES = {("GET", "/transactions/archives")}
+BODYLESS_PRODUCT_COMMANDS = {("POST", "/groups/invites/{invite_id}/accept")}
 LEGACY_MODULES = [module for module in routers.ALL if module.__name__ in LEGACY_MODULE_NAMES]
 PRODUCT_MODULES = [module for module in routers.ALL if module.__name__ in PRODUCT_MODULE_NAMES]
 
 
-def _routes(modules):
+def _routes(modules, *, include=None, exclude=frozenset()):
     out = []
     for module in modules:
         for route in module.router.routes:
             for method in sorted(route.methods):
+                if (method, route.path) in exclude or include is not None and (method, route.path) not in include:
+                    continue
                 out.append(pytest.param(module, method, route, id="%s %s" % (method, route.path)))
     return out
 
 
-ROUTES = _routes(LEGACY_MODULES)
-PRODUCT_ROUTES = _routes(PRODUCT_MODULES)
+ROUTES = _routes(LEGACY_MODULES, exclude=PRODUCT_ROUTES_IN_LEGACY_MODULES)
+PRODUCT_ROUTES = _routes(PRODUCT_MODULES) + _routes(LEGACY_MODULES, include=PRODUCT_ROUTES_IN_LEGACY_MODULES)
 
 
 def test_every_router_has_an_explicit_documentation_contract():
@@ -82,8 +86,11 @@ def test_product_routes_document_access_and_expose_request_schemas(module, metho
                    for parameter in operation.get("parameters", []))
     if method in {"POST", "PUT", "PATCH"}:
         request = operation.get("requestBody", {})
-        assert request.get("required") and request.get("content"), "寫入請求必須提供已定義的輸入模型"
-        assert all(content.get("schema") for content in request["content"].values())
+        if (method, route.path) in BODYLESS_PRODUCT_COMMANDS:
+            assert not request, "同意活動邀請只認已驗證身分與路徑，不接受主體指定其他人"
+        else:
+            assert request.get("required") and request.get("content"), "寫入請求必須提供已定義的輸入模型"
+            assert all(content.get("schema") for content in request["content"].values())
 
 
 @pytest.mark.parametrize("module, method, route", ROUTES)
