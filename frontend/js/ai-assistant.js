@@ -25,6 +25,27 @@
   function active(s, job) { return current === s && !s.closed && (job == null || s.job === job) && s.accountStamp === accountStamp(account); }
   function message(s, value, error) { if (!active(s)) return; s.message.textContent = value || ''; s.message.classList.toggle('is-error', !!error); }
   function testText(key, fallback) { return global.I18n && global.I18n.t ? global.I18n.t('aiTest.' + key, fallback) : fallback; }
+  function formatTest(key, fallback, vars) { return String(testText(key,fallback)).replace(/\{(\w+)\}/g,function(whole,name){return vars && Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):whole;}); }
+  function clockNow() { return global.performance && typeof global.performance.now==='function' ? global.performance.now() : Date.now(); }
+  function seconds(value) { return (value/1000).toFixed(1); }
+  function renderTiming(s) {
+    if (!active(s) || !s.timingLabel) return;
+    var labels=[];
+    if(s.stage) labels.push(formatTest('elapsedStage','{stage} · {seconds} s elapsed',{stage:s.stage.label,seconds:seconds(Math.max(0,clockNow()-s.stage.started))}));
+    if(Number.isFinite(s.checkingMs)) labels.push(formatTest('stageElapsed','{stage}: {seconds} s',{stage:t('checking').replace(/[…]+$/,''),seconds:seconds(s.checkingMs)}));
+    if(Number.isFinite(s.loadMs)) labels.push(formatTest('loadElapsed','Model startup: {seconds} s',{seconds:seconds(s.loadMs)}));
+    if(Number.isFinite(s.generationMs)) labels.push(formatTest('generationElapsed','Completed: {seconds} s',{seconds:seconds(s.generationMs)}));
+    if(Number.isFinite(s.firstTokenMs)) labels.push(formatTest('firstTokenElapsed','Model starts output: {seconds} s',{seconds:seconds(s.firstTokenMs)}));
+    s.timingLabel.textContent=labels.join(' · ');s.timingLabel.hidden=!labels.length;
+  }
+  function stopClock(s) { if(s.clockTimer!=null)global.clearInterval(s.clockTimer);s.clockTimer=null;s.stage=null;renderTiming(s); }
+  function startClock(s,label) { stopClock(s);s.stage={label:label,started:clockNow()};renderTiming(s);s.clockTimer=global.setInterval(function(){renderTiming(s);},500); }
+  function clearStream(s) { if(s.streamFrame!=null)global.cancelAnimationFrame(s.streamFrame);s.streamFrame=null;s.streamBuffer=''; }
+  function streamToken(s,job,target,token) {
+    if(!active(s,job))return;s.streamBuffer=(s.streamBuffer||'')+String(token);
+    if(s.streamFrame!=null)return;
+    s.streamFrame=global.requestAnimationFrame(function(){s.streamFrame=null;var chunk=s.streamBuffer;s.streamBuffer='';if(active(s,job)&&target.isConnected)target.textContent+=chunk;});
+  }
   function reviewText(key, vars) {
     var labels = /^zh/.test(lang()) ? {
       excludedTitle:'已排除未通過檢查的模型候選',excludedNotice:'有 {count} 筆模型候選未通過原文或金額檢查，已排除。請核對保留的草稿，並自行確認是否有漏記。',excludedRow:'第 {index} 號模型候選沒有成為可記帳草稿。',excludedSource:'原文中找不到對應內容。',excludedAmount:'金額或其引用無法核對。',excludedFields:'欄位格式或來源資訊無法核對。',reviewChecksTitle:'核對提醒',sourceAssistNotice:'這些草稿結合模型抽取與原文規則檢查。規則可能調整收支或分類，請逐筆確認。',sourceChange:'{field}已依原文檢查調整，請確認。',sourceCleared:'{field}在原文中無法確認，已留白；請核對，必要時自行補充。',sourceUnverified:'{field}尚未經原文規則確認，請自行核對。',ambiguousSource:'這段文字可能不是已發生的明確收支，請自行確認收支與分類。',originalChoice:'模型原判斷：{kind}／{category}。',finalChoice:'待確認草稿：{kind}／{category}。'
@@ -116,7 +137,7 @@
   }
   function runtimeStatus() { try { return global.LocalAI && (global.LocalAI.getStatus ? global.LocalAI.getStatus() : global.LocalAI.status ? global.LocalAI.status() : null) || {}; } catch (_) { return {}; } }
   function ready() { var status = runtimeStatus(); return status.state === 'ready' || status.status === 'ready' || status.loaded === true || status.ready === true; }
-  function setBusy(s, busy, kind) { s.busy = busy; s.busyKind = kind || ''; refreshControls(s); }
+  function setBusy(s, busy, kind) { s.busy = busy; s.busyKind = kind || ''; if(!busy)stopClock(s);refreshControls(s); }
   function refreshControls(s) {
     if (!active(s)) return;
     s.load.disabled = s.busy || ready(); s.unload.disabled = s.busyKind === 'saving'; s.cancel.disabled = !s.busy || s.busyKind === 'saving';
@@ -129,6 +150,7 @@
   }
   function abortJob(s, announce) {
     s.job++; if (s.controller) s.controller.abort(); s.controller = null;
+    clearStream(s);
     if (s.busy && /^(loading|generating)$/.test(s.busyKind) && global.LocalAI && global.LocalAI.cancel) global.LocalAI.cancel();
     if (s.worker) { s.worker.terminate(); s.worker = null; }
     setBusy(s, false); s.progress.hidden = true;
@@ -136,18 +158,20 @@
   }
   function begin(s, kind) { abortJob(s,false); s.controller = new AbortController(); setBusy(s,true,kind); message(s,''); return s.job; }
   async function startModel(s) {
-    var job = begin(s,'loading'); s.progress.hidden = false; s.progress.removeAttribute('value'); s.runtimeLabel.textContent = t('checking');
+    var job = begin(s,'loading'),checkingStarted=clockNow(); s.progress.hidden = false; s.progress.removeAttribute('value'); s.runtimeLabel.textContent = t('checking');s.checkingMs=null;s.loadMs=null;startClock(s,t('checking'));
     try {
       if (!global.LocalAI) throw new Error(t('noRuntime'));
       var support = await global.LocalAI.checkSupport(); if (!active(s,job)) return;
+      s.checkingMs=Math.max(0,clockNow()-checkingStarted);startClock(s,t('loading'));var loadingStarted=clockNow();
       if (support === false || support && (support.supported === false || support.ok === false)) throw new Error(t('unsupported'));
       await global.LocalAI.load({signal:s.controller.signal,onProgress:function (progress) {
         if (!active(s,job)) return;
         var fraction = typeof progress === 'number' ? progress : progress && (progress.progress != null ? progress.progress : progress.fraction);
         if (typeof fraction === 'number' && Number.isFinite(fraction)) { s.progress.max = 1; s.progress.value = Math.max(0,Math.min(1,fraction > 1 ? fraction / 100 : fraction)); }
+        else s.progress.removeAttribute('value');
         s.runtimeLabel.textContent = t('loading') + (progress && (progress.text || progress.message) ? ' ' + String(progress.text || progress.message) : '');
       }});
-      if (!active(s,job)) return; message(s,t('ready'));
+      if (!active(s,job)) return;s.loadMs=Math.max(0,clockNow()-loadingStarted); message(s,t('ready'));
     } catch (error) { if (active(s,job)) message(s,errorMessage(error),true); }
     finally { if (active(s,job)) { s.progress.hidden = true; setBusy(s,false); } }
   }
@@ -210,7 +234,7 @@
     var input=s.input.value.trim(); if (!input && /^(report|coach)$/.test(s.mode)) input=t(s.mode); if (!input) return message(s,t('enterText'),true);
     if (input.length > 3000) return message(s,t('tooLong'),true);
     if (!ready()) return message(s,t('loadFirst'),true);
-    var job=begin(s,'generating'), task=s.mode, context, result;
+    var job=begin(s,'generating'), task=s.mode, context, result;s.generationMs=null;s.firstTokenMs=null;startClock(s,task==='draft'?t('running'):t('retrieval'));
     s.output.replaceChildren(); s.drafts=[]; s.review=null; s.rawInput=input; s.modelOutput=''; s.rawModelOutput=''; s.normalization=null;
     try {
       if (task === 'draft') { context={today:today(),timezone:(global.Intl || Intl).DateTimeFormat().resolvedOptions().timeZone,categories:s.categories.map(function(c) { return {id:String(c.id),name:scrub(c.name),kind:c.kind}; })}; }
@@ -226,8 +250,10 @@
       }
       if (!active(s,job)) return;
       var heading=el('h2','',t('interpretation')), answer=el('pre','ait-answer'); add(s.output,heading,el('p','ait-muted',t('unverified')),answer);
-      result=await global.LocalAI.generate({task:task,input:scrub(input),context:context,language:lang(),signal:s.controller.signal,onToken:function(token) { if (active(s,job) && task !== 'draft') answer.textContent+=String(token); }});
+      startClock(s,t('running'));
+      result=await global.LocalAI.generate({task:task,input:scrub(input),context:context,language:lang(),signal:s.controller.signal,onToken:function(token) { if(task!=='draft')streamToken(s,job,answer,token); }});
       if (!active(s,job)) return;
+      clearStream(s);s.generationMs=completionMs(result);var observed=safeTiming(result);s.firstTokenMs=observed.firstTokenMs;renderTiming(s);
       s.modelOutput=String(result.text || '');
       s.rawModelOutput=typeof result.rawModelOutput==='string'?result.rawModelOutput.slice(0,12000):s.modelOutput;
       if (task === 'draft') {
@@ -244,17 +270,19 @@
         renderDrafts(s,modelDraft&&Array.isArray(modelDraft.warnings)?modelDraft.warnings.filter(function(value){return typeof value==='string';}).slice(0,10):draft.warnings);
       }
       else answer.textContent=s.modelOutput;
-      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length + (context.knowledge && context.knowledge.items || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),excludedCandidateCount:excludedCandidates(result.normalization).length,sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,rating:null});
+      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,timing:observed,promptProfile:safeProfile(result.promptProfile),loadMs:finiteMs(result.loadMs),requestMs:finiteMs(result.requestMs),usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length + (context.knowledge && context.knowledge.items || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),excludedCandidateCount:excludedCandidates(result.normalization).length,sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,rating:null});
       renderMetrics(s); message(s,result.finishReason === 'length' ? t('resultTruncated') : t('finished'),result.finishReason === 'length');
     } catch (error) {
       if (active(s,job)) {
+        clearStream(s);
+        s.generationMs=completionMs(error&&error.details);
         message(s,errorMessage(error),true); s.output.replaceChildren();
         var details=error && error.details;
         if (details && typeof details.rawOutput==='string') s.rawModelOutput=details.rawOutput.slice(0,12000);
         if (details) {
-          var failed={task:task,model:typeof details.model==='string'?details.model:'',elapsedMs:Number.isFinite(details.elapsedMs)?details.elapsedMs:null,usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason:null,attempts:details.attempts,errorCode:/^AI_[A-Z_]+$/.test(error.code||'')?error.code:'AI_INFERENCE_FAILED'};
+          var failed={task:task,model:typeof details.model==='string'?details.model:'',elapsedMs:Number.isFinite(details.elapsedMs)?details.elapsedMs:null,timing:safeTiming(details),promptProfile:safeProfile(details.promptProfile),loadMs:finiteMs(details.loadMs),requestMs:finiteMs(details.requestMs),usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason:null,attempts:details.attempts,errorCode:/^AI_[A-Z_]+$/.test(error.code||'')?error.code:'AI_INFERENCE_FAILED'};
           s.failedMeasurements.push(failed);
-          add(s.output,el('p','ait-muted',testText('failedMetrics',t('error'))),el('pre','ait-answer',JSON.stringify(failed,null,2)));
+          var technical=el('details','ait-raw');technical.dataset.aiTechnical='';add(technical,el('summary','',testText('technical',t('metrics'))),el('pre','ait-answer',JSON.stringify(failed,null,2)));add(s.output,el('p','ait-muted',testText('failedMetrics',t('error'))),technical);
         }
         if (task === 'draft') preserveRaw(s);
       }
@@ -269,16 +297,27 @@
     if (!s.review) return;
     s.review.querySelectorAll('[data-ai-row]').forEach(function(node) { var row=s.drafts[Number(node.dataset.aiRow)]; if (!row) return; node.querySelectorAll('[data-ai-field]').forEach(function (input) { row[input.dataset.aiField]=input.type === 'checkbox' ? input.checked : input.value; }); });
   }
+  function refreshDraftMissing(s) {
+    if(!s.review)return;syncRows(s);
+    s.review.querySelectorAll('[data-ai-row]').forEach(function(card){
+      var row=s.drafts[Number(card.dataset.aiRow)];if(!row)return;
+      var missing={date:!validDate(row.date),amount:!validMoney(row.amount),kind:!/^(expense|income)$/.test(row.kind),category:!s.categories.some(function(c){return String(c.id)===String(row.cat)&&c.kind===row.kind;})};
+      Object.keys(missing).forEach(function(key){var control=card.querySelector('[data-ai-field="'+(key==='category'?'cat':key)+'"]');if(control){if(missing[key])control.setAttribute('aria-invalid','true');else control.removeAttribute('aria-invalid');}});
+      var notice=card.querySelector('[data-ai-missing-fields]'),fields=Object.keys(missing).filter(function(key){return missing[key];}).map(function(key){return t(key);});
+      notice.hidden=!fields.length;notice.textContent=fields.length?formatTest('missingFields','Fields to complete: {fields}',{fields:fields.join('、')}):'';
+    });
+  }
   function rowInput(s,row,index,key,type) { var node=el('input'); node.type=type || 'text'; node.value=row[key] || ''; node.dataset.aiField=key; node.autocomplete='off'; if (key==='amount') { node.inputMode='decimal'; node.maxLength=16; } if (key==='merchant') node.maxLength=200; if (key==='note') node.maxLength=1000; return field(t(key),node); }
   function renderDrafts(s,warnings) {
     s.output.replaceChildren(); var review=el('section','ait-review'); s.review=review;
-    add(review,el('h2','',t('review')),el('p','ait-muted',t('reviewHelp')));
+    add(review,el('h2','',t('review')),el('p','ait-note',formatTest('draftCount','{count} drafts to review',{count:s.drafts.length})),el('p','ait-muted',t('reviewHelp')));
     renderExcluded(s,review);
     if(s.drafts.some(function(row){return row.ruleAdjusted;}))add(review,el('p','ait-note',reviewText('sourceAssistNotice')));
     if (warnings && warnings.length) { var warning=el('div','ait-note'); add(warning,el('strong','',t('draftWarnings'))); warnings.forEach(function (v) { add(warning,el('p','',v)); }); add(review,warning); }
     var group=select([['',t('chooseGroup')]].concat(s.groups.map(function(g) { return [String(g.id),g.name]; }))); group.dataset.aiGroup=''; group.value=s.groupId || ''; add(review,field(t('group'),group));
     s.drafts.forEach(function(row,index) {
       var card=el('fieldset','ait-draft'); card.dataset.aiRow=String(index); add(card,el('legend','',String(index+1)));
+      var missingNotice=el('p','ait-note');missingNotice.dataset.aiMissingFields='';add(card,missingNotice);
       var grid=el('div','ait-row-grid'), kind=select([['',t('unknown')],['expense',t('expense')],['income',t('income')]]); kind.value=row.kind; kind.dataset.aiField='kind';
       var cat=select([['',t('chooseCategory')]].concat(s.categories.map(function(c) { return [String(c.id),c.name + ' · ' + (c.kind === 'income' ? t('income') : t('expense'))]; }))); cat.value=row.cat; cat.dataset.aiField='cat';
       add(grid,rowInput(s,row,index,'date','date'),rowInput(s,row,index,'amount'),field(t('kind'),kind),field(t('category'),cat),rowInput(s,row,index,'merchant'),rowInput(s,row,index,'note'));
@@ -293,7 +332,7 @@
       else if (s.file) add(review,el('p','ait-note',t('photoBatch')));
       add(review,el('p','ait-note',t('savePrivacy')),button(t('save'),'save','ait-button--primary'),el('p','ait-muted',t('saveUncertain')));
     }
-    add(s.output,review); preserveRaw(s); refreshControls(s);
+    add(s.output,review);refreshDraftMissing(s); preserveRaw(s); refreshControls(s);
   }
   async function save(s) {
     if (s.busy || !s.review) return; syncRows(s);
@@ -327,11 +366,22 @@
     } catch (error) { if (active(s,job)) { message(s,t('photoFailed') + ' ' + errorMessage(error),true); if (!s.output.querySelector('[data-ai-action="retry-photo"]')) add(s.output,button(t('retryPhoto'),'retry-photo')); } }
   }
   function safeUsage(usage) { var clean={}; ['promptTokens','completionTokens','totalTokens','prompt_tokens','completion_tokens','total_tokens','inputTokens','outputTokens','prefillTokens','decodeTokens'].forEach(function(key) { if (usage && typeof usage[key] === 'number' && Number.isFinite(usage[key]) && usage[key]>=0) clean[key]=usage[key]; }); return clean; }
-  function evaluation(s) { return {schemaVersion:2,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,sourceRuleAssisted:item.sourceRuleAssisted===true,excludedCandidateCount:Number.isInteger(item.excludedCandidateCount)&&item.excludedCandidateCount>=0?Math.min(10,item.excludedCandidateCount):0,sourceAdjustmentCount:Number.isInteger(item.sourceAdjustmentCount)&&item.sourceAdjustmentCount>=0?Math.min(80,item.sourceAdjustmentCount):0,rating:item.rating}; }),failedRuns:(s.failedMeasurements||[]).map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,usage:safeUsage(item.usage),finishReason:item.finishReason,attempts:item.attempts,errorCode:/^AI_[A-Z_]+$/.test(item.errorCode||'')?item.errorCode:'AI_INFERENCE_FAILED'}; }),note:'Observed session measurements only; failed runs are separate from successful runs. No quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
+  function finiteMs(value) { return typeof value==='number'&&Number.isFinite(value)&&value>=0?value:null; }
+  function safeProfile(value) { return value==='baseline'||value==='compact-v1'?value:null; }
+  function safeTiming(result) {
+    var timing=result&&result.timing&&typeof result.timing==='object'?result.timing:result||{},clean={};
+    ['totalMs','firstTokenMs','decodeMs','cleanupMs'].forEach(function(key){clean[key]=finiteMs(timing[key]);});
+    clean.passes=Array.isArray(timing.passes)?timing.passes.slice(0,2).filter(function(pass){return pass&&typeof pass==='object';}).map(function(pass){return {attempt:Number.isInteger(pass.attempt)&&pass.attempt>0&&pass.attempt<=2?pass.attempt:null,totalMs:finiteMs(pass.totalMs),firstTokenMs:finiteMs(pass.firstTokenMs),decodeMs:finiteMs(pass.decodeMs),promptTokens:finiteMs(pass.promptTokens),completionTokens:finiteMs(pass.completionTokens)};}):[];
+    return clean;
+  }
+  function completionMs(result) { if(!result)return null;var request=finiteMs(result.requestMs),total=safeTiming(result).totalMs;return request!==null?request:total!==null?total:finiteMs(result.elapsedMs); }
+  function evaluation(s) { return {schemaVersion:3,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,timing:safeTiming(item),promptProfile:safeProfile(item.promptProfile),loadMs:finiteMs(item.loadMs),requestMs:finiteMs(item.requestMs),usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,sourceRuleAssisted:item.sourceRuleAssisted===true,excludedCandidateCount:Number.isInteger(item.excludedCandidateCount)&&item.excludedCandidateCount>=0?Math.min(10,item.excludedCandidateCount):0,sourceAdjustmentCount:Number.isInteger(item.sourceAdjustmentCount)&&item.sourceAdjustmentCount>=0?Math.min(80,item.sourceAdjustmentCount):0,rating:item.rating}; }),failedRuns:(s.failedMeasurements||[]).map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,timing:safeTiming(item),promptProfile:safeProfile(item.promptProfile),loadMs:finiteMs(item.loadMs),requestMs:finiteMs(item.requestMs),usage:safeUsage(item.usage),finishReason:item.finishReason,attempts:item.attempts,errorCode:/^AI_[A-Z_]+$/.test(item.errorCode||'')?item.errorCode:'AI_INFERENCE_FAILED'}; }),note:'Observed session measurements only; failed runs are separate from successful runs. No quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
   function renderMetrics(s) {
     s.metrics.replaceChildren(el('h2','',t('metrics')),el('p','ait-muted',t('metricsHelp')));
     var last=s.measurements[s.measurements.length-1], list=el('dl','ait-metrics-grid');
-    [[t('model'),last && last.model || t('noMeasurement')],[t('latency'),last && last.elapsedMs != null ? (last.elapsedMs/1000).toFixed(2)+' s' : t('noMeasurement')],[t('tokens'),last && Object.keys(last.usage).length ? Object.keys(last.usage).map(function(k) { return k+': '+last.usage[k]; }).join(' · ') : t('noTokenCount')],[t('retrieved'),last ? String(last.sourceCount) : t('noMeasurement')],[t('calls'),String(s.measurements.length)]].forEach(function(item) { var cell=el('div'); add(cell,el('dt','',item[0]),el('dd','',item[1])); add(list,cell); }); add(s.metrics,list);
+    var duration=completionMs(last);
+    [[t('model'),last && last.model || t('noMeasurement')],[t('finished'),duration!==null ? (duration/1000).toFixed(2)+' s' : t('noMeasurement')],[t('tokens'),last && Object.keys(last.usage).length ? Object.keys(last.usage).map(function(k) { return k+': '+last.usage[k]; }).join(' · ') : t('noTokenCount')],[t('retrieved'),last ? String(last.sourceCount) : t('noMeasurement')],[t('calls'),String(s.measurements.length)]].forEach(function(item) { var cell=el('div'); add(cell,el('dt','',item[0]),el('dd','',item[1])); add(list,cell); }); add(s.metrics,list);
+    if(last&&last.timing&&Number.isFinite(last.timing.firstTokenMs))add(s.metrics,el('p','ait-muted',formatTest('firstTokenElapsed','Model starts output: {seconds} s',{seconds:seconds(last.timing.firstTokenMs)})));
     var rating=select([['',t('unrated')],['supported',t('supported')],['unsupported',t('unsupportedRating')]]); rating.dataset.aiRating=''; rating.value=last && last.rating || ''; rating.disabled=!last; add(s.metrics,field(t('quality'),rating),el('p','ait-muted',t('feedback')),button(t('downloadEvaluation'),'download-evaluation'),el('p','ait-muted',t('evaluationPrivacy')));
   }
   function downloadEvaluation(s) { var url=URL.createObjectURL(new Blob([JSON.stringify(evaluation(s),null,2)],{type:'application/json'})), link=el('a'); link.href=url; link.download='local-ai-evaluation.json'; link.click(); setTimeout(function() { URL.revokeObjectURL(url); },1000); }
@@ -357,7 +407,7 @@
     if (s.imageURL) URL.revokeObjectURL(s.imageURL); s.file=file; s.imageURL=URL.createObjectURL(file); s.preview.src=s.imageURL; s.preview.hidden=false; s.imageName.textContent=file.name || t('imageSelected'); s.removeImage.hidden=false; refreshControls(s);
   }
   function removeImage(s) { if (s.imageURL) URL.revokeObjectURL(s.imageURL); s.imageURL=null; s.file=null; s.preview.removeAttribute('src'); s.preview.hidden=true; s.imageName.textContent=''; s.removeImage.hidden=true; refreshControls(s); }
-  function clearContent(s,announce) { abortJob(s,false); s.context=null; s.knowledge=null; s.rawInput=''; s.modelOutput=''; s.rawModelOutput=''; s.normalization=null; s.drafts=[]; s.originalDrafts=[]; s.groupId=''; s.photoRetry=null; s.input.value=''; s.output.replaceChildren(); s.review=null; removeImage(s); renderFacts(s); if (global.LocalAI && global.LocalAI.clearSession) global.LocalAI.clearSession(); refreshControls(s); if (announce) message(s,t('cleared')); }
+  function clearContent(s,announce) { abortJob(s,false); s.context=null; s.knowledge=null; s.rawInput=''; s.modelOutput=''; s.rawModelOutput=''; s.normalization=null; s.drafts=[]; s.originalDrafts=[]; s.groupId=''; s.photoRetry=null;s.checkingMs=null;s.loadMs=null;s.generationMs=null;s.firstTokenMs=null;renderTiming(s); s.input.value=''; s.output.replaceChildren(); s.review=null; removeImage(s); renderFacts(s); if (global.LocalAI && global.LocalAI.clearSession) global.LocalAI.clearSession(); refreshControls(s); if (announce) message(s,t('cleared')); }
   function changeMode(s,mode) {
     if (!/^(draft|ledger|coach|report|help)$/.test(mode) || s.busyKind==='saving') return;
     abortJob(s,false); s.mode=mode; s.drafts=[]; s.review=null; s.output.replaceChildren();
@@ -372,8 +422,9 @@
     var wrap=el('div','ai-trial'); s.wrap=wrap; wrap.dataset.i18nSkip='';
     var header=el('header','ait-hero'); add(header,el('span','ait-badge',t('trial')),el('h1','',t('title')),el('p','ait-subtitle',t('subtitle')),el('p','ait-privacy',t('privacy')));
     var runtime=el('section','ait-runtime'); s.runtimeLabel=el('p','ait-runtime-label',ready()?t('ready'):t('idle')); s.runtimeLabel.setAttribute('role','status'); s.progress=el('progress','ait-progress'); s.progress.max=1; s.progress.hidden=true; s.progress.setAttribute('aria-label',t('loading'));
+    s.timingLabel=el('p','ait-timing ait-muted');s.timingLabel.dataset.aiTiming='';s.timingLabel.hidden=true;
     s.load=button(t('load'),'load','ait-button--primary'); s.cancel=button(t('cancel'),'cancel'); s.unload=button(t('unload'),'unload'); s.clear=button(t('clear'),'clear','ait-button--quiet');
-    add(runtime,el('p','ait-note',t('download')),s.runtimeLabel,s.progress,add(el('div','ait-actions'),s.load,s.cancel,s.unload,s.clear));
+    add(runtime,el('p','ait-note',t('download')),s.runtimeLabel,s.progress,s.timingLabel,add(el('div','ait-actions'),s.load,s.cancel,s.unload,s.clear));
     s.tabs=el('nav','ait-tabs'); s.tabs.setAttribute('aria-label',t('title')); ['draft','ledger','coach','report','help'].forEach(function(mode) { var node=button(t(mode)); node.dataset.aiMode=mode; add(s.tabs,node); });
     s.message=el('p','ait-status'); s.message.setAttribute('role','status'); s.message.setAttribute('aria-live','polite');
     var workspace=el('div','ait-workspace'), composer=el('section','ait-composer ait-panel'); s.inputHelp=el('p','ait-muted'); s.input=el('textarea','ait-input'); s.input.rows=6; s.input.maxLength=3000; s.input.autocomplete='off'; s.input.spellcheck=false; s.input.setAttribute('data-i18n-skip','');
@@ -390,8 +441,8 @@
     s.click=function(event) { var target=event.target.closest && event.target.closest('[data-ai-action],[data-ai-mode]'); if (!target || !wrap.contains(target)) return; if (target.dataset.aiMode) return changeMode(s,target.dataset.aiMode); var action=target.dataset.aiAction;
       if(action==='load')startModel(s); else if(action==='cancel')abortJob(s,true); else if(action==='unload'){clearContent(s,false); if(global.LocalAI&&global.LocalAI.unload)global.LocalAI.unload(); refreshControls(s); message(s,t('unloaded'));} else if(action==='clear')clearContent(s,true); else if(action==='run')run(s); else if(action==='facts')viewFacts(s,0); else if(action==='more')viewFacts(s,(s.context.transactions.offset || 0)+(s.context.transactions.returnedCount || 12)); else if(action==='ocr')recognize(s); else if(action==='remove-image')removeImage(s); else if(action==='save')save(s); else if(action==='remove-row'){syncRows(s);s.groupId=s.review.querySelector('[data-ai-group]').value;s.drafts.splice(Number(target.dataset.aiIndex),1);s.originalDrafts.splice(Number(target.dataset.aiIndex),1);renderDrafts(s,[]);} else if(action==='retry-photo'){var job=begin(s,'saving');uploadPhoto(s,job).finally(function(){if(active(s,job))setBusy(s,false);});} else if(action==='download-evaluation')downloadEvaluation(s);
     };
-    s.change=function(event) { var node=event.target; if(node.hasAttribute('data-ai-file')){var file=node.files&&node.files[0];node.value='';if(file)setImage(s,file);} if(node.hasAttribute('data-ai-rating')&&s.measurements.length)s.measurements[s.measurements.length-1].rating=node.value||null; if(node===s.scope||node===s.period){s.context=null;s.output.replaceChildren();renderFacts(s);} if(node.closest('[data-ai-row]')||node.hasAttribute('data-ai-group')){var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;} };
-    wrap.addEventListener('click',s.click); wrap.addEventListener('change',s.change); s.inputChange=function(event){if(event.target.hasAttribute('data-ai-approve'))return;var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;};wrap.addEventListener('input',s.inputChange);
+    s.change=function(event) { var node=event.target; if(node.hasAttribute('data-ai-file')){var file=node.files&&node.files[0];node.value='';if(file)setImage(s,file);} if(node.hasAttribute('data-ai-rating')&&s.measurements.length)s.measurements[s.measurements.length-1].rating=node.value||null; if(node===s.scope||node===s.period){s.context=null;s.output.replaceChildren();renderFacts(s);} if(node.closest('[data-ai-row]')||node.hasAttribute('data-ai-group')){var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;refreshDraftMissing(s);} };
+    wrap.addEventListener('click',s.click); wrap.addEventListener('change',s.change); s.inputChange=function(event){if(event.target.hasAttribute('data-ai-approve'))return;var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;if(event.target.closest('[data-ai-row]'))refreshDraftMissing(s);};wrap.addEventListener('input',s.inputChange);
     renderMetrics(s); changeMode(s,'draft'); if(s.accountId&&global.API&&global.API.categories&&global.API.groups)loadLookups(s); else message(s,t('login'),true);
     return s;
   }
@@ -402,5 +453,5 @@
     if(global.LocalAI&&global.LocalAI.clearSession)global.LocalAI.clearSession();
   }
   function setAccount(user) { var old=accountStamp(account), next=accountStamp(user); if(old!==next)cleanup(); account=user||null; }
-  global.AIAssistant={render:render,cleanup:cleanup,setAccount:setAccount,messages:words,testing:Object.freeze({checkDraft:checkDraft,validateRows:validateRows,contextForModel:contextForModel,safeRoute:safeRoute,scrub:scrub,evaluation:evaluation,validMoney:validMoney,validDate:validDate,rowChecks:rowChecks,originalRowIndex:originalRowIndex,ocr:OCR})};
+  global.AIAssistant={render:render,cleanup:cleanup,setAccount:setAccount,messages:words,testing:Object.freeze({checkDraft:checkDraft,validateRows:validateRows,contextForModel:contextForModel,safeRoute:safeRoute,scrub:scrub,evaluation:evaluation,completionMs:completionMs,validMoney:validMoney,validDate:validDate,rowChecks:rowChecks,originalRowIndex:originalRowIndex,ocr:OCR})};
 })(typeof window!=='undefined'?window:globalThis);

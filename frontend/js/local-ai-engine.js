@@ -18,6 +18,19 @@
   function AIError(code, message) { this.name = 'LocalAIError'; this.code = code; this.message = message || code; if (Error.captureStackTrace) Error.captureStackTrace(this, AIError); }
   AIError.prototype = Object.create(Error.prototype); AIError.prototype.constructor = AIError;
   function error(code, message) { return new AIError(code, message); }
+  function now() { return global.performance && typeof global.performance.now === 'function' ? global.performance.now() : Date.now(); }
+  function safeTiming(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    var clean = {};
+    ['totalMs','firstTokenMs','decodeMs','cleanupMs'].forEach(function(key) { clean[key] = typeof value[key] === 'number' && Number.isFinite(value[key]) && value[key] >= 0 ? value[key] : null; });
+    clean.passes = Array.isArray(value.passes) ? value.passes.slice(0,2).map(function(pass) {
+      var result = {};
+      ['totalMs','firstTokenMs','decodeMs','promptTokens','completionTokens'].forEach(function(key) { result[key] = pass && typeof pass[key] === 'number' && Number.isFinite(pass[key]) && pass[key] >= 0 ? pass[key] : null; });
+      result.attempt = pass && Number.isInteger(pass.attempt) && pass.attempt > 0 && pass.attempt <= 2 ? pass.attempt : null;
+      return result;
+    }) : [];
+    return clean;
+  }
   function diagnosticDetails(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     var clean = {}, usage = {};
@@ -25,6 +38,8 @@
     if (typeof value.model === 'string') clean.model = value.model.slice(0,120);
     if (typeof value.finishReason === 'string') clean.finishReason = value.finishReason.slice(0,40);
     if (typeof value.elapsedMs === 'number' && Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0) clean.elapsedMs = value.elapsedMs;
+    if (['baseline','compact-v1'].includes(value.promptProfile)) clean.promptProfile = value.promptProfile;
+    var timing = safeTiming(value.timing); if (timing) clean.timing = timing;
     if (Number.isInteger(value.attempts) && value.attempts > 0) clean.attempts = Math.min(value.attempts,2);
     ['prompt_tokens','completion_tokens','total_tokens','promptTokens','completionTokens','totalTokens'].forEach(function(key) {
       if (value.usage && typeof value.usage[key] === 'number' && Number.isFinite(value.usage[key]) && value.usage[key] >= 0) usage[key] = value.usage[key];
@@ -144,13 +159,14 @@
     if (active || state.phase === 'loading' || state.phase === 'checking' || state.phase === 'generating') throw error('AI_BUSY', 'Another local AI operation is running.');
     if (options.signal && options.signal.aborted) throw error('AI_CANCELLED', 'Local AI operation was cancelled.');
     if (state.loaded) return status();
-    var ownedSession = session;
+    var ownedSession = session, started = now();
     state.phase = 'checking';
     var support = await prepareSupport(options);
     if (ownedSession !== session || options.signal && options.signal.aborted) { if (ownedSession === session) state.phase = 'idle'; throw error('AI_CANCELLED', 'Local AI operation was cancelled.'); }
     if (!support.supported) { state.phase = 'unsupported'; throw error(support.reason, 'This browser/device cannot run the local WebGPU model.'); }
     state.phase = 'loading'; state.progress = null; state.lastError = null;
-    return request('load', {model:selected.model}, options);
+    var result = await request('load', {model:selected.model}, options);
+    return Object.assign({},result,{loadMs:Math.max(0,Math.round(now()-started))});
   }
   async function generate(options) {
     options = options || {};
@@ -161,12 +177,24 @@
     if (!task) throw error('AI_INVALID_TASK', 'Unknown local AI task.');
     if (typeof options.input !== 'string' || !options.input.trim()) throw error('AI_INVALID_INPUT', 'Enter text for the local AI request.');
     if (options.input.length > 3000) throw error('AI_INPUT_TOO_LARGE', 'Use a shorter question or receipt text.');
-    var ownedSession = session;
-    if (!state.loaded) await load({signal:options.signal});
-    // Awaiting an already-ready load still allows logout or cancellation to win.
-    if (ownedSession !== session || options.signal && options.signal.aborted) throw error('AI_CANCELLED', 'Local AI operation was cancelled.');
-    state.phase = 'generating'; state.lastError = null;
-    return request('generate', {task:task,input:options.input,context:options.context || {},language:options.language || 'zh-TW'}, options);
+    var promptProfile = options.promptProfile === undefined ? 'compact-v1' : options.promptProfile;
+    if (!['baseline','compact-v1'].includes(promptProfile)) throw error('AI_INVALID_PROFILE', 'Unknown local AI generation profile.');
+    var ownedSession = session, started = now(), loadMs = 0;
+    try {
+      if (!state.loaded) {
+        var loadStarted = now();
+        try { await load({signal:options.signal,onProgress:options.onProgress}); }
+        finally { loadMs = Math.max(0,Math.round(now()-loadStarted)); }
+      }
+      // Awaiting an already-ready load still allows logout or cancellation to win.
+      if (ownedSession !== session || options.signal && options.signal.aborted) throw error('AI_CANCELLED', 'Local AI operation was cancelled.');
+      state.phase = 'generating'; state.lastError = null;
+      var result = await request('generate', {task:task,input:options.input,context:options.context || {},language:options.language || 'zh-TW',promptProfile:promptProfile}, options);
+      return Object.assign({},result,{requestMs:Math.max(0,Math.round(now()-started)),loadMs:loadMs});
+    } catch (cause) {
+      cause.details = Object.assign({},cause.details || {},{requestMs:Math.max(0,Math.round(now()-started)),loadMs:loadMs,promptProfile:promptProfile});
+      throw cause;
+    }
   }
   async function clearCache(options) {
     if (active || state.phase === 'checking') throw error('AI_BUSY', 'Cancel the current operation before clearing model files.');

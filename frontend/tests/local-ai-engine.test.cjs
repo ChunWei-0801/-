@@ -20,7 +20,7 @@ function controller(options = {}) {
   const context = vm.createContext({URL,Promise,AbortController,isSecureContext:true,Worker:FakeWorker,
     document:{currentScript:{src:options.scriptURL || 'https://budget.example/js/local-ai-engine.js'}},
     navigator:{gpu:{requestAdapter: options.requestAdapter || (async()=>({features:new Set(options.f16 === false ? [] : ['shader-f16'])}))}},
-    setTimeout:options.setTimeout || ((fn,ms)=>{const timer=setTimeout(fn,ms);timer.unref();return timer;}),clearTimeout,
+    performance:options.performance,setTimeout:options.setTimeout || ((fn,ms)=>{const timer=setTimeout(fn,ms);timer.unref();return timer;}),clearTimeout,
     localStorage:{setItem(){throw new Error('Private financial data must never be persisted');}}
   });
   vm.runInContext(controllerSource,context);
@@ -57,7 +57,9 @@ test('one shared worker loads once, streams progress, and rejects parallel jobs'
   await assert.rejects(h.api.generate({task:'help',input:'Rules?'}),e=>e.code==='AI_BUSY');
   w.emit('token',{text:'Answer'});assert.deepEqual(tokens,['Answer']);
   const reply={text:'Answer',model:'real-model-id',usage:{completion_tokens:3},elapsedMs:42,finishReason:'stop'};
-  w.emit('result',{result:reply});assert.deepEqual(await generation,reply);
+  w.emit('result',{result:reply});const generated=await generation;
+  assert.deepEqual({...generated,requestMs:undefined,loadMs:undefined},{...reply,requestMs:undefined,loadMs:undefined});
+  assert.ok(generated.requestMs>=0);assert.equal(generated.loadMs,0);assert.equal(w.messages.at(-1).promptProfile,'compact-v1');
   assert.equal(h.api.getStatus().phase,'ready');
   assert.ok(!JSON.stringify(h.api.getStatus()).includes('What changed?'));
 });
@@ -96,10 +98,23 @@ test('invalid requests fail without inference and runtime errors remain typed',a
   await assert.rejects(h.api.generate({task:'sql',input:'hi'}),e=>e.code==='AI_INVALID_TASK');
   await assert.rejects(h.api.generate({task:'draft',input:''}),e=>e.code==='AI_INVALID_INPUT');
   await assert.rejects(h.api.generate({task:'draft',input:'x'.repeat(3001)}),e=>e.code==='AI_INPUT_TOO_LARGE');
+  await assert.rejects(h.api.generate({task:'draft',input:'hi',promptProfile:'untrusted-new-model'}),e=>e.code==='AI_INVALID_PROFILE');
   assert.equal(h.workers.length,0);
   const pending=h.api.load();await tick();h.workers[0].emit('error',{error:{code:'AI_MODEL_LOAD_FAILED',message:'Not enough memory'}});
   await assert.rejects(pending,e=>e.name==='LocalAIError'&&e.code==='AI_MODEL_LOAD_FAILED');
   assert.equal(h.api.status().loaded,false);
+});
+
+test('controller separates observed automatic model load from full request time and keeps timing diagnostics content-free',async t=>{
+  let clock=0;const h=controller({performance:{now:()=>clock}});t.after(()=>h.api.unload());
+  const pending=h.api.generate({task:'draft',input:'PRIVATE_INPUT',promptProfile:'baseline'});await tick();const worker=h.workers[0];
+  clock=120;worker.emit('result',{result:{model:'test'}});await tick();assert.equal(worker.messages.at(-1).promptProfile,'baseline');
+  clock=165;worker.emit('result',{result:{text:'{}',elapsedMs:42}});const result=await pending;
+  assert.equal(result.loadMs,120);assert.equal(result.requestMs,165);assert.equal(result.elapsedMs,42);
+  clock=180;const next=h.api.generate({task:'draft',input:'PRIVATE_INPUT'});
+  clock=220;worker.emit('error',{error:{code:'AI_INVALID_DRAFT',message:'invalid',details:{timing:{totalMs:35,firstTokenMs:10,decodeMs:20,cleanupMs:5,secret:'PRIVATE_SECRET',passes:[{attempt:1,totalMs:30,firstTokenMs:10,decodeMs:20,promptTokens:100,completionTokens:20,input:'PRIVATE_SECRET'}]}}}});
+  await assert.rejects(next,error=>{assert.equal(error.details.requestMs,40);assert.equal(error.details.loadMs,0);assert.equal(error.details.timing.totalMs,35);assert.equal(error.details.timing.passes[0].promptTokens,100);assert.equal(JSON.stringify(error.details).includes('PRIVATE_SECRET'),false);return true;});
+  assert.equal(JSON.stringify(h.api.status()).includes('timing'),false);assert.equal(JSON.stringify(h.api.status()).includes('PRIVATE_INPUT'),false);
 });
 
 test('controller versions the worker with its release and returns bounded diagnostics only to the failed caller',async t=>{
@@ -142,14 +157,15 @@ test('model cache clearing uses the same pinned worker and can be cancelled',asy
 
 function runtimeHarness(text, options={}) {
   const sent=[],calls={resets:0,requests:[]};
-  const engine={resetChat:async()=>{calls.resets++;},unload:async()=>{},chat:{completions:{create:async config=>{
+  function advance(ms){if(options.clock)options.clock.time+=ms;}
+  const engine={resetChat:async()=>{calls.resets++;advance(options.resetMs||0);},unload:async()=>{},chat:{completions:{create:async config=>{
     calls.requests.push(config);
     const content = Array.isArray(text) ? text[Math.min(calls.requests.length-1,text.length-1)] : text;
     const usage = options.usages ? options.usages[calls.requests.length-1] : {prompt_tokens:20,completion_tokens:10,total_tokens:30};
-    return(async function*(){yield{choices:[{delta:{content},finish_reason:null}]};yield{choices:[{delta:{},finish_reason:options.finishReason||'stop'}],usage};})();
+    return(async function*(){advance(options.prefillMs||0);yield{choices:[{delta:{content},finish_reason:null}]};advance(options.decodeMs||0);yield{choices:[{delta:{},finish_reason:options.finishReason||'stop'}],usage};})();
   }}}};
   const self={postMessage:message=>sent.push(message),__fakeRuntime:{CreateMLCEngine:async()=>engine,prebuiltAppConfig:{model_list:[]},deleteModelAllInfoInCache:async()=>{}}};
-  const context=vm.createContext({self,TextEncoder,performance:{now:()=>Date.now()},console});
+  const context=vm.createContext({self,TextEncoder,performance:{now:()=>options.clock?options.clock.time:Date.now()},console});
   vm.runInContext(workerSource.replace('import(RUNTIME_URL)','Promise.resolve(self.__fakeRuntime)'),context);
   return{sent,calls,context,run:async request=>{sent.length=0;await self.onmessage({data:{id:1,...request}});return sent.at(-1);},load:async()=>self.onmessage({data:{id:0,type:'load',model:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC'}})};
 }
@@ -162,7 +178,7 @@ const modelItem={sourceText:'午餐120元',amountText:'120',classification:'支�
 const modelDraft=(items=[modelItem],warnings=[])=>JSON.stringify({items,warnings});
 async function extractFixture(text,input='昨天午餐120元',context=draftContext,options={}){
   const h=runtimeHarness(text,options);await h.load();
-  const reply=await h.run({type:'generate',task:'draft',input,context,language:'zh-TW'});
+  const reply=await h.run({type:'generate',task:'draft',input,context,language:'zh-TW',promptProfile:options.promptProfile});
   return {h,reply,value:reply.type==='result'?JSON.parse(reply.result.text):null};
 }
 
@@ -172,11 +188,9 @@ test('worker asks for verbatim source fields and readable labels, then keeps raw
   assert.equal(reply.type,'result');const request=h.calls.requests[0];
   assert.equal(request.response_format.type,'json_object');const grammar=JSON.parse(request.response_format.schema);
   assert.equal(grammar.properties.items.maxItems,10);assert.equal(request.max_tokens,640);
-  assert.ok(request.messages[0].content.includes('先逐字抄sourceText'));assert.ok(request.messages[0].content.includes('未發生、否定或提問不記帳'));
-  assert.equal(request.messages.length,4);assert.equal(request.messages[2].role,'assistant');
-  const example=JSON.parse(request.messages[2].content);
-  assert.equal(example.items.length,2);assert.deepEqual(example.items.map(i=>i.classification),['支出｜示例通勤','收入｜示例報酬']);
-  assert.ok(request.messages.at(-1).content.includes('UNTRUSTED_DATA_JSON'));assert.ok(request.messages.at(-1).content.includes('2026-10-19'));
+  assert.ok(request.messages[0].content.includes('sourceText、amountText逐字引用原文'));assert.ok(request.messages[0].content.includes('否定、假設、問題、他人交易不記'));
+  assert.equal(request.messages.length,2);assert.equal(request.messages[1].role,'user');
+  assert.ok(request.messages.at(-1).content.includes('UNTRUSTED_DATA_JSON'));assert.ok(request.messages.at(-1).content.includes('2026-10-18'));
   const data=JSON.parse(request.messages.at(-1).content.split('\n')[2]);
   assert.ok(data.context.classifications.includes('支出｜餐飲'));assert.equal(JSON.stringify(data).includes('"id"'),false);
   assert.deepEqual(grammar.properties.items.items.properties.classification.enum,[...data.context.classifications,null]);
@@ -189,9 +203,9 @@ test('worker asks for verbatim source fields and readable labels, then keeps raw
   assert.equal(reply.result.normalization.requiresHumanReview,true);assert.equal(h.calls.resets,2);
 });
 
-test('empty extraction gets one real-model repair pass without a rule-generated draft fallback',async()=>{
+test('baseline keeps the historical empty repair for explicit on-device flow comparisons',async()=>{
   const raw=modelDraft([{...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'},{...modelItem,dateText:'今天'}]);
-  const {h,reply,value}=await extractFixture([modelDraft([]),raw],'今天早餐65元，午餐120元。');
+  const {h,reply,value}=await extractFixture([modelDraft([]),raw],'今天早餐65元，午餐120元。',draftContext,{promptProfile:'baseline'});
   assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,2);assert.equal(h.calls.resets,3);
   assert.equal(reply.result.attempts,2);assert.equal(reply.result.usage.completion_tokens,20);
   assert.deepEqual(value.items.map(item=>item.amount),[65,120]);assert.equal(reply.result.rawModelOutput,raw);
@@ -201,19 +215,64 @@ test('empty extraction gets one real-model repair pass without a rule-generated 
   for(const request of h.calls.requests)assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
 });
 
+test('compact flow removes unrelated few-shot transactions and unmentioned calendar tokens, retaining the same grammar',async()=>{
+  const baseline=await extractFixture(modelDraft(),undefined,undefined,{promptProfile:'baseline'});
+  const compact=await extractFixture(modelDraft());
+  const before=baseline.h.calls.requests[0],after=compact.h.calls.requests[0];
+  assert.equal(before.messages.length,4);assert.equal(after.messages.length,2);
+  assert.ok(new TextEncoder().encode(JSON.stringify(after.messages)).length<new TextEncoder().encode(JSON.stringify(before.messages)).length*0.7);
+  assert.equal(after.response_format.schema,before.response_format.schema);
+  assert.equal(JSON.stringify(after.messages).includes('920'),false);assert.equal(JSON.stringify(after.messages).includes('2001-06-10'),false);
+  const context=JSON.parse(after.messages.at(-1).content.split('\n')[2]).context;
+  assert.deepEqual(context.calendar,{'昨天':'2026-10-18'});
+  assert.equal(compact.reply.result.promptProfile,'compact-v1');assert.equal(baseline.reply.result.promptProfile,'baseline');
+});
+
+test('one bounded repair names the actual source failure without feeding back the invented answer',async()=>{
+  const bad=modelDraft([{...modelItem,sourceText:'INVENTED_SECRET_SOURCE_999',amountText:'999'}]);
+  const {h,reply}=await extractFixture([bad,modelDraft()]);
+  assert.equal(reply.type,'result');assert.equal(reply.result.attempts,2);
+  const instruction=h.calls.requests[1].messages[0].content;
+  assert.ok(instruction.includes('SOURCE_NOT_FOUND'));assert.ok(instruction.includes('sourceText'));assert.ok(instruction.includes('rowIndex'));
+  assert.equal(instruction.includes('INVENTED_SECRET_SOURCE_999'),false);
+  assert.equal(JSON.stringify(h.calls.requests[1].messages).includes('INVENTED_SECRET_SOURCE_999'),false);
+});
+
+test('an explicit empty extraction is not rerun into a fabricated transaction in the compact flow',async()=>{
+  const {h,reply}=await extractFixture([modelDraft([]),modelDraft()],'今天沒有任何支出');
+  assert.equal(reply.type,'error');assert.equal(reply.error.code,'AI_NO_DRAFT');
+  assert.equal(reply.error.details.validation.reason,'NO_TRANSACTIONS');assert.equal(h.calls.requests.length,1);
+  assert.equal(reply.error.details.rawOutput,modelDraft([]));
+});
+
+test('worker timing measures stream first output and all passes including final private-session cleanup',async()=>{
+  for(const malformed of [false,true]){
+    const options={clock:{time:0},resetMs:5,prefillMs:7,decodeMs:11};
+    const {reply}=await extractFixture(malformed?['{"wrong":[]}',modelDraft()]:modelDraft(),undefined,undefined,options);
+    assert.equal(reply.type,'result');const timing=reply.result.timing;
+    assert.equal(timing.firstTokenMs,12);assert.equal(timing.decodeMs,malformed?22:11);assert.equal(timing.cleanupMs,5);
+    assert.equal(timing.totalMs,malformed?51:28);assert.equal(reply.result.elapsedMs,timing.totalMs);
+    assert.equal(timing.passes.length,malformed?2:1);
+    for(const [index,pass] of timing.passes.entries())assert.deepEqual({...pass},{attempt:index+1,totalMs:23,firstTokenMs:12,decodeMs:11,promptTokens:20,completionTokens:10});
+  }
+  const {reply}=await extractFixture(modelDraft([]),'今天沒有交易',undefined,{clock:{time:0},resetMs:5,prefillMs:7,decodeMs:11});
+  assert.equal(reply.error.details.timing.totalMs,28);assert.equal(reply.error.details.elapsedMs,28);
+});
+
 test('repeated empty or entirely unknown output remains failed with only in-memory model diagnostics',async()=>{
   for(const raw of [modelDraft([]),modelDraft([{...modelItem,sourceText:'資料不明',amountText:null,classification:null,dateText:null,currency:null}])]){
     const {h,reply}=await extractFixture(raw,'資料不明 PRIVATE_INPUT');
-    assert.equal(reply.type,'error');assert.equal(reply.error.code,'AI_NO_DRAFT');assert.equal(h.calls.requests.length,2);
-    assert.equal(reply.error.details.rawOutput,raw);assert.equal(reply.error.details.attempts,2);
-    assert.equal(reply.error.details.finishReason,'stop');assert.equal(reply.error.details.usage.total_tokens,60);
+    const attempts=JSON.parse(raw).items.length?2:1;
+    assert.equal(reply.type,'error');assert.equal(reply.error.code,'AI_NO_DRAFT');assert.equal(h.calls.requests.length,attempts);
+    assert.equal(reply.error.details.rawOutput,raw);assert.equal(reply.error.details.attempts,attempts);
+    assert.equal(reply.error.details.finishReason,'stop');assert.equal(reply.error.details.usage.total_tokens,30*attempts);
     assert.equal(JSON.stringify(reply.error.details).includes('PRIVATE_INPUT'),false);
   }
 });
 
 test('partial runtime usage never looks like a total and truncated drafts do not retry',async()=>{
   for(const usages of [[null,{completion_tokens:10}],[{completion_tokens:10},null]]){
-    const {reply}=await extractFixture([modelDraft([]),modelDraft()],undefined,undefined,{usages});
+    const {reply}=await extractFixture(['{"wrong":[]}',modelDraft()],undefined,undefined,{usages});
     assert.equal(reply.type,'result');assert.equal(reply.result.attempts,2);assert.equal(reply.result.usage,null);
   }
   const {h,reply}=await extractFixture('{"items":[',undefined,undefined,{finishReason:'length'});
@@ -223,8 +282,8 @@ test('partial runtime usage never looks like a total and truncated drafts do not
 test('the public breakfast/lunch fixture keeps a shared today prefix, quotes and prompt budgets',async()=>{
   const context={today:'2026-10-20',timezone:'Asia/Taipei',currency:'TWD',categories:[{id:'FOOD',name:'餐飲',kind:'expense'},{id:'TRANSIT',name:'交通',kind:'expense'},{id:'SALARY',name:'薪資',kind:'income'},{id:'OTHER',name:'其他',kind:'expense'}]};
   const raw=modelDraft([{...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'},{...modelItem,dateText:'今天'}]);
-  const {h,reply,value}=await extractFixture([modelDraft([]),raw],'今天早餐65元，午餐120元。',context);
-  assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,2);
+  const {h,reply,value}=await extractFixture(raw,'今天早餐65元，午餐120元。',context);
+  assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);
   assert.deepEqual(value.items.map(item=>[item.amount,item.kind,item.category,item.date]),[[65,'expense','FOOD','2026-10-20'],[120,'expense','FOOD','2026-10-20']]);
   for(const request of h.calls.requests){assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);assert.ok(request.messages.at(-1).content.includes('2026-10-20'));}
 });
@@ -236,11 +295,11 @@ test('malformed extraction gets only one repair, unsupported labels never select
   assert.equal(invalid.reply.error.code,'AI_INVALID_DRAFT');assert.equal(invalid.h.calls.requests.length,2);
 });
 
-test('category reorder and ID replacement do not change example meaning or classify by the first expense',async()=>{
+test('category reorder and ID replacement do not change prompt meaning or classify by the first expense',async()=>{
   const reordered={...draftContext,categories:[{id:901,name:'交通',kind:'expense'},{id:902,name:'薪資',kind:'income'},{id:903,name:'餐飲',kind:'expense'}]};
   const first=await extractFixture(modelDraft()),second=await extractFixture(modelDraft(),undefined,reordered);
   assert.equal(first.value.items[0].category,'food');assert.equal(second.value.items[0].category,'903');
-  assert.equal(first.h.calls.requests[0].messages[2].content,second.h.calls.requests[0].messages[2].content);
+  assert.equal(first.h.calls.requests[0].messages[0].content,second.h.calls.requests[0].messages[0].content);
   const lastData=h=>JSON.parse(h.calls.requests[0].messages.at(-1).content.split('\n')[2]);
   assert.deepEqual(lastData(first.h).context.classifications,lastData(second.h).context.classifications);
 });
@@ -308,7 +367,7 @@ test('unknown amounts, classifications and date expressions remain null for manu
 
 test('no-transaction and negated fixtures never cause the code to manufacture an entry',async()=>{
   for(const input of ['今天沒有買午餐，也沒有任何交易。','如果明天搭車會花42元嗎？','今天心情很好']){
-    const {h,reply}=await extractFixture(modelDraft([]),input);assert.equal(reply.error.code,'AI_NO_DRAFT');assert.equal(h.calls.requests.length,2);
+    const {h,reply}=await extractFixture(modelDraft([]),input);assert.equal(reply.error.code,'AI_NO_DRAFT');assert.equal(h.calls.requests.length,1);
   }
 });
 

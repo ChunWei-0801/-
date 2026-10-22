@@ -2,8 +2,8 @@
 (function () {
   'use strict';
   if(window.SafetyCenter)window.SafetyCenter.init();
-  var api=window.LocalAI,controller=null,generation=0,running=false,failureDetails=null,statusValue=null,view=null,languageReady=false;
-  var ids=['modelLoad','modelCancel','modelUnload','modelCache','modelStatus','modelProgress','modelInput','modelRun','modelBenchmark','modelOutput','modelMetrics','modelMetricsSummary','modelTechnical','modelLanguage'];
+  var api=window.LocalAI,controller=null,generation=0,running=false,failureDetails=null,statusValue=null,view=null,languageReady=false,clock=null,clockTimer=null,lastLoadMs=null;
+  var ids=['modelLoad','modelCancel','modelUnload','modelCache','modelStatus','modelProgress','modelInput','modelRun','modelBenchmark','modelOutput','modelMetrics','modelMetricsSummary','modelTechnical','modelLanguage','modelTiming','modelCompare','modelExport'];
   var ui={};ids.forEach(function(id){ui[id]=document.getElementById(id);});
   var diagnostics=document.createElement('details'),diagnosticTitle=document.createElement('summary'),diagnosticNotice=document.createElement('p'),diagnosticRaw=document.createElement('pre');
   diagnostics.id='modelDiagnostics';diagnostics.className='model-diagnostics';diagnostics.hidden=true;diagnosticTitle.textContent='查看模型原始回覆（未通過草稿驗證）';diagnosticTitle.setAttribute('data-i18n','aiTest.rawOutput');diagnosticTitle.setAttribute('data-i18n-fallback',diagnosticTitle.textContent);diagnosticNotice.textContent='原始回覆只保留在本頁，可能包含你的輸入內容；請勿公開分享。';diagnosticNotice.setAttribute('data-i18n','aiTest.rawOutputNotice');diagnosticNotice.setAttribute('data-i18n-fallback',diagnosticNotice.textContent);diagnosticRaw.id='modelRawOutput';diagnosticRaw.setAttribute('data-i18n-skip','');
@@ -14,12 +14,21 @@
   function localizePlaceholders(){
     // Translate after the stable ready promise; inline headings remain readable if a pack is missing.
     if(window.I18n&&I18n.render){I18n.render(diagnostics);I18n.render(ui.modelTechnical);}
-    if(statusValue)renderStatus();
+    if(statusValue)renderStatus();renderClock();
     if(view||failureDetails)renderResults();
     else{if(!ui.modelOutput.dataset.actualResult)ui.modelOutput.textContent=text('尚未產生回覆。');if(!ui.modelMetrics.dataset.actualResult){ui.modelMetrics.textContent='';ui.modelMetricsSummary.textContent=text('尚未完成真實推論，不顯示成功率。');}}
   }
   function renderStatus(){ui.modelStatus.textContent=statusValue.key?named(statusValue.key,statusValue.vars):text(statusValue.value);}
   function status(value,failed,key,vars){statusValue={value:value,key:key,vars:vars};renderStatus();ui.modelStatus.classList.toggle('error',!!failed);if(!failed)delete ui.modelStatus.dataset.errorCode;}
+  function renderClock(){
+    if(!ui.modelTiming)return;var parts=[];
+    if(lastLoadMs!==null)parts.push(named('aiTest.loadElapsed',{seconds:(lastLoadMs/1000).toFixed(2)}));
+    if(clock){var elapsed=(performance.now()-clock.started)/1000;parts.push(named(clock.done?'aiTest.stageElapsed':'aiTest.elapsedStage',{stage:named(clock.stage),seconds:(clock.done?clock.elapsedMs/1000:elapsed).toFixed(1)}));}
+    ui.modelTiming.textContent=parts.join(' · ');ui.modelTiming.hidden=!parts.length;
+  }
+  function startClock(stage){stopClock();clock={stage:stage,started:performance.now(),done:false};renderClock();clockTimer=setInterval(renderClock,250);}
+  function stopClock(){if(clockTimer!==null)clearInterval(clockTimer);clockTimer=null;if(clock&&!clock.done){clock.elapsedMs=performance.now()-clock.started;clock.done=true;}renderClock();}
+  function setClockStage(stage){if(clock)clock.stage=stage;renderClock();}
   function clearResults(){
     failureDetails=null;view=null;diagnostics.hidden=true;diagnostics.open=false;diagnosticRaw.textContent='';
     ui.modelOutput.replaceChildren();ui.modelMetrics.textContent='';ui.modelMetricsSummary.textContent='';ui.modelTechnical.open=false;ui.modelTechnical.hidden=true;
@@ -46,7 +55,7 @@
   function display(field,value){
     if(value===null||value===undefined||value==='')return named('aiTrial.unknown');
     if(field==='kind')return value==='income'?named('aiTrial.income'):value==='expense'?named('aiTrial.expense'):String(value);
-    if(field==='category'){var categories={FOOD:'餐飲',TRANSIT:'交通',SALARY:'薪資',OTHER:'其他'};return categories[value]?text(categories[value]):String(value);}
+    if(field==='category'){var categories={FOOD:'餐飲',TRANSIT:'交通',SALARY:'薪資',WINNINGS:'中獎收入',OTHER:'其他'};return categories[value]?text(categories[value]):String(value);}
     return String(value);
   }
   function rowChecks(normalization,index){
@@ -96,7 +105,7 @@
   }
   function caseCard(item){
     var card=node('article',undefined,'model-case '+(item.state==='passed'?'passed':item.state==='failed'||item.state==='error'?'failed':''));card.dataset.syntheticCase=String(item.syntheticCase);card.dataset.caseState=item.state;
-    var title=node('h3',named('aiTest.caseNumber',{index:item.syntheticCase})),badge=node('span',named(item.state==='passed'?'aiTest.passed':item.state==='failed'?'aiTest.notPassed':item.state==='error'?'aiTest.caseError':item.state==='running'?'aiTest.caseRunning':'aiTest.caseWaiting'),'model-case-state');
+    var title=node('h3',named('aiTest.caseNumber',{index:item.syntheticCase})+(item.promptProfile?' · '+profileLabel(item.promptProfile):'')),badge=node('span',named(item.state==='passed'?'aiTest.passed':item.state==='failed'?'aiTest.notPassed':item.state==='error'?'aiTest.caseError':item.state==='notrun'?'aiTest.caseNotRun':item.state==='cancelled'?'aiTest.caseCancelled':item.state==='running'?'aiTest.caseRunning':'aiTest.caseWaiting'),'model-case-state');
     title.append(document.createTextNode(' '),badge);card.append(title,node('p',item.input,'model-case-input'));
     if(item.output){
       showExcluded(card,item.normalization);
@@ -109,26 +118,26 @@
 
       if(item.differences.length){var list=node('ul',undefined,'model-differences');item.differences.forEach(function(diff){var message=diff.type?named(diff.type==='missing'?'aiTest.missingEntry':'aiTest.extraEntry',{index:diff.entry}):named('aiTest.fieldDifference',{index:diff.entry,field:fieldName(diff.field),expected:display(diff.field,diff.expected),actual:display(diff.field,diff.actual)});list.append(node('li',message));});card.append(list);}
     }
-    if(item.state==='error'&&failureDetails)card.append(node('p',named(failureDetails.key),'error'));
+    if(item.state==='error')card.append(node('p',named(item.errorKey||'aiTest.runtimeFailure'),'error'));if(item.state==='error'&&item.rawModelOutput){var rawDetails=node('details');rawDetails.append(node('summary',named('aiTest.rawOutput')),node('pre',item.rawModelOutput));card.append(rawDetails);}if(item.abstained)card.append(node('p',named('aiTest.noDraftExpected'),'note'));if(item.measurement){var measured=measurementLine(item.measurement);if(measured)card.append(node('p',measured,'note'));}
     return card;
   }
   function renderResults(){
     ui.modelOutput.replaceChildren();ui.modelOutput.dataset.actualResult=ui.modelMetrics.dataset.actualResult='true';ui.modelTechnical.hidden=false;
     if(view&&view.mode==='benchmark'){
       view.cases.forEach(function(item){ui.modelOutput.append(caseCard(item));});
-      var completed=view.cases.filter(function(item){return item.state==='passed'||item.state==='failed';}).length,passed=view.cases.filter(function(item){return item.state==='passed';}).length;
-      var key=failureDetails?'aiTest.partialBenchmark':running&&completed<view.cases.length?'aiTest.benchmarkProgress':'aiTest.benchmarkSummary';
-      ui.modelMetricsSummary.textContent=named(key,{completed:completed,total:view.cases.length,passed:passed,index:view.current+1});
-      var measured=view.cases.filter(function(item){return typeof item.modelOnlyPassed==='boolean';}),modelPassed=measured.filter(function(item){return item.modelOnlyPassed;}).length;
-      if(measured.length){ui.modelMetricsSummary.style.whiteSpace='pre-line';ui.modelMetricsSummary.textContent+='\n'+named('aiTest.modelOnlySummary',{passed:modelPassed,total:measured.length})+'\n'+named('aiTest.assistedSummary',{passed:passed,total:completed});}
-      ui.modelMetrics.textContent=JSON.stringify({observedOnly:true,completed:completed,total:view.cases.length,passed:passed,modelOnly:{matched:modelPassed,compared:measured.length},sourceChecked:{matched:passed,compared:completed},accuracyNotInferred:true,complete:!failureDetails&&completed===view.cases.length,cases:view.cases,failure:failureDetails&&failureDetails.measurement||null},null,2);
+      var completed=view.cases.filter(function(item){return !!item.observation&&['passed','failed','error'].includes(item.state);}).length,passed=view.cases.filter(function(item){return item.state==='passed';}).length;
+      var observations=view.cases.filter(function(item){return !!item.observation;}).map(function(item){return item.observation;});
+      ui.modelMetricsSummary.style.whiteSpace='pre-line';
+      ui.modelMetricsSummary.textContent=named(view.cancelled?'aiTest.cancelledBenchmark':'aiTest.suiteSummary',{completed:completed,total:view.cases.length,passed:passed});
+      var summaries={};['baseline','compact-v1'].forEach(function(profile){var rows=observations.filter(function(item){return item.promptProfile===profile;});if(!rows.length)return;var summary=window.LocalAIEvaluation.summarize(rows);summaries[profile]=summary;ui.modelMetricsSummary.textContent+='\n'+named('aiTest.profileScore',{profile:profileLabel(profile),model:summary.model.passed,assisted:summary.assisted.passed,total:summary.attempted});var group=summary.latency.warm,timing=group.requestMs.samples?group.requestMs:group.totalMs.samples?group.totalMs:group.elapsedMs;ui.modelMetricsSummary.textContent+='\n'+named('aiTest.profileTiming',{profile:profileLabel(profile),median:timing.median===null?named('aiTrial.noMeasurement'):(timing.median/1000).toFixed(2),samples:timing.samples});});
+      ui.modelMetrics.textContent=JSON.stringify({observedOnly:true,completed:completed,total:view.cases.length,passed:passed,accuracyNotInferred:true,complete:!view.cancelled&&view.cases.every(function(item){return !!item.observation&&!['waiting','running','cancelled','notrun'].includes(item.state);}),summaries:summaries,cases:view.cases},null,2);
     }else if(view&&view.result){
-      showExcluded(ui.modelOutput,view.result.normalization);
+      ui.modelOutput.append(node('p',named('aiTest.draftCount',{count:view.value.items.length}),'note'));showExcluded(ui.modelOutput,view.result.normalization);
       if(view.result.normalization)ui.modelOutput.append(node('p',named(view.result.normalization.sourceRuleAssisted?'aiTest.sourceAssistNotice':'aiTest.mappedDraft'),'note'));
       view.value.items.forEach(function(item,index){ui.modelOutput.append(draftCard(item,index,originalItem(view.result.modelDraft,view.result.normalization,index),view.result.normalization));});
       var modelWarnings=view.result.modelDraft&&Array.isArray(view.result.modelDraft.warnings)?view.result.modelDraft.warnings:view.value.warnings;
       if(Array.isArray(modelWarnings)&&modelWarnings.length){var notices=node('div',undefined,'note');notices.append(node('p',named('aiTrial.draftWarnings')));modelWarnings.forEach(function(warning){notices.append(node('p',warning));});ui.modelOutput.append(notices);}
-      ui.modelMetricsSummary.textContent=named('aiTest.draftMeasurement',{seconds:(view.result.elapsedMs/1000).toFixed(2)});
+      ui.modelMetricsSummary.textContent=measurementLine(measure(view.result));
       ui.modelMetrics.textContent=JSON.stringify({measurement:measure(view.result),rawModelOutput:view.result.rawModelOutput||view.result.text,modelDraft:view.result.modelDraft||null,normalizedDraft:view.value,normalization:view.result.normalization||null},null,2);
     }else if(failureDetails){ui.modelOutput.append(node('p',named(failureDetails.key),'error'));ui.modelMetricsSummary.textContent=named('aiTest.failedMetrics');ui.modelMetrics.textContent=JSON.stringify(failureDetails.measurement,null,2);}
     var rawFailure=failureDetails&&failureDetails.rawOutput||'',revealFailure=!!rawFailure&&diagnostics.hidden;
@@ -136,11 +145,11 @@
     if(revealFailure)diagnostics.open=true;
   }
   function ready(){return api&&api.getStatus().loaded;}
-  function controls(){ui.modelLoad.disabled=!languageReady||running||ready();ui.modelCancel.disabled=!running;ui.modelRun.disabled=ui.modelBenchmark.disabled=!languageReady||running||!ready();ui.modelCache.disabled=!languageReady||running;ui.modelInput.disabled=running;}
-  function cancel(){generation++;if(controller)controller.abort();controller=null;if(api)api.cancel();running=false;ui.modelProgress.hidden=true;controls();}
+  function controls(){ui.modelLoad.disabled=!languageReady||running||ready();ui.modelCancel.disabled=!running;ui.modelRun.disabled=!languageReady||running||!ready();ui.modelBenchmark.disabled=ui.modelCompare.disabled=!languageReady||running||!ready()||!window.LocalAIEvaluation;ui.modelExport.disabled=running||!view||view.mode!=='benchmark'||!view.cases.some(function(item){return !!item.observation;});ui.modelCache.disabled=!languageReady||running;ui.modelInput.disabled=running;}
+  function cancel(){generation++;if(controller)controller.abort();controller=null;if(api)api.cancel();running=false;stopClock();ui.modelProgress.hidden=true;controls();}
   function context(){
     var parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(function(part){return [part.type,part.value];}));
-    return {today:parts.year+'-'+parts.month+'-'+parts.day,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,currency:'TWD',categories:[{id:'FOOD',name:'餐飲',kind:'expense'},{id:'TRANSIT',name:'交通',kind:'expense'},{id:'SALARY',name:'薪資',kind:'income'},{id:'OTHER',name:'其他',kind:'expense'}]};
+    var today=parts.year+'-'+parts.month+'-'+parts.day;return window.LocalAIEvaluation?LocalAIEvaluation.context({today:today}):{today:today,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,currency:'TWD',categories:[{id:'FOOD',name:'餐飲',kind:'expense'},{id:'TRANSIT',name:'交通',kind:'expense'},{id:'SALARY',name:'薪資',kind:'income'},{id:'OTHER',name:'其他',kind:'expense'}]};
   }
   async function operation(work,kind){
     if(running)return;var mine=++generation,started=performance.now();controller=new AbortController();running=true;controls();
@@ -155,28 +164,47 @@
         if(view&&view.mode==='benchmark')view.cases[view.current].state='error';
         renderResults();
       }else clearResults();
-    }}finally{if(mine===generation){controller=null;running=false;ui.modelProgress.hidden=true;controls();}}
+    }}finally{if(mine===generation){controller=null;running=false;stopClock();ui.modelProgress.hidden=true;controls();}}
   }
-  function measure(result){return {model:result.model,elapsedMs:result.elapsedMs,usage:safeUsage(result.usage),finishReason:result.finishReason,attempts:result.attempts};}
-  async function draft(input,signal){return api.generate({task:'draft',input:input,context:context(),language:document.documentElement.lang||'zh-TW',signal:signal});}
-  ui.modelLoad.onclick=function(){operation(async function(mine,signal){if(!api)throw new Error('Local model program unavailable');status('正在檢查並載入模型…');ui.modelProgress.hidden=false;await api.load({signal:signal,onProgress:function(value){if(mine!==generation)return;ui.modelProgress.value=Number(value.progress)||0;status(value.text||text('正在下載／載入模型…'));}});if(mine===generation)status('本機模型已就緒');});};
-  ui.modelRun.onclick=function(){operation(async function(mine,signal){clearResults();status('本機 AI 正在整理…');var result=await draft(ui.modelInput.value,signal);if(mine!==generation)return;view={mode:'draft',result:result,value:JSON.parse(result.text)};renderResults();status('已完成真實模型推論，請核對草稿。');},'draft');};
-  ui.modelBenchmark.onclick=function(){operation(async function(mine,signal){
-    clearResults();var today=context().today;
-    view={mode:'benchmark',current:0,cases:[{syntheticCase:1,input:'今天早餐65元，午餐120元。',state:'running',expected:[65,120].map(function(amount){return {amount:amount,kind:'expense',category:'FOOD',date:today,currency:'TWD'};})},{syntheticCase:2,input:'今天收到薪資30000元。',state:'waiting',expected:[{amount:30000,kind:'income',category:'SALARY',date:today,currency:'TWD'}]}]};
-    status('正在執行合成範例檢查…');renderResults();
-    for(var i=0;i<view.cases.length;i++){
-      view.current=i;var item=view.cases[i];item.state='running';renderResults();
-      var result=await draft(item.input,signal);if(mine!==generation)return;
-      item.output=JSON.parse(result.text);item.rawModelOutput=result.rawModelOutput||result.text;item.normalization=result.normalization||null;item.modelDraft=result.modelDraft&&Array.isArray(result.modelDraft.items)?result.modelDraft:null;item.modelOnlyDifferences=item.modelDraft?differences(item.expected,item.modelDraft.items):null;item.modelOnlyPassed=item.modelOnlyDifferences?item.modelOnlyDifferences.length===0:null;item.measurement=measure(result);item.differences=differences(item.expected,item.output.items);item.passed=item.differences.length===0;item.state=item.passed?'passed':'failed';renderResults();
+  function measure(result){
+    var measured=window.LocalAIEvaluation?LocalAIEvaluation.safeMeasurement(result,{phase:'warm'}):{model:result.model,elapsedMs:result.elapsedMs,usage:safeUsage(result.usage),finishReason:result.finishReason,attempts:result.attempts};
+    return measured;
+  }
+  function measurementLine(measured){var lines=[];var completion=Number.isFinite(measured.requestMs)?measured.requestMs:Number.isFinite(measured.totalMs)?measured.totalMs:measured.elapsedMs;if(Number.isFinite(completion))lines.push(named('aiTest.generationElapsed',{seconds:(completion/1000).toFixed(2)}));if(Number.isFinite(measured.firstTokenMs))lines.push(named('aiTest.firstTokenElapsed',{seconds:(measured.firstTokenMs/1000).toFixed(2)}));return lines.join(' · ');}
+  function profileLabel(profile){return named(profile==='baseline'?'aiTest.baselineLabel':'aiTest.compactLabel');}
+  async function draft(input,signal,profile){return api.generate({task:'draft',input:input,context:context(),language:document.documentElement.lang||'zh-TW',signal:signal,promptProfile:profile||'compact-v1'});}
+  ui.modelLoad.onclick=function(){operation(async function(mine,signal){
+    if(!api)throw new Error('Local model program unavailable');startClock('aiTrial.checking');status('正在檢查並載入模型…');ui.modelProgress.hidden=false;ui.modelProgress.removeAttribute('value');var started=performance.now();
+    await api.load({signal:signal,onProgress:function(value){if(mine!==generation)return;setClockStage('aiTrial.loading');var fraction=typeof value==='number'?value:value&&(value.progress!=null?value.progress:value.fraction);if(Number.isFinite(fraction)){ui.modelProgress.value=Math.max(0,Math.min(1,fraction>1?fraction/100:fraction));}else ui.modelProgress.removeAttribute('value');status(value&&value.text||text('正在下載／載入模型…'));}});
+    if(mine===generation){lastLoadMs=performance.now()-started;clock=null;status('本機模型已就緒');}
+  });};
+  ui.modelRun.onclick=function(){operation(async function(mine,signal){clearResults();startClock('aiTrial.running');status('本機 AI 正在整理…');var result=await draft(ui.modelInput.value,signal);if(mine!==generation)return;view={mode:'draft',result:result,value:JSON.parse(result.text)};renderResults();status('已完成真實模型推論，請核對草稿。');},'draft');};
+  function emptyDetected(error){var details=error&&error.details;if(!details||error.code!=='AI_NO_DRAFT'||!details.validation||details.validation.reason!=='NO_TRANSACTIONS')return false;try{var parsed=JSON.parse(details.rawOutput);return !!parsed&&Array.isArray(parsed.items)&&parsed.items.length===0;}catch(_){return false;}}
+  function recordResult(item,result){
+    item.output=JSON.parse(result.text);item.rawModelOutput=result.rawModelOutput||result.text;item.normalization=result.normalization||null;item.modelDraft=result.modelDraft&&Array.isArray(result.modelDraft.items)?result.modelDraft:null;item.measurement=measure(result);
+    item.modelOnlyDifferences=item.modelDraft?differences(item.expected,item.modelDraft.items):null;item.modelOnlyPassed=item.modelDraft?LocalAIEvaluation.score(item.expectation,item.modelDraft.items).caseExact:null;item.differences=differences(item.expected,item.output.items);item.passed=LocalAIEvaluation.score(item.expectation,item.output.items).caseExact;item.state=item.passed?'passed':'failed';
+    item.observation={caseId:item.caseId,split:item.split,expected:item.expectation,modelItems:item.modelDraft?item.modelDraft.items:null,assistedItems:item.output.items,measurement:item.measurement,status:'completed',promptProfile:item.promptProfile};
+  }
+  async function runSuite(compare){operation(async function(mine,signal){
+    clearResults();startClock('aiTrial.running');var today=context().today,cases=LocalAIEvaluation.cases({split:'quick',today:today}),planned=[];
+    cases.forEach(function(entry,index){var profiles=compare?(index%2?['compact-v1','baseline']:['baseline','compact-v1']):['compact-v1'];profiles.forEach(function(profile){planned.push({syntheticCase:planned.length+1,caseId:entry.id,split:entry.split,input:entry.input,state:'waiting',expected:entry.expected.items,expectation:entry.expected,promptProfile:profile});});});
+    view={mode:'benchmark',current:0,cases:planned,compare:compare,cancelled:false};status('',false,'aiTest.suiteRunning');renderResults();
+    for(var i=0;i<planned.length;i++){
+      if(mine!==generation)return;view.current=i;var item=planned[i];item.state='running';renderResults();startClock('aiTrial.running');
+      try{var result=await draft(item.input,signal,item.promptProfile);if(mine!==generation)return;recordResult(item,result);}
+      catch(error){if(mine!==generation)return;var details=error&&error.details||{},empty=emptyDetected(error);item.measurement=measure(details);item.rawModelOutput=typeof details.rawOutput==='string'?details.rawOutput.slice(0,12000):'';item.errorKey=errorKey(error&&error.code||'AI_ERROR');item.state=empty&&item.expected.length===0?'passed':empty?'failed':'error';item.passed=item.state==='passed';item.abstained=empty;item.modelOnlyPassed=empty?item.expected.length===0:null;item.observation={caseId:item.caseId,split:item.split,expected:item.expectation,modelItems:null,assistedItems:null,measurement:item.measurement,status:'failed',errorCode:error&&error.code||'AI_ERROR',emptyDetected:empty,promptProfile:item.promptProfile};}
+      renderResults();
+      // A failed draft does not erase prior measurements or prevent later fixed cases.
+      if(!ready()&&i+1<planned.length){for(var pending=i+1;pending<planned.length;pending++){planned[pending].state='notrun';}break;}
     }
-    var allPassed=view.cases.every(function(item){return item.passed;});
-    if(allPassed)status('合成範例檢查完成；結果僅適用於這兩筆輸入。');
-    else{status('',true,'aiTest.benchmarkMismatch');ui.modelStatus.dataset.errorCode='AI_BENCHMARK_MISMATCH';}
-  },'benchmark');};
-  ui.modelCancel.onclick=function(){cancel();clearResults();status('已取消；沒有寫入任何資料。');};
-  ui.modelUnload.onclick=function(){cancel();if(api)api.unload();ui.modelInput.value='';clearResults();status('模型已卸載，本頁輸入與回覆已清除。');};
-  ui.modelCache.onclick=function(){operation(async function(){if(api)await api.clearCache();clearResults();status('模型下載快取已清除。');});};
+    renderResults();status('',false,'aiTest.suiteComplete');
+  },'benchmark');}
+  ui.modelBenchmark.onclick=function(){runSuite(false);};
+  ui.modelCompare.onclick=function(){runSuite(true);};
+  ui.modelExport.onclick=function(){if(!view||view.mode!=='benchmark'||!window.LocalAIEvaluation)return;var rows=view.cases.filter(function(item){return !!item.observation;}).map(function(item){return item.observation;}),report=LocalAIEvaluation.exportReport(rows,{suite:'quick'}),url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),link=node('a');link.href=url;link.download='local-ai-synthetic-evaluation.json';link.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);};
+  ui.modelCancel.onclick=function(){var partial=view&&view.mode==='benchmark'?view:null;cancel();if(partial){partial.cancelled=true;partial.cases.forEach(function(item){if(item.state==='running'){item.observation={caseId:item.caseId,split:item.split,expected:item.expectation,measurement:{},status:'cancelled',errorCode:'AI_CANCELLED',promptProfile:item.promptProfile};item.state='cancelled';}else if(item.state==='waiting')item.state='notrun';});failureDetails=null;renderResults();controls();status('',false,'aiTest.cancelledBenchmark',{completed:partial.cases.filter(function(item){return item.state==='passed'||item.state==='failed'||item.state==='error';}).length});}else{clearResults();status('已取消；沒有寫入任何資料。');}};
+  ui.modelUnload.onclick=function(){cancel();if(api)api.unload();clock=null;lastLoadMs=null;renderClock();ui.modelInput.value='';clearResults();status('模型已卸載，本頁輸入與回覆已清除。');};
+  ui.modelCache.onclick=function(){operation(async function(){if(api)await api.clearCache();clock=null;lastLoadMs=null;renderClock();clearResults();status('模型下載快取已清除。');});};
   window.addEventListener('pagehide',function(){cancel();ui.modelInput.value='';clearResults();});controls();
   if(window.I18n)Promise.resolve(I18n.ready).then(function(){languageReady=true;ui.modelLanguage.innerHTML=I18n.renderLanguageSelect();localizePlaceholders();controls();});else{languageReady=true;controls();}
   window.addEventListener('fambudget:languagechange',localizePlaceholders);

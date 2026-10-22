@@ -76,6 +76,18 @@ test('contract fixture: downloadable evaluation excludes input, ledger, answer, 
   for(const value of ['private question','private answer','privateLedger','private input','private image','private model output','private raw error','private raw extraction','secret'])assert.equal(json.includes(value),false,value);
 });
 
+test('contract fixture: timing exports preserve observed optional values and never invent missing stages',()=>{
+  const data=tools.evaluation({measurements:[{task:'draft',model:'fixture',elapsedMs:123,timing:{totalMs:120,firstTokenMs:40,decodeMs:70,cleanupMs:10,privateInput:'secret',passes:[{attempt:1,totalMs:120,firstTokenMs:40,decodeMs:70,promptTokens:15,completionTokens:8,raw:'secret'}]},loadMs:12,requestMs:125,promptProfile:'compact-v1',usage:{}},{task:'draft',model:'fixture',elapsedMs:50,usage:{},promptProfile:'private-secret'}]});
+  assert.equal(data.modelRuns[0].timing.firstTokenMs,40);assert.equal(data.modelRuns[0].loadMs,12);assert.equal(data.modelRuns[0].requestMs,125);assert.equal(data.modelRuns[0].promptProfile,'compact-v1');
+  assert.equal(data.modelRuns[1].timing.firstTokenMs,null);assert.equal(data.modelRuns[1].timing.totalMs,null);assert.equal(data.modelRuns[1].loadMs,null);assert.equal(data.modelRuns[1].promptProfile,null);
+  assert.equal(JSON.stringify(data).includes('secret'),false);
+  assert.equal(tools.completionMs({requestMs:150,timing:{totalMs:120},elapsedMs:100}),150,'completion display includes the full request when measured');
+  assert.equal(tools.completionMs({timing:{totalMs:120},elapsedMs:100}),120);
+  assert.equal(tools.completionMs({elapsedMs:100}),100);
+  assert.equal(tools.completionMs({requestMs:0,timing:{totalMs:120},elapsedMs:100}),0,'an observed zero is not treated as absent');
+  assert.equal(tools.completionMs({}),null,'missing completion time stays unmeasured');
+});
+
 test('contract fixture: review notes accept only fixed reasons and stay attached to their original row',()=>{
   const normalization={adjustments:[{rowIndex:1,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:'income',value:'expense'},{rowIndex:1,field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear',previous:'PRIVATE NAME'},{rowIndex:0,field:'date',reason:'OPTIONAL_DATE_UNSUPPORTED',action:'clear'},{rowIndex:1,field:'kind',reason:'PRIVATE SECRET',action:'set'},{rowIndex:1,field:'password',reason:'SOURCE_KIND_CUE',action:'set'}]};
   const notes=JSON.parse(JSON.stringify(tools.rowChecks(normalization,1)));
@@ -114,7 +126,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
         if(!__fixture.loaded)throw new Error('Fixture model was unloaded');
         __fixture.generationCalls++;__fixture.lastContext=options.context;
         if(__fixture.draftFailure){const error=new Error('The model did not produce usable draft items.');error.code='AI_NO_DRAFT';error.details={rawOutput:'{"items":[],"warnings":["<img src=x onerror=alert(1)>"]}',elapsedMs:42,model:'CONTRACT FIXTURE — NOT INFERENCE',finishReason:'stop',usage:{completion_tokens:6},attempts:2};throw error;}
-        const result={text:options.task==='draft'?JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:__fixture.foreign?'USD':'TWD',kind:'expense',category:'1',merchant:'<img src=x onerror=alert(1)>',note:'fixture note',missingFields:[]}],warnings:[]}):'Explanation <img src=x onerror=alert(1)> [summary:2026-10]',model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:20,usage:{promptTokens:10,completionTokens:12},finishReason:'stop'};
+        const result={text:options.task==='draft'?JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:__fixture.foreign?'USD':'TWD',kind:'expense',category:'1',merchant:'<img src=x onerror=alert(1)>',note:'fixture note',missingFields:[]}],warnings:[]}):'Explanation <img src=x onerror=alert(1)> [summary:2026-10]',model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:20,requestMs:1234,timing:{totalMs:20,firstTokenMs:5,decodeMs:10,cleanupMs:5},usage:{promptTokens:10,completionTokens:12},finishReason:'stop'};
         if(options.task==='draft')result.rawModelOutput='{"items":[{"sourceText":"MODEL SOURCE FIXTURE","amountText":"65","classification":"支出｜Food"}],"warnings":[]}';
         if(__fixture.hybrid && options.task==='draft'){
           const items=[{date:'2026-10-19',amount:65,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'fixture breakfast',missingFields:[]},{date:'2026-10-19',amount:120,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'fixture lunch',missingFields:[]}];
@@ -133,6 +145,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
           result.normalization={sourceRuleAssisted:true,adjustments:[],rejectedRows:[{modelRowIndex:0,reason:'INVALID_SHAPE',field:'sourceText'}],rowMappings:[{draftIndex:0,modelRowIndex:1},{draftIndex:1,modelRowIndex:2}]};
         }
         if(__fixture.reject){options.onToken('REJECTED PROVISIONAL TEXT');throw new Error('AI_UNGROUNDED fixture rejection');}
+        if(__fixture.stream){options.onToken('FIRST ');options.onToken('SECOND ');options.onToken('THIRD');}
         if(__fixture.defer)return new Promise(resolve=>{__fixture.resolve=()=>resolve(result);});
         return result;
       }};
@@ -145,6 +158,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.equal(await page.locator('[data-ai-action="run"]').isDisabled(),true);
     await page.locator('[data-ai-action="load"]').click();
     await page.waitForFunction(()=>__fixture.loaded);
+    assert.match(await page.locator('[data-ai-timing]').textContent(),/Model startup:/,'real startup duration is visible separately from generation');
     await page.locator('[data-ai-mode="ledger"]').click();
     assert.equal(await page.evaluate(()=>__fixture.loaded),true,'idle tab change preserves loaded model');
     await page.locator('[data-ai-action="facts"]').click();
@@ -159,6 +173,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.equal(await page.locator('.ait-status').textContent(),'The model returned an incomplete draft format. The original is preserved below. Revise the input and retry, or enter it manually.');
     assert.equal(await page.locator('textarea').inputValue(),'CONTRACT FIXTURE ONLY: breakfast TWD 65','failure preserves input for correction');
     assert.equal(await page.locator('[data-ai-row]').count(),0,'failed generation creates no editable or savable fake entries');
+    assert.equal(await page.locator('[data-ai-technical]').evaluate(node=>node.open),false,'failed technical JSON is folded below the readable error');
     assert.equal(await page.locator('.ait-output img').count(),0,'raw failed model output is inert text');
     assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'failure never writes accounting');
     await page.evaluate(()=>{__fixture.draftFailure=false;});
@@ -168,11 +183,18 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.match(await page.locator('.ait-raw').textContent(),/MODEL SOURCE FIXTURE/,'review preserves the actual model extraction, separately from canonical editable fields');
     assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'generation never writes');
     assert.equal(await page.locator('[data-ai-field="amount"]').inputValue(),'','foreign amount is never auto-converted');
+    assert.equal(await page.locator('[data-ai-field="amount"]').getAttribute('aria-invalid'),'true','the required blank amount is clearly marked');
+    assert.match(await page.locator('[data-ai-missing-fields]').textContent(),/TWD amount/);
+    assert.match(await page.locator('.ait-review').textContent(),/1 drafts to review/);
+    assert.match(await page.locator('[data-ai-timing]').textContent(),/Model starts output:/,'first-token timing describes any model output, not a usable draft');
+    assert.match(await page.locator('[data-ai-timing]').textContent(),/Completed: 1.2 s/,'the main completed summary prefers full request time');
+    assert.equal(await page.locator('.ait-metrics-grid div').nth(1).locator('dd').textContent(),'1.23 s','the metrics use the same full request duration');
     await page.locator('[data-ai-group]').selectOption('5');
     await page.locator('[data-ai-approve]').check();
     await page.locator('[data-ai-action="save"]').click();
     assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'invalid currency draft is blocked');
     await page.locator('[data-ai-field="amount"]').fill('2015.00');
+    assert.equal(await page.locator('[data-ai-field="amount"]').getAttribute('aria-invalid'),null,'correcting a required field removes its stale missing marker');
     await page.locator('[data-ai-field="fxConfirmed"]').check();
     await page.locator('[data-ai-approve]').check();
     await page.locator('[data-ai-action="save"]').click();
@@ -246,9 +268,11 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     await page.locator('[data-ai-action="run"]').click();
     await page.waitForFunction(()=>document.querySelector('.ait-status').textContent.includes('AI_UNGROUNDED'));
     assert.equal(await page.locator('.ait-output').textContent(),'','rejected provisional output is removed');
-    await page.evaluate(()=>{__fixture.reject=false;__fixture.defer=true;});
+    await page.evaluate(()=>{__fixture.reject=false;__fixture.defer=true;__fixture.stream=true;});
     await page.locator('[data-ai-action="run"]').click();
     await page.waitForFunction(()=>typeof __fixture.resolve==='function');
+    await page.waitForFunction(()=>document.querySelector('.ait-answer').textContent==='FIRST SECOND THIRD');
+    assert.match(await page.locator('[data-ai-timing]').textContent(),/elapsed/,'a live generation clock stays visible while the model is pending');
     await page.evaluate(()=>{AIAssistant.setAccount({id:'two'});__fixture.resolve();});
     await page.waitForTimeout(30);
     assert.equal(await page.locator('.ai-trial').count(),0,'account change removes old private DOM');

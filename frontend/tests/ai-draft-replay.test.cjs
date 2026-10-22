@@ -75,7 +75,7 @@ test('recorded user-device failure crosses real worker/controller/browser and re
         prebuiltAppConfig:{model_list:[]}, deleteModelAllInfoInCache:async()=>{}
       };
     `;
-    const permitted = new Set(['/ai-test.html','/js/i18n.js','/js/local-ai-engine.js','/js/ai-model-test.js','/js/local-ai-worker.js','/css/tokens.css','/css/ai-assistant.css','/css/safety-center.css','/js/safety-center.js']);
+    const permitted = new Set(['/ai-test.html','/js/i18n.js','/js/local-ai-engine.js','/js/local-ai-evaluation.js','/js/ai-model-test.js','/js/local-ai-worker.js','/css/tokens.css','/css/ai-assistant.css','/css/safety-center.css','/js/safety-center.js']);
     await context.route('**/*', route => {
       const request = route.request(), url = new URL(request.url());
       if (request.method() !== 'GET') writes.push({method:request.method(),path:url.pathname});
@@ -117,37 +117,25 @@ test('recorded user-device failure crosses real worker/controller/browser and re
     assert.equal(await page.locator('#modelTechnical').evaluate(node => node.open),false,'technical output stays folded');
 
     await page.setViewportSize({width:320,height:800});
-    await page.locator('#modelBenchmark').click();
+    // Replay the historical salary independently of the evolving evaluation
+    // registry. This literal is observed output, not a fabricated quality score.
+    await page.locator('#modelInput').fill('今天收到薪資30000元。');
+    await page.locator('#modelRun').click();
     await page.waitForFunction(() => {
-      const details = document.querySelector('#modelMetrics').textContent;
-      try { return JSON.parse(details).complete === true; } catch (_) { return false; }
+      try { return JSON.parse(document.querySelector('#modelMetrics').textContent).normalizedDraft.items.length === 1; } catch (_) { return false; }
     });
-    const benchmark = JSON.parse(await page.locator('#modelMetrics').textContent());
-    assert.deepEqual(benchmark.modelOnly,{matched:0,compared:2},'both observed raw model failures remain failures even though source-checked drafts are usable');
-    assert.deepEqual(benchmark.sourceChecked,{matched:2,compared:2});
-    assert.equal(benchmark.accuracyNotInferred,true);
-    assert.equal(benchmark.cases[0].modelOnlyPassed,false);
-    assert.equal(benchmark.cases[0].passed,true);
-    assert.deepEqual(JSON.parse(benchmark.cases[0].rawModelOutput),recordedFailure);
-    const salary = benchmark.cases[1];
-    assert.equal(salary.modelOnlyPassed,false,'the fabricated extra candidate cannot disappear from raw-model scoring');
-    assert.equal(salary.passed,true);
+    const salary = JSON.parse(await page.locator('#modelMetrics').textContent());
     assert.deepEqual(JSON.parse(salary.rawModelOutput),recordedSalaryFailure);
     assert.equal(salary.modelDraft.items.length,2,'both original candidates remain in model evidence');
     assert.equal(salary.modelDraft.items[1].note,'今天收到餐飲');
-    assert.deepEqual(salary.output.items.map(row => [row.amount,row.kind,row.category]),[[30000,'income','SALARY']]);
+    assert.deepEqual(salary.normalizedDraft.items.map(row => [row.amount,row.kind,row.category]),[[30000,'income','SALARY']]);
     assert.deepEqual(salary.normalization.rejectedRows,[{modelRowIndex:1,reason:'SOURCE_NOT_FOUND',field:'sourceText'}]);
     assert.deepEqual(salary.normalization.rowMappings,[{draftIndex:0,modelRowIndex:0}]);
     assert.equal(salary.measurement.attempts,1,'a fabricated extra row does not retry or block the valid salary');
-    const salaryCase = page.locator('[data-synthetic-case="2"]');
-    assert.equal(await salaryCase.locator('.model-draft').count(),1);
-    assert.equal((await salaryCase.locator('.model-draft').textContent()).includes('今天收到餐飲'),false,'excluded source is not presented as a normal draft');
-    assert.equal(await salaryCase.locator('[data-excluded-candidates] [data-excluded-row="1"]').isVisible(),true,'row rejection is explained visibly');
-    assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'passed');
-    assert.ok((await page.locator('[data-synthetic-case="1"] [data-review-stage="model"]').first().textContent()).includes('未通過'));
-    assert.ok((await page.locator('[data-synthetic-case="1"] [data-review-stage="assisted"]').textContent()).includes('通過'));
-    assert.ok(await page.locator('[data-synthetic-case="1"] .model-only-differences').count());
-    assert.equal(await page.evaluate(() => __recordedReplay.calls),3,'each example is processed once through the actual worker');
+    assert.equal(await page.locator('#modelOutput .model-draft').count(),1);
+    assert.equal((await page.locator('#modelOutput .model-draft').textContent()).includes('今天收到餐飲'),false,'excluded source is not presented as a normal draft');
+    assert.equal(await page.locator('#modelOutput [data-excluded-candidates] [data-excluded-row="1"]').isVisible(),true,'row rejection is explained visibly');
+    assert.equal(await page.evaluate(() => __recordedReplay.calls),2,'each recorded example is processed once through the actual worker');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,'source-check results fit a 320px screen');
     assert.equal(await page.locator('#modelStatus').evaluate(node => node.classList.contains('error')),false);
 
@@ -165,7 +153,7 @@ test('recorded user-device failure crosses real worker/controller/browser and re
     assert.deepEqual(reversed.normalization.rejectedRows,[{modelRowIndex:0,reason:'SOURCE_NOT_FOUND',field:'sourceText'}]);
     assert.deepEqual(reversed.normalizedDraft.items.map(row => [row.amount,row.kind,row.category]),[[30000,'income','SALARY']]);
     assert.equal(reversed.measurement.attempts,1);
-    assert.equal(await page.evaluate(() => __recordedReplay.calls),4);
+    assert.equal(await page.evaluate(() => __recordedReplay.calls),3);
     const remainingCard = page.locator('#modelOutput [data-draft-index="0"]');
     assert.equal(await page.locator('#modelOutput .model-draft').count(),1);
     assert.ok((await remainingCard.locator('[data-review-checks]').textContent()).includes('模型原判斷：支出／餐飲。'),'comparison uses retained model row 1');
