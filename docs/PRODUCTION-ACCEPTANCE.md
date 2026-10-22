@@ -1,13 +1,57 @@
 # Production acceptance handoff
 
-The current deployed source is `62c76d6e46916e827559e8c1a89adf0037b87b52`,
-resource version **175**, at `https://fambudget-recovery-20261017.onrender.com`.
-Render `dep-dbcub7qvcj2c73ft9180` reports live, finished
-2026-10-22 18:31:24 Asia/Taipei. The service remains free with auto-deploy off.
-GitHub run [39763322169](https://github.com/ChunWei-0801/-/actions/runs/39763322169)
-passed checks and real Chromium browser jobs. Complete local backend: 1036
-passed. Related frontend: 106 passed, zero skips. All 23 changed remote blobs
-were verified. Original failed environment retained.
+The current deployed source is `316f6d96c5296d54c4e2a672f3d52278359e6abe`,
+resource version **176**, at `https://fambudget-recovery-20261017.onrender.com`.
+Render `dep-dbd39g67bikc73adlmr0` reports live, finished
+2026-10-23 00:09:15 Asia/Taipei. The service remains free with auto-deploy off.
+GitHub run [39810873137](https://github.com/ChunWei-0801/-/actions/runs/39810873137)
+passed checks and real Chromium browser jobs for that exact source. Complete
+local backend: 1068 passed. Related frontend: 134 passed, zero skips; two
+additional actual-page note/camera checks and the standalone lifestyle browser
+also passed. All 69 changed remote blobs were verified; the complete source
+history bundle was saved and verified. Original failed environment retained.
+
+## v176 accessibility, receipt entry and multiple savings jars
+
+- Direct dashboard touch/mouse/keyboard shortcut arrangement persists only on
+  explicit completion, with cancel/retry. Hidden shortcut settings remain.
+- Transaction notes are the last desktop column and the last readable mobile
+  field. Scan receipt opens camera/file OCR, then one large editable reviewed
+  entry. Photo upload retry does not create another transaction.
+- The AI assistant only presents finance coach and operation helper. The latter
+  can interpret quoted report fields, or take explicit filters without waiting
+  for a model. Read-only permission checks, full Decimal totals, paginated detail
+  and real complete xlsx/docx exports use the same authorized scope. Unknown
+  years must be selected; a location means recorded merchant/note/activity text.
+- Global speech input requires start/review/apply and never auto-submits. TTS
+  lists real OS voices; a device with fewer than five gets free OS installation
+  guidance, not five fabricated voice names. Five rate/pitch styles are separate
+  from five distinct voices. Remote speech/voices require opt-in. Family original
+  recordings stay account-scoped on this browser with play/rename/delete/download;
+  they are not cloned voices or cross-device backups.
+- Savings supports multiple independently named jars, goals, shapes, amounts
+  and photos. The original remains intact; additive migration 0008 creates only
+  the additional-jar table/index. TWD changes use whole yuan, minimum new goal
+  and deposit 1. Historical decimals are not silently rewritten. The currency
+  unit helper does not imply that multi-currency jars were added.
+- Route animations honor reduced motion and account boundaries. Six languages
+  have 1557 aligned message keys. API/screen/table catalogs match 125/26/32.
+
+Start with `/?v=176#/`, then `/#/savings-game`, `/#/entry`, `/#/ai` or the voice
+button. The no-write model trial is `/ai-test.html?v=176`. Users should first
+check new independent jars and photo capture with their own chosen test inputs.
+Physical camera/microphone/OS voice availability, fresh Qwen inference including
+report understanding, and new production interactions remain pending user
+acceptance. No production test transaction, invitation or email was created.
+
+Two real OCR synthetic-image runs found total 105 and date 2026-07-03, excluding
+subtotal/tax/cash/change; their 1.9–2.0 second timings are two local observations,
+not general phone/OCR accuracy claims. Frontend speech tests use controlled
+browser capability doubles; actual MediaRecorder/IndexedDB/download is tested
+with a synthetic audio source. No fresh Qwen accuracy or latency improvement
+was measured here. Full production database backup/isolated restore and actual
+government feed synchronization remain pending as detailed below. See
+WORKLOG-20261022-ACCESSIBILITY.md for scope, evidence and continuation.
 
 ## v175 local AI latency and accuracy work
 
@@ -95,7 +139,7 @@ See `FREE-LLM.md` and `WORKLOG-20261021.md` for details.
 ## Existing acceptance and backup handoff
 
 The user saved and published the updated environment policy on 2026-10-19.
-The latest observed runtime revision is 934 (2026-10-22) and still lacks the
+The latest observed runtime revision is 943 (2026-10-22) and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
