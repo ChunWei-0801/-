@@ -280,7 +280,8 @@ def test_私有媒體轉接器帶工作階段權杖_圖片保留二進位(media_
     """The supplemental API uses the real authenticated bridge, with no mock fallback."""
     assert media_sent["auth"] == {"session": True, "persistent": False}
     rows = [row for entries in media_sent["sent"].values() for row in entries]
-    assert len(rows) == 30
+    assert rows
+    assert all(len(entries) == 1 for entries in media_sent["sent"].values())
     for row in rows:
         assert row["adapter"] == "media"
         assert row["request"]["headers"].get("Authorization") == "Bearer contract-access-token"

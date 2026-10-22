@@ -173,6 +173,19 @@ class SavingsJarPatch(LifestyleSchema):
     savedAmount: Money | None = None
     shape: JarShape | None = None
 
+    @field_validator("targetAmount", "savedAmount")
+    @classmethod
+    def whole_twd_updates(cls, value, info):
+        # This jar is denominated in TWD. Validate only submitted changes;
+        # legacy decimal balances remain readable and are never rounded here.
+        if value is None:
+            return value
+        if value != value.to_integral_value():
+            raise ValueError("存錢小夥伴以新臺幣整元記錄，最小單位為 1 元")
+        if info.field_name == "targetAmount" and value < 1:
+            raise ValueError("存錢目標至少為 1 元")
+        return value
+
     @model_validator(mode="before")
     @classmethod
     def reject_null(cls, values):
@@ -195,6 +208,21 @@ class SavingsJarOut(SavingsJarIn):
     savedAmount: float = 0
     imageUrl: str | None = None
     progressPercent: float = 0
+
+
+class SavingsJarCreate(SavingsJarPatch):
+    name: str = Field(min_length=1, max_length=60)
+    targetAmount: Money
+    savedAmount: Money = Decimal("0")
+    shape: JarShape = "pig"
+
+
+class SavingsJarItem(SavingsJarOut):
+    id: str
+
+
+class SavingsJarListOut(LifestyleSchema):
+    jars: list[SavingsJarItem]
 
 
 class JarImageIn(LifestyleSchema):

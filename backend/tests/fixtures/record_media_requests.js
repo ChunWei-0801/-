@@ -116,12 +116,19 @@ async function image(url, bridge = media.imageURL) {
     {boughtPacks:2,smokedPacks:1}));
   await record('GET /api/lifestyle/jar', () => life.request('GET', '/jar'));
   await record('PUT /api/lifestyle/jar', () => life.request('PUT', '/jar',
-    {name:'旅行小恐龍',targetAmount:10000,savedAmount:1250.5,shape:'photo'}));
+    {name:'旅行小恐龍',targetAmount:10000,savedAmount:1251,shape:'photo'}));
   // Server-provided full image paths must use the same authenticated binary bridge as suffixes.
   await record('GET /api/lifestyle/jar/image', () => image('/api/lifestyle/jar/image', life.imageURL));
   await record('PUT /api/lifestyle/jar/image', () => life.request('PUT', '/jar/image',
     {image:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6xkAAAAASUVORK5CYII='}));
   await record('DELETE /api/lifestyle/jar/image', () => life.request('DELETE', '/jar/image'));
+  await record('GET /api/lifestyle/jars', () => life.request('GET', '/jars'));
+  await record('POST /api/lifestyle/jars', () => life.request('POST', '/jars', {name:'另一個願望',targetAmount:100,savedAmount:0,shape:'pig'}));
+  await record('PUT /api/lifestyle/jars/{jar_id}', () => life.request('PUT', '/jars/901', {savedAmount:1}));
+  await record('PUT /api/lifestyle/jars/{jar_id}/image', () => life.request('PUT', '/jars/901/image', {image:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6xkAAAAASUVORK5CYII='}));
+  await record('GET /api/lifestyle/jars/{jar_id}/image', () => image('/api/lifestyle/jars/901/image', life.imageURL));
+  await record('GET /api/ai-local/report', () => API.request('/api/ai-local/report?year=2026&month=7&q='+encodeURIComponent('全聯/台北店')+'&kind=expense&scope=me&limit=100&offset=0'));
+  await record('GET /api/ai-local/report/export', () => API.fetchMedia('/api/ai-local/report/export?year=2026&month=7&kind=expense&scope=me&format=xlsx'));
   assert.deepEqual(Object.keys(out).sort(), Object.values(API.mediaRoutes).map(entry => entry[0]).sort(),
     'Every supplemental route needs an explicit request scenario');
   process.stdout.write(JSON.stringify({sent:out, auth}));

@@ -31,7 +31,7 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
       if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
       const match=url.pathname.match(/^\/locales\/(zh-TW|zh-CN|en|ja|ko|es)\.json$/);
       if(match)return route.fulfill({contentType:'application/json',body:JSON.stringify(packs[match[1]])});
-      if(url.pathname==='/css/tokens.css'||url.pathname==='/css/ai-assistant.css'||url.pathname==='/css/safety-center.css')return route.fulfill({contentType:'text/css',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
+      if(url.pathname==='/css/tokens.css'||url.pathname==='/css/ai-assistant.css'||url.pathname==='/css/safety-center.css'||url.pathname==='/css/voice-accessibility.css')return route.fulfill({contentType:'text/css',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
       unexpected.push(url.pathname);return route.abort();
     });
     await page.addInitScript(()=>localStorage.setItem('fambudget.language','zh-TW'));
@@ -212,12 +212,13 @@ test('browser parser startup: stable ready promise waits for versioned locale pa
           if(url.searchParams.get('v')!==version){delete pack.messages['aiTest.rawOutput'];delete pack.messages['aiTest.technical'];}
           return route.fulfill({contentType:'application/json',body:JSON.stringify(pack)});
         }
-        if(url.pathname==='/js/safety-center.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,'js/safety-center.js'),'utf8')});
+        if(url.pathname==='/js/voice-accessibility.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,'js/voice-accessibility.js'),'utf8')});
+        if(url.pathname==='/js/safety-center.js'||url.pathname==='/js/voice-accessibility.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,'js/safety-center.js'),'utf8')});
         if(url.pathname==='/js/i18n.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,'js/i18n.js'),'utf8')});
         if(url.pathname==='/js/local-ai-evaluation.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,'js/local-ai-evaluation.js'),'utf8')});
         if(url.pathname==='/js/ai-model-test.js')return route.fulfill({contentType:'text/javascript',body:'window.__parserCapture={readyState:document.readyState,readyThen:typeof I18n.ready.then};\n'+fs.readFileSync(path.join(root,'js/ai-model-test.js'),'utf8')});
         if(url.pathname==='/js/local-ai-engine.js')return route.fulfill({contentType:'text/javascript',body:`window.__parserModel={loads:0,loaded:false};window.LocalAI={getStatus:()=>({loaded:__parserModel.loaded,model:'PARSER CONTRACT FIXTURE — NOT INFERENCE'}),load:async()=>{__parserModel.loads++;__parserModel.loaded=true;},cancel:()=>{__parserModel.loaded=false;},generate:async()=>{const error=new Error('PRIVATE untranslated error');error.code='AI_INVALID_DRAFT';error.details={rawOutput:'{"items":[]}',elapsedMs:12};throw error;}};`});
-        if(url.pathname==='/css/tokens.css'||url.pathname==='/css/ai-assistant.css'||url.pathname==='/css/safety-center.css')return route.fulfill({contentType:'text/css',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
+        if(url.pathname==='/css/tokens.css'||url.pathname==='/css/ai-assistant.css'||url.pathname==='/css/safety-center.css'||url.pathname==='/css/voice-accessibility.css')return route.fulfill({contentType:'text/css',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
         return route.abort();
       });
       await page.goto('http://parser-ai-contract.test/',{waitUntil:'domcontentloaded'});
@@ -262,7 +263,7 @@ test('browser parser startup: missing or unavailable packs keep readable heading
           if(scenario==='missingAllKeys'||match[1]==='ja'){delete pack.messages['aiTest.rawOutput'];delete pack.messages['aiTest.technical'];}
           return route.fulfill({contentType:'application/json',body:JSON.stringify(pack)});
         }
-        if(url.pathname==='/js/i18n.js'||url.pathname==='/js/ai-model-test.js'||url.pathname==='/js/safety-center.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
+        if(url.pathname==='/js/i18n.js'||url.pathname==='/js/ai-model-test.js'||url.pathname==='/js/safety-center.js'||url.pathname==='/js/voice-accessibility.js')return route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
         if(url.pathname==='/js/local-ai-engine.js')return route.fulfill({contentType:'text/javascript',body:'window.LocalAI={getStatus:()=>({loaded:false})};'});
         return route.fulfill({contentType:'text/css',body:''});
       });

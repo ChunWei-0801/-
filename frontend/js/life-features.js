@@ -89,5 +89,5 @@
   function beforeRoute(loggedIn){['Wellness','SavingsGame','SmokingTracker'].forEach(function(k){if(global[k]&&global[k].cleanup)global[k].cleanup();});if(global.FinancialReports&&global.FinancialReports.cleanup)global.FinancialReports.cleanup();if(!loggedIn)setAccount(null);}
   document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('[data-life-shortcuts], [data-life-habits], #lifeCalculatorOpen');if(!t)return;e.preventDefault();if(t.id==='lifeCalculatorOpen'){if(global.FloatingCalculator)global.FloatingCalculator.show();}else if(t.hasAttribute('data-life-shortcuts'))openShortcuts();else openHabits();});
   global.LifeAPI={request:request,imageURL:imageURL};
-  global.LifeFeatures={setAccount:setAccount,user:function(){return account;},prefs:function(){return prefs;},save:save,orderTiles:orderTiles,mountSettings:mountSettings,openShortcuts:openShortcuts,openHabits:openHabits,enhanceStats:enhanceStats,beforeRoute:beforeRoute};
+  global.LifeFeatures={setAccount:setAccount,user:function(){return account;},prefs:function(){return prefs;},preferencesReady:function(){return !!account&&!pending&&!prefsError;},save:save,orderTiles:orderTiles,mountSettings:mountSettings,openShortcuts:openShortcuts,openHabits:openHabits,enhanceStats:enhanceStats,beforeRoute:beforeRoute};
 })(window);

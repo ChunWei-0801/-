@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RESTful API 說明書</title>
-<meta name="description" content="從零開始講 REST：網址是名詞、動作是方法、狀態碼是回應的一部分，並且誠實檢查本專案 118 支路由哪裡符合、哪裡故意不符合。">
+<meta name="description" content="從零開始講 REST：網址是名詞、動作是方法、狀態碼是回應的一部分，並且誠實檢查本專案 125 支路由哪裡符合、哪裡故意不符合。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -100,12 +100,12 @@ td.verdict-fix { color: var(--down); white-space: nowrap; }
         REST 不是技術，是一套<b>取名字的約定</b>。約定好之後，
         別人看到你的網址就猜得出它會做什麼——不用問你、不用翻文件。<br>
         這份文件會先用<b>圖書館</b>把概念講完，再回頭誠實檢查
-        我們自己的 118 支路由：哪些符合、哪些故意不符合、哪些可以改。
+        我們自己的 125 支路由：哪些符合、哪些故意不符合、哪些可以改。
       </p>
       <div class="hero__meta">
         <div class="mchip"><span>預計閱讀</span><b>25 分鐘</b></div>
         <div class="mchip"><span>前置知識</span><b>看過 FastAPI 說明書</b></div>
-        <div class="mchip"><span>本專案</span><b>118 支路由</b></div>
+        <div class="mchip"><span>本專案</span><b>125 支路由</b></div>
       </div>
     </header>
     <!-- 這一頁的重點：先講結論，細節在下面每一節 -->
@@ -520,7 +520,7 @@ DELETE /books/5
 
     <!-- ============ 08 ============ -->
     <section class="sec" id="ours">
-      <div class="sec__h"><span class="sec__n">08</span><h2>誠實檢查我們自己的 118 支</h2></div>
+      <div class="sec__h"><span class="sec__n">08</span><h2>誠實檢查我們自己的 125 支</h2></div>
       <p class="sec__lead">
         我把本專案的每一支路由都對上面的規則檢查過（清單跟 <code>backend/app/ownership.py</code> 一致，有測試對）。
         結果是：<b>118 支裡有 69 支完全符合，49 支採用通用寫法或動作接口。</b>
@@ -529,10 +529,10 @@ DELETE /books/5
       <div class="note">
         <div class="note__k">這個數字不代表設計很差</div>
         <p>其他 49 支裡，<b>20 支是業界通用做法、13 支是刻意的動作</b>，
-        真的可以改得更一致的是 16 支。下面逐類講。</p>
+        真的可以改得更一致的是 18 支。下面逐類講。</p>
       </div>
 
-      <h3 class="sub">完全符合（69 支）</h3>
+      <h3 class="sub">完全符合（74 支）</h3>
       <p style="color:var(--ink-soft);max-width:64ch">網址是名詞、集合用複數、動作靠方法表達，照第 2～4 節寫的就是這些：</p>
       <div class="tw">
         <table>
@@ -551,7 +551,12 @@ DELETE /books/5
             <tr><td class="rt">DELETE /api/lifestyle/jar/image</td></tr>
             <tr><td class="rt">GET /api/resources/anti-fraud<br>GET /api/resources/financial</td></tr>
                       <tr><td class="rt">GET /api/transactions/archives<br>GET /api/groups/invites<br>DELETE /api/groups/invites/{invite_id}<br>GET /api/groups/{gid}/invites<br>POST /api/groups/{gid}/invite-codes<br>POST /api/groups/{gid}/invites<br>DELETE /api/groups/{gid}/invites/{invite_id}</td></tr>
-          </tbody>
+          <tr><td class="rt">GET /api/lifestyle/jars</td></tr>
+<tr><td class="rt">POST /api/lifestyle/jars</td></tr>
+<tr><td class="rt">GET /api/lifestyle/jars/{jar_id}/image</td></tr>
+<tr><td class="rt">GET /api/ai-local/report</td></tr>
+<tr><td class="rt">GET /api/ai-local/report/export</td></tr>
+</tbody>
         </table>
       </div>
 
@@ -604,7 +609,7 @@ DELETE /books/5
         </table>
       </div>
 
-      <h3 class="sub">第三類：可以改得更一致（16 支）</h3>
+      <h3 class="sub">第三類：可以改得更一致（18 支）</h3>
       <p style="color:var(--ink-soft);max-width:64ch">
         改成下面的寫法之後<b>更清楚</b>，不是為了合規而合規：
       </p>
@@ -663,6 +668,8 @@ DELETE /books/5
             <tr><td class="rt">PUT /api/lifestyle/smoking/{entry_date}</td><td>可改為 PATCH</td><td>生活設定採部分合併；保留目前前後端 PUT 契約並在 OpenAPI 列出可省略欄位。</td></tr>
             <tr><td class="rt">PUT /api/lifestyle/jar</td><td>可改為 PATCH</td><td>生活設定採部分合併；保留目前前後端 PUT 契約並在 OpenAPI 列出可省略欄位。</td></tr>
             <tr><td class="rt">PUT /api/lifestyle/jar/image</td><td>可改為 PATCH</td><td>生活設定採部分合併；保留目前前後端 PUT 契約並在 OpenAPI 列出可省略欄位。</td></tr>
+<tr><td class="rt">PUT /api/lifestyle/jars/{jar_id}</td><td>可改為 PATCH</td><td>部分合併保持既有PUT傳輸契約，照片則替換指定圖片。</td></tr>
+<tr><td class="rt">PUT /api/lifestyle/jars/{jar_id}/image</td><td>可改為 PATCH</td><td>部分合併保持既有PUT傳輸契約，照片則替換指定圖片。</td></tr>
 </tbody>
         </table>
       </div>
@@ -758,14 +765,14 @@ DELETE /books/5
       <div class="note">
         <div class="note__k">動工前先看這兩份</div>
         <p><a href="fastapi.html">FastAPI 說明書</a> —— 怎麼用程式把這些實作出來<br>
-        <a href="api.html">API 瀏覽</a> —— 本專案 118 支路由的完整清單<br>
+        <a href="api.html">API 瀏覽</a> —— 本專案 125 支路由的完整清單<br>
         還有 <code>docs/02-前後端串接契約.md</code> —— 每一支「我送什麼、你吐什麼」</p>
       </div>
     </section>
 
     <footer class="foot">
       <div>家庭記帳與財務控管系統 · RESTful API 說明書</div>
-      <div class="mono">118 ROUTES · 5 METHODS</div>
+      <div class="mono">125 ROUTES · 5 METHODS</div>
     </footer>
 
   </div>

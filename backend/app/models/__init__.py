@@ -25,9 +25,11 @@ TABLES = {"users": User, "sessions": UserSession, "password_resets": PasswordRes
 __all__ += ["TransactionPhoto", "PuzzleSettings", "PuzzleGame", "PuzzleEarning"]
 TABLES.update({"transaction_photos": TransactionPhoto, "puzzle_settings": PuzzleSettings, "puzzle_games": PuzzleGame, "puzzle_earnings": PuzzleEarning})
 
-from app.models.lifestyle import LifestylePreferences, HealthEntry, SmokingSettings, SmokingEntry, SavingsJar  # noqa: F401, E402
+from app.models.lifestyle import LifestylePreferences, HealthEntry, SmokingSettings, SmokingEntry, SavingsJar, AdditionalSavingsJar  # noqa: F401, E402
 
 __all__ += ["LifestylePreferences", "HealthEntry", "SmokingSettings", "SmokingEntry", "SavingsJar"]
 TABLES.update({"lifestyle_preferences": LifestylePreferences, "health_entries": HealthEntry, "smoking_settings": SmokingSettings, "smoking_entries": SmokingEntry, "savings_jars": SavingsJar})
 __all__ += ["GroupInvite"]
 TABLES["group_invites"] = GroupInvite
+__all__ += ["AdditionalSavingsJar"]
+TABLES["additional_savings_jars"] = AdditionalSavingsJar

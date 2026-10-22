@@ -153,7 +153,7 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
       window.API={mode:'http',categories:async()=>({categories:[{id:'1',name:'Food',kind:'expense'},{id:'2',name:'Salary',kind:'income'}]}),groups:async()=>({groups:[{id:'5',name:'My ledger'}]}),me:async()=>({user:{id:'one'}}),request:async(path,options={})=>{__fixture.requests.push(path);if(path.includes('/knowledge?'))return {method:'bm25',items:[{id:'help-entry',title:'Entry confirmation',text:'Review every draft before saving.',sourceLink:'/docs/tutorial.html#entry'}]};if(path.startsWith('/api/ai-local/context?'))return facts();if(path==='/api/nlp/confirm'){__fixture.writes.push(options.body);return {id:'100'};}throw new Error('Unexpected fixture request '+path);},nlpConfirmBatch:async(items)=>{__fixture.writes.push(items);return {created:items.length};}};
     });
     await page.addScriptTag({path:path.join(__dirname,'../js/ai-assistant.js')});
-    await page.evaluate(()=>{AIAssistant.setAccount({id:'one'});AIAssistant.render(document.querySelector('#view'));});
+    await page.evaluate(()=>{AIAssistant.setAccount({id:'one'});AIAssistant.testing.renderLegacyTrial(document.querySelector('#view'));});
     assert.equal(await page.evaluate(()=>__fixture.loadCalls),0,'mount never loads weights');
     assert.equal(await page.locator('[data-ai-action="run"]').isDisabled(),true);
     await page.locator('[data-ai-action="load"]').click();

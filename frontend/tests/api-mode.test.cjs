@@ -6,12 +6,12 @@ const path = require('node:path');
 const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../js/api.js'), 'utf8');
 
-function adapter(url, meta = '', saved = '') {
+function adapter(url, meta = '', saved = '', extra = {}) {
   const location = new URL(url);
   const storage = new Map([['fambudget.api', saved]]);
   const window = { location };
   vm.runInNewContext(source, {
-    window, URL,
+    window, URL,...extra,
     document: { querySelector: () => ({ content: meta }) },
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
   });
@@ -49,4 +49,15 @@ test('local overrides accept HTTP and HTTPS URLs without embedded credentials', 
 
 test('an explicit deployment configuration supports a separate trusted backend', () => {
   assert.equal(adapter('https://fambudget.example/', 'https://api.fambudget.example/').base, 'https://api.fambudget.example');
+});
+
+test('generic API filters preserve encoded merchant punctuation while rejecting path traversal and origin changes', async () => {
+  const requests=[];
+  const api=adapter('https://fambudget.example/','','',{fetch:async(url)=>{requests.push(url);return{ok:true,status:200,json:async()=>({})};}});
+  const query='year=2026&month=7&q='+encodeURIComponent('全聯/台北店.. A+B & C#1');
+  await api.request('/api/ai-local/report?'+query);
+  assert.equal(new URL(requests[0]).origin,'https://fambudget.example');assert.equal(new URL(requests[0]).pathname,'/api/ai-local/report');
+  assert.equal(new URL(requests[0]).searchParams.get('q'),'全聯/台北店.. A+B & C#1');
+  for(const bad of ['https://evil.example/api/ai-local/report','//evil.example/api/test','/api/../private','/api/%2e%2e/private','/api/x%2fy','/api/x%252fy','/api/report?q=ok#hidden','/api/report?q=%XX','/api/report\nX: injected'])assert.throws(()=>api.request(bad),/API/);
+  assert.equal(requests.length,1,'rejected paths never reach transport');
 });

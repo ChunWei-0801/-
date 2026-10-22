@@ -75,7 +75,7 @@ test('recorded user-device failure crosses real worker/controller/browser and re
         prebuiltAppConfig:{model_list:[]}, deleteModelAllInfoInCache:async()=>{}
       };
     `;
-    const permitted = new Set(['/ai-test.html','/js/i18n.js','/js/local-ai-engine.js','/js/local-ai-evaluation.js','/js/ai-model-test.js','/js/local-ai-worker.js','/css/tokens.css','/css/ai-assistant.css','/css/safety-center.css','/js/safety-center.js']);
+    const permitted = new Set(['/ai-test.html','/js/i18n.js','/js/local-ai-engine.js','/js/local-ai-evaluation.js','/js/ai-model-test.js','/js/local-ai-worker.js','/js/voice-accessibility.js','/css/voice-accessibility.css','/css/tokens.css','/css/ai-assistant.css','/css/safety-center.css','/js/safety-center.js']);
     await context.route('**/*', route => {
       const request = route.request(), url = new URL(request.url());
       if (request.method() !== 'GET') writes.push({method:request.method(),path:url.pathname});

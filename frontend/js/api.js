@@ -3349,7 +3349,14 @@
     updateSavingsJar: ['PUT /api/lifestyle/jar', '認證'],
     savingsJarImage: ['GET /api/lifestyle/jar/image', '認證'],
     saveSavingsJarImage: ['PUT /api/lifestyle/jar/image', '認證'],
-    deleteSavingsJarImage: ['DELETE /api/lifestyle/jar/image', '認證']
+    deleteSavingsJarImage: ['DELETE /api/lifestyle/jar/image', '認證'],
+    savingsJars: ['GET /api/lifestyle/jars', '認證'],
+    createSavingsJar: ['POST /api/lifestyle/jars', '認證'],
+    updateAdditionalSavingsJar: ['PUT /api/lifestyle/jars/{jar_id}', '認證'],
+    saveAdditionalSavingsJarImage: ['PUT /api/lifestyle/jars/{jar_id}/image', '認證'],
+    additionalSavingsJarImage: ['GET /api/lifestyle/jars/{jar_id}/image', '認證'],
+    aiLocalReport: ['GET /api/ai-local/report', '數字'],
+    aiLocalReportExport: ['GET /api/ai-local/report/export', '數字']
   };
 
   /* 畫面一定會讀的欄位。少了任何一個，畫面會在很後面的地方壞掉（讀不到 undefined 的 map），
@@ -3691,7 +3698,11 @@
   }
 
   function safeApiPath(path) {
-    if (typeof path !== 'string' || !/^\/api\/[A-Za-z0-9_/?=&%.,:-]+$/.test(path) || path.indexOf('..') >= 0 || /%2f|%5c|%2e/i.test(path)) throw new Error('不支援的 API 路徑');
+    if (typeof path !== 'string' || path.length > 5000 || /[\r\n#\\]/.test(path)) throw new Error('不支援的 API 路徑');
+    var queryAt=path.indexOf('?'),resource=queryAt<0?path:path.slice(0,queryAt),query=queryAt<0?'':path.slice(queryAt+1);
+    // Query values may contain an encoded slash or dot in a real merchant name.
+    // Keep traversal protection on the resource path, without corrupting filters.
+    if (!/^\/api\/[A-Za-z0-9_/%.,:-]+$/.test(resource) || resource.indexOf('..') >= 0 || /%2f|%5c|%2e|%25/i.test(resource) || /%(?![a-f0-9]{2})/i.test(resource) || !/^[A-Za-z0-9_/?=&%.,:+~!$'()*;@-]*$/.test(query) || /%(?![a-f0-9]{2})/i.test(query)) throw new Error('不支援的 API 路徑');
     return path;
   }
   function mediaRequest(path, opt, retried) {

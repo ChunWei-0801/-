@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 
 from app.guards import current_user
 from app.models import FamilyMember, SavingsGoal, User
-from app.models.lifestyle import HealthEntry, LifestylePreferences, SavingsJar, SmokingEntry, SmokingSettings
+from app.models.lifestyle import HealthEntry, LifestylePreferences, SavingsJar, AdditionalSavingsJar, SmokingEntry, SmokingSettings
 from app.routers.appearance import normalize_background
 from app.schemas.lifestyle import (HealthEntryIn, HealthEntryOut, JarImageIn, PreferencesOut,
-                                   PreferencesPatch, SavingsJarOut, SavingsJarPatch,
+                                   PreferencesPatch, SavingsJarOut, SavingsJarPatch, SavingsJarCreate, SavingsJarItem, SavingsJarListOut,
                                    SmokingEntryIn, SmokingEntryOut, SmokingSettingsIn, SmokingSettingsOut)
 from app.services.lifestyle import preferences_for, save_habit_preferences
 from app.toolkit import errors
@@ -281,6 +281,91 @@ def _jar_dict(jar):
             "progressPercent": float(progress.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))}
 
 
+def _additional_jar(db, jar_id, user_id):
+    jar = db.scalar(select(AdditionalSavingsJar).where(AdditionalSavingsJar.id == jar_id, AdditionalSavingsJar.user_id == user_id))
+    if jar is None:
+        raise errors.not_found("找不到自己的存錢筒")
+    return jar
+
+
+def _additional_jar_dict(jar):
+    result = _jar_dict(jar)
+    result["id"] = str(jar.id)
+    result["imageUrl"] = f"/api/lifestyle/jars/{jar.id}/image" if jar.photo_bytes else None
+    return result
+
+
+@router.get("/lifestyle/jars", summary="列出自己的所有存錢筒", response_model=SavingsJarListOut)
+def get_jars(me: User = Depends(current_user), db: Session = Depends(get_db)):
+    """列出自己的所有存錢筒
+
+    The original jar and its photo remain intact; additional jars are owner-only.
+    """
+    original = {**_jar_dict(_jar(db, me.id)), "id": "default"}
+    rows = db.scalars(select(AdditionalSavingsJar).where(AdditionalSavingsJar.user_id == me.id).order_by(AdditionalSavingsJar.id)).all()
+    result = {"jars": [original] + [_additional_jar_dict(row) for row in rows]}
+    db.commit()
+    return result
+
+
+@router.post("/lifestyle/jars", summary="新增自己的存錢筒", response_model=SavingsJarItem, status_code=201)
+def create_jar(body: SavingsJarCreate, me: User = Depends(current_user), db: Session = Depends(get_db)):
+    """新增自己的存錢筒
+
+    Each new jar has independent whole-TWD amounts and its own private image.
+    """
+    jar = AdditionalSavingsJar(user_id=me.id, name=body.name, target_amount=body.targetAmount,
+                               saved_amount=body.savedAmount, shape=body.shape)
+    db.add(jar)
+    db.flush()
+    result = _additional_jar_dict(jar)
+    db.commit()
+    return result
+
+
+@router.put("/lifestyle/jars/{jar_id}", summary="更新指定的私人存錢筒", response_model=SavingsJarItem)
+def update_additional_jar(jar_id: int, body: SavingsJarPatch, me: User = Depends(current_user), db: Session = Depends(get_db)):
+    """更新指定的私人存錢筒
+
+    Updates never affect another jar, the original jar, or ledger balances.
+    """
+    jar = _additional_jar(db, jar_id, me.id)
+    names = {"name": "name", "targetAmount": "target_amount", "savedAmount": "saved_amount", "shape": "shape"}
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(jar, names[key], value)
+    db.flush()
+    result = _additional_jar_dict(jar)
+    db.commit()
+    return result
+
+
+@router.put("/lifestyle/jars/{jar_id}/image", summary="儲存指定存錢筒的私人照片", response_model=SavingsJarItem)
+def put_additional_jar_image(jar_id: int, body: JarImageIn, me: User = Depends(current_user), db: Session = Depends(get_db)):
+    """儲存指定存錢筒的私人照片
+
+    Normalize owner-supplied raster bytes without replacing another jar's photo.
+    """
+    jar = _additional_jar(db, jar_id, me.id)
+    jar.photo_bytes = normalize_background(body.image, preserve_alpha=True)
+    jar.photo_mime = "image/png" if jar.photo_bytes.startswith(b"\x89PNG\r\n\x1a\n") else "image/jpeg"
+    result = _additional_jar_dict(jar)
+    db.commit()
+    return result
+
+
+@router.get("/lifestyle/jars/{jar_id}/image", summary="讀取指定存錢筒的私人照片", response_class=Response)
+def get_additional_jar_image(jar_id: int, me: User = Depends(current_user), db: Session = Depends(get_db)):
+    """讀取指定存錢筒的私人照片
+
+    Return authenticated owner bytes with no-store caching, including after logout.
+    """
+    jar = _additional_jar(db, jar_id, me.id)
+    if not jar.photo_bytes:
+        raise errors.not_found("尚未設定存錢筒照片")
+    return Response(jar.photo_bytes, media_type=jar.photo_mime or "image/jpeg",
+                    headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
+
+
 @router.get("/lifestyle/jar", summary="我的存錢筒", response_model=SavingsJarOut)
 def get_jar(me: User = Depends(current_user), db: Session = Depends(get_db)):
     """我的存錢筒
@@ -298,7 +383,8 @@ def get_jar(me: User = Depends(current_user), db: Session = Depends(get_db)):
 def put_jar(body: SavingsJarPatch, me: User = Depends(current_user), db: Session = Depends(get_db)):
     """更新存錢筒名稱外型與金額
 
-    Merge only submitted owner fields; decimal target and saved amounts stay independent of ledger totals.
+    Merge only submitted owner fields. Changed TWD amounts are whole units;
+    legacy balances remain readable and independent of ledger totals.
     """
     jar = _jar(db, me.id)
     names = {"name": "name", "targetAmount": "target_amount", "savedAmount": "saved_amount", "shape": "shape"}

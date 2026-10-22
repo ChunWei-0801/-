@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 118 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 125 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>118 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>125 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">118 ROUTES · 4 MODULES</div>
+    <div class="mono">125 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -541,6 +541,13 @@
       d: "取消活動邀請或邀請碼",
       note: "活動建立者只能取消該活動仍pending的邀請或邀請碼。封存／結算後仍可取消；不刪除成員或交易。",
       res: "{id,status:\"cancelled\"}" },
+    { n: 125, o: 'm1', m: 'GET', p: '/api/lifestyle/jars', a: '本人', d: "列出自己的所有存錢筒", note: "舊存錢筒與照片保留；只列帳號本人各存錢筒的獨立金額與進度。" },
+    { n: 126, o: 'm1', m: 'POST', p: '/api/lifestyle/jars', a: '本人', d: "新增自己的存錢筒", note: "name、targetAmount必填；目標為至少1元的整元新臺幣，savedAmount預設0、shape預設pig。" },
+    { n: 127, o: 'm1', m: 'PUT', p: '/api/lifestyle/jars/{jar_id}', a: '本人', d: "更新指定的私人存錢筒", note: "只合併本人提交欄位；目標和已存金額以整元記錄，不改其他存錢筒或帳務。" },
+    { n: 128, o: 'm1', m: 'PUT', p: '/api/lifestyle/jars/{jar_id}/image', a: '本人', d: "儲存指定存錢筒的私人照片", note: "image為可解碼的私有圖片；正規化後保存在指定存錢筒，不覆蓋其他照片。" },
+    { n: 129, o: 'm1', m: 'GET', p: '/api/lifestyle/jars/{jar_id}/image', a: '本人', d: "讀取指定存錢筒的私人照片", note: "僅本人可讀，private, no-store；其他帳號一律404。" },
+    { n: 130, o: 'm3', m: 'GET', p: '/api/ai-local/report', a: '登入', d: "完整授權篩選的精確報表", note: "year必填；month、q、kind、scope、limit、offset可選。完整Decimal合計與分頁明細分開；排除僅摘要監管對象。" },
+    { n: 131, o: 'm3', m: 'GET', p: '/api/ai-local/report/export', a: '登入', d: "下載真正Excel或Word報表", note: "沿用year、month、q、kind、scope，format=xlsx或docx；完整同一快照匯出，上限10000筆超過拒絕，不悄悄截斷。" },
     { n: 66, o: 'sys', m: 'GET', p: '/healthz', a: '公開',
       d: '健康檢查（Render 用）' },
     { n: 67, o: 'sys', m: 'GET', p: '/docs', a: '公開',

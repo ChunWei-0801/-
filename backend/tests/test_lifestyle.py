@@ -169,7 +169,8 @@ def test_jar_ratios_private_photo_and_invalid_updates(api):
     r=api.put('/api/lifestyle/jar',headers=h,json={'name':'恐龍','targetAmount':1000,'savedAmount':125,'shape':'dinosaur'})
     assert r.status_code==200 and r.json()['progressPercent']==12.5
     assert api.put('/api/lifestyle/jar',headers=h,json={'savedAmount':2000}).json()['progressPercent']==100
-    assert api.put('/api/lifestyle/jar',headers=h,json={'targetAmount':0}).json()['progressPercent']==0
+    assert api.put('/api/lifestyle/jar',headers=h,json={'targetAmount':0}).status_code==422
+    assert api.get('/api/lifestyle/jar',headers=h).json()['progressPercent']==100
     r=api.put('/api/lifestyle/jar/image',headers=h,json={'image':photo()})
     assert r.status_code==200 and r.json()['imageUrl']=='/api/lifestyle/jar/image'
     img=api.get('/api/lifestyle/jar/image',headers=h)
@@ -185,6 +186,35 @@ def test_jar_ratios_private_photo_and_invalid_updates(api):
     assert api.get('/api/lifestyle/jar/image',headers=h).status_code==200
     assert api.delete('/api/lifestyle/jar/image',headers=h).status_code==200
     assert api.get('/api/lifestyle/jar',headers=h).json()['savedAmount']==2000
+
+
+def test_jar_changed_twd_amounts_are_whole_units_and_legacy_values_are_not_rewritten(api):
+    from app.models.lifestyle import SavingsJar
+
+    uid, h = account(api, 'jar-units')
+    assert api.put('/api/lifestyle/jar', headers=h, json={'targetAmount':1,'savedAmount':0}).status_code==200
+    assert api.put('/api/lifestyle/jar', headers=h, json={'savedAmount':1}).json()['savedAmount']==1
+    for body in ({'targetAmount':0},{'targetAmount':0.1},{'targetAmount':'1.25'},
+                 {'savedAmount':0.1},{'savedAmount':'0.01'},{'savedAmount':-1}):
+        assert api.put('/api/lifestyle/jar', headers=h, json=body).status_code==422
+        snapshot=api.get('/api/lifestyle/jar', headers=h).json()
+        assert (snapshot['targetAmount'], snapshot['savedAmount'])==(1,1)
+    assert api.put('/api/lifestyle/jar', headers=h, json={'savedAmount':0}).json()['savedAmount']==0
+
+    # Simulate previously persisted decimal amounts. Reading or changing their
+    # name/shape must never round them, reject them or rewrite their balances.
+    with Session(db.engine) as session:
+        jar=session.get(SavingsJar, uid)
+        jar.target_amount=Decimal('12.34');jar.saved_amount=Decimal('0.50')
+        session.commit()
+    before=api.get('/api/lifestyle/jar', headers=h).json()
+    assert (before['targetAmount'], before['savedAmount'])==(12.34,0.5)
+    changed=api.put('/api/lifestyle/jar', headers=h, json={'name':'保留我的存款','shape':'heart'})
+    assert changed.status_code==200
+    assert (changed.json()['targetAmount'],changed.json()['savedAmount'])==(12.34,0.5)
+    # Only the field explicitly changed gets the new whole-unit rule.
+    assert api.put('/api/lifestyle/jar', headers=h, json={'targetAmount':20}).json()['savedAmount']==0.5
+    assert api.put('/api/lifestyle/jar', headers=h, json={'savedAmount':'1.00'}).json()['savedAmount']==1
 
 
 def test_custom_habits_hide_restore_prune_and_isolate(api):
@@ -253,8 +283,41 @@ def test_upgrade_keeps_all_existing_rows_and_photo_bytes(tmp_path):
     with sqlite3.connect(database) as c:
         assert before=={n:c.execute('SELECT * FROM "'+n+'"').fetchall() for n in names}
         assert c.execute('PRAGMA integrity_check').fetchone()==('ok',)
-        assert c.execute('SELECT version_num FROM alembic_version').fetchone()==('0007',)
+        assert c.execute('SELECT version_num FROM alembic_version').fetchone()==('0008',)
         assert c.execute('SELECT count(*) FROM lifestyle_preferences').fetchone()==(0,)
     engine=create_engine(url)
     with engine.connect() as c:assert compare_metadata(MigrationContext.configure(c,opts={'compare_type':True}),db.Base.metadata)==[]
     engine.dispose()
+
+
+def test_multiple_jars_keep_original_and_other_owners_amounts_and_photos(api):
+    _, owner=account(api,'manyjars')
+    _, other=account(api,'otherjars')
+    assert api.put('/api/lifestyle/jar',headers=owner,json={'name':'原願望','targetAmount':100,'savedAmount':25,'shape':'heart'}).status_code==200
+    assert api.put('/api/lifestyle/jar/image',headers=owner,json={'image':photo()}).status_code==200
+    old_photo=api.get('/api/lifestyle/jar/image',headers=owner).content
+    first=api.post('/api/lifestyle/jars',headers=owner,json={'name':'旅行','targetAmount':200,'shape':'dinosaur'})
+    second=api.post('/api/lifestyle/jars',headers=owner,json={'name':'學費','targetAmount':300})
+    assert first.status_code==second.status_code==201
+    a,b=first.json()['id'],second.json()['id']
+    assert a!=b and a!='default'
+    assert api.put('/api/lifestyle/jars/'+a,headers=owner,json={'savedAmount':50}).json()['progressPercent']==25
+    listing=api.get('/api/lifestyle/jars',headers=owner).json()['jars']
+    assert [(row['id'],row['savedAmount']) for row in listing]==[('default',25),(a,50),(b,0)]
+    assert api.get('/api/lifestyle/jar',headers=owner).json()['savedAmount']==25
+    out=BytesIO();Image.new('RGB',(90,90),'#f082a1').save(out,'PNG')
+    image='data:image/png;base64,'+base64.b64encode(out.getvalue()).decode()
+    assert api.put('/api/lifestyle/jars/'+a+'/image',headers=owner,json={'image':image}).status_code==200
+    own_image=api.get('/api/lifestyle/jars/'+a+'/image',headers=owner)
+    assert own_image.status_code==200 and own_image.content!=old_photo
+    assert own_image.headers['cache-control']=='private, no-store'
+    assert api.get('/api/lifestyle/jars/'+b+'/image',headers=owner).status_code==404
+    assert api.get('/api/lifestyle/jar/image',headers=owner).content==old_photo
+    assert api.put('/api/lifestyle/jars/'+a,headers=other,json={'name':'不能改'}).status_code==404
+    assert api.get('/api/lifestyle/jars/'+a+'/image',headers=other).status_code==404
+    assert api.put('/api/lifestyle/jars/'+a+'/image',headers=other,json={'image':photo()}).status_code==404
+    assert api.get('/api/lifestyle/jars/'+a+'/image').status_code==401
+    assert [row['id'] for row in api.get('/api/lifestyle/jars',headers=other).json()['jars']]==['default']
+    for body in ({'name':'x','targetAmount':0},{'name':'x','targetAmount':0.5},{'name':'x','targetAmount':2,'savedAmount':0.5},{'name':'x','targetAmount':2,'userId':1}):
+        assert api.post('/api/lifestyle/jars',headers=owner,json=body).status_code==422
+    assert len(api.get('/api/lifestyle/jars',headers=owner).json()['jars'])==3

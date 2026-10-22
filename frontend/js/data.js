@@ -291,6 +291,12 @@ window.DATA = {
              ['photo_bytes', 'BYTEA', '本人私有的正規化照片，與資料庫一起備份'], ['photo_mime', 'TEXT', '照片實際格式'],
              ['updated_at', 'TIMESTAMPTZ', '']] },
 
+    { t: 'additional_savings_jars', label: '新增的私人存錢筒', note: '每人可以建立多個獨立願望，舊存錢筒及照片保持原位',
+      cols: [['id', 'BIGSERIAL', 'PK'], ['user_id', 'BIGINT', 'FK → users'], ['name', 'TEXT', '願望名稱'],
+             ['target_amount', 'NUMERIC(15,2)', '新臺幣整元目標，至少1元'], ['saved_amount', 'NUMERIC(15,2)', '獨立已存金額'],
+             ['shape', 'TEXT', 'pig／dinosaur／heart／photo'], ['photo_bytes', 'BYTEA', '這個存錢筒的私有照片'],
+             ['photo_mime', 'TEXT', '照片格式'], ['updated_at', 'TIMESTAMPTZ', '']] },
+
     { t: 'savings_goals', label: '每月存款目標', note: '★ 註冊後的個人化設定第一步就填。改過的值保留歷史，不覆蓋',
       cols: [['id', 'BIGSERIAL', 'PK'], ['user_id', 'BIGINT', 'FK → users'],
              ['group_id', 'BIGINT', 'FK → groups。NULL = 不分帳本的整體目標'],
@@ -516,6 +522,7 @@ window.DATA = {
     ['group_members', 'users', 'N:1', ''],
     ['group_invites', 'groups', 'N:1', '單一活動的邀請'],
     ['group_invites', 'users', 'N:1', '活動建立者與受邀人'],
+    ['additional_savings_jars', 'users', 'N:1', '每人的多個私人存錢筒'],
     ['transactions', 'groups', 'N:1', '★每一筆都屬於一本帳'],
     ['savings_goals', 'groups', 'N:1', 'NULL = 整體目標'],
     ['alert_rules', 'users', 'N:1', ''],

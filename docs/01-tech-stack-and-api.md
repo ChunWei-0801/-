@@ -62,7 +62,7 @@
 | **Pydantic** | v2 | 請求／回應驗證 | **強制結構化輸出的關鍵**，LLM 回傳也用它驗 |
 | **pydantic-settings** | 2.6+ | 環境變數管理 | 設定集中，不散落在各處 |
 | **SQLAlchemy** | 2.0 | ORM | 2.0 的型別標註對新手比較友善 |
-| **Alembic** | 1.14+ | 資料庫遷移 | 31 張表一定會改，沒有遷移工具會很痛苦 |
+| **Alembic** | 1.14+ | 資料庫遷移 | 32 張表一定會改，沒有遷移工具會很痛苦 |
 | **psycopg** | 3.2+ | PostgreSQL 驅動 | `[binary]` 版有預編譯輪檔，不用編譯 |
 | **PyJWT** | 2.10+ | JWT 簽發驗證 | 比 python-jose 維護更活躍 |
 | **passlib[bcrypt]** | 1.7+ | 密碼雜湊 | **絕不自己實作密碼雜湊** |
@@ -151,9 +151,9 @@ final_project/
 │   │   ├── ownership.py         分工的單一事實來源（誰負責哪支路由、哪些檔案）
 │   │   ├── catalog.py           固定清單（角色、權限表、理財選項、系統分類…），正本是 data.js
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
-│   │   ├── models/              31 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
+│   │   ├── models/              32 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             118 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             125 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **118 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **125 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -453,9 +453,9 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 
 | 領域 | 資料夾 | 路由 |
 |---|---|---|
-| **認證** | `backend/app/routers/auth/` | 39 支 |
+| **認證** | `backend/app/routers/auth/` | 44 支 |
 | **記帳** | `backend/app/routers/ledger/` | 41 支 |
-| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 17 支 |
+| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 19 支 |
 | **家庭** | `backend/app/routers/access/` | 21 支 |
 
 路由屬於哪個領域，寫在 `backend/app/ownership.py`（`python -m app.ownership` 會印出各領域的完成度）。
@@ -560,3 +560,16 @@ python -m http.server 5174 --directory frontend
 | 124 | DELETE | `/api/groups/{gid}/invites/{invite_id}` | 記帳 | 建立者 | 取消活動邀請或邀請碼。活動建立者只能取消該活動仍pending的邀請或邀請碼。封存／結算後仍可取消；不刪除成員或交易。 |
 
 全部端點均須登入且平台管理員不可使用。活動資格僅公開該活動範圍，不改變家庭、家庭角色或監管。受邀本人同意／用碼加入後的 `group_members.independent=true` 不隨家庭退出清理；舊家庭直接分享資格仍按原規則撤銷，活動建立者仍可移出成員。`0007` 遷移只增加活動邀請表與資格欄位，不清空或搬移舊交易。
+
+
+## 4-13　多存錢筒與操作幫手報表
+
+| # | 方法 | 路徑 | 領域 | 權限 | 用途 |
+|---|---|---|---|---|---|
+| 125 | GET | `/api/lifestyle/jars` | 認證 | 本人 | 列出自己的所有存錢筒。舊存錢筒與照片保留；只列帳號本人各存錢筒的獨立金額與進度。 |
+| 126 | POST | `/api/lifestyle/jars` | 認證 | 本人 | 新增自己的存錢筒。name、targetAmount必填；目標為至少1元的整元新臺幣，savedAmount預設0、shape預設pig。 |
+| 127 | PUT | `/api/lifestyle/jars/{jar_id}` | 認證 | 本人 | 更新指定的私人存錢筒。只合併本人提交欄位；目標和已存金額以整元記錄，不改其他存錢筒或帳務。 |
+| 128 | PUT | `/api/lifestyle/jars/{jar_id}/image` | 認證 | 本人 | 儲存指定存錢筒的私人照片。image為可解碼的私有圖片；正規化後保存在指定存錢筒，不覆蓋其他照片。 |
+| 129 | GET | `/api/lifestyle/jars/{jar_id}/image` | 認證 | 本人 | 讀取指定存錢筒的私人照片。僅本人可讀，private, no-store；其他帳號一律404。 |
+| 130 | GET | `/api/ai-local/report` | 數字 | 登入 | 完整授權篩選的精確報表。year必填；month、q、kind、scope、limit、offset可選。完整Decimal合計與分頁明細分開；排除僅摘要監管對象。 |
+| 131 | GET | `/api/ai-local/report/export` | 數字 | 登入 | 下載真正Excel或Word報表。沿用year、month、q、kind、scope，format=xlsx或docx；完整同一快照匯出，上限10000筆超過拒絕，不悄悄截斷。 |

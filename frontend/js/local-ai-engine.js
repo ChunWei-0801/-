@@ -172,7 +172,7 @@
     options = options || {};
     if (active || state.phase === 'loading' || state.phase === 'checking' || state.phase === 'generating') throw error('AI_BUSY', 'Another local AI operation is running.');
     if (options.signal && options.signal.aborted) throw error('AI_CANCELLED', 'Local AI operation was cancelled.');
-    var tasks = {draft:'draft',receipt:'draft',qa:'qa',ledger:'qa',coach:'coach',report:'report',rules:'rules',help:'rules'};
+    var tasks = {draft:'draft',receipt:'draft',qa:'qa',ledger:'qa',coach:'coach',report:'report',rules:'rules',help:'rules','report-query':'report-query'};
     var task = tasks[options.task];
     if (!task) throw error('AI_INVALID_TASK', 'Unknown local AI task.');
     if (typeof options.input !== 'string' || !options.input.trim()) throw error('AI_INVALID_INPUT', 'Enter text for the local AI request.');

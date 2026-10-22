@@ -165,6 +165,9 @@
     wrapInstalled = true;
     var create = global.API.createTransaction;
     global.API.createTransaction = function () {
+      // Receipt entry owns its selected scan and retry state. Never attach the
+      // unrelated photos waiting in the separate manual-entry form.
+      if (arguments[1] && arguments[1].attachPendingPhotos === false) return create.apply(global.API, arguments);
       if (preparing) return Promise.reject(new Error(t('media.preparing', '正在整理相片，請稍候…')));
       var args = arguments, selected = pending.slice(), revision = selectionRevision;
       // Remove only after creation succeeds, so a rejected transaction keeps its photos.
@@ -200,7 +203,9 @@
       var cell = row.querySelector('.txr__t') || row;
       var button = document.createElement('button'); button.type = 'button'; button.className = 'media-record-btn';
       button.dataset.transactionPhoto = row.dataset.transactionId; button.dataset.mediaCanEdit = row.dataset.mediaEditable || 'false';
-      button.textContent = '▧ ' + t('media.photos', '相片'); cell.appendChild(button);
+      button.textContent = '▧ ' + t('media.photos', '相片');
+      var finalNote = cell.querySelector('.txr__note-mobile');
+      if (finalNote) cell.insertBefore(button, finalNote); else cell.appendChild(button);
     });
   }
   document.addEventListener('click', async function (event) {

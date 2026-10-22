@@ -47,6 +47,7 @@ const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQ
             return copy(__state.prefs);
           }
           if (route === '/birthdays') return {members:[{displayName:'<img src=x onerror=alert(1)> 家人',isSelf:false}]};
+          if (route === '/jars' && method === 'GET') return {jars:[{...copy(__state.jar),id:'default'}]};
           if (route === '/jar') {
             if (method === 'PUT') { exactKeys(body,['name','targetAmount','savedAmount','shape']); Object.assign(__state.jar, body); }
             return copy(__state.jar);
@@ -94,7 +95,7 @@ const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQ
     await page.locator('[data-sg-deposit] button[type="submit"]').click(); await saved('[data-sg-form] button[type="submit"]');
     assert.equal(await page.locator('[data-sg-percent]').textContent(), '30%');
     assert.deepEqual(await page.evaluate(() => __state.requests.filter(request => request.method === 'PUT' && request.suffix === '/jar').map(request => request.body)), [
-      {name:'旅行小恐龍',targetAmount:1000,savedAmount:200,shape:'pig'}, {shape:'dinosaur'}, {savedAmount:300}
+      {name:'旅行小恐龍',targetAmount:1000,savedAmount:200}, {shape:'dinosaur'}, {savedAmount:300}
     ]);
     await overflow();
     await page.evaluate(() => { __state.fail = 'PUT /jar'; });

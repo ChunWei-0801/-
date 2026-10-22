@@ -879,9 +879,9 @@
         esc(t.catName) + '</span></td>' +
       '<td class="txr__t"><span class="txr__cm" style="color:' + tint(t.catColor) + '">' + esc(t.catName) + '</span>' +
         '<span data-i18n-skip>' + esc(t.merchant || t.catName) + '</span>' +
-        (t.note ? ' <em data-i18n-skip>' + esc(t.note) + '</em>' : '') +
         (t.raw ? '<br><span class="txr__raw" data-i18n-skip>「' + esc(t.raw) + '」</span>' : '') +
         '<span class="txr__gm"><span>活動：</span><span data-i18n-skip>' + esc(txActivity(t)) + '</span></span>' +
+        '<span class="txr__note-mobile"><span>備註：</span><span data-i18n-skip>' + esc(t.note || '—') + '</span></span>' +
       '</td>' +
       '<td class="txr__g" data-i18n-skip>' + esc(txActivity(t)) + '</td>' +
       '<td class="txr__u" data-i18n-skip>' + esc(t.userName) + '</td>' +
@@ -894,7 +894,7 @@
           ? '<button class="txr__ed" data-edit="' + esc(t.id) + '">修改</button>' +
             '<button class="del" data-del="' + esc(t.id) + '">刪除</button>'
           : (isMine(t) ? '<span class="txr__lock" title="這個活動已經結算，紀錄不能改也不能刪">已結算</span>' : '')) +
-      '</td></tr>';
+      '</td><td class="txr__note" data-label="備註"><span data-i18n-skip>' + esc(t.note || '—') + '</span></td></tr>';
   }
 
   /* 表頭 ＋ 表身。空的時候不要畫一個只有表頭的空表格。
@@ -905,7 +905,7 @@
       '<thead><tr>' +
         (PICK.on ? '<th class="txr__ck"><input type="checkbox" id="pickAll" aria-label="全選可以刪的紀錄"></th>' : '') +
         '<th>日期</th><th class="txr__c">分類</th><th>項目</th><th class="txr__g">活動</th><th class="txr__u">記錄者</th><th class="txr__s">來源</th>' +
-        '<th class="rt">金額</th><th></th>' +
+        '<th class="rt">金額</th><th></th><th class="txr__note">備註</th>' +
       '</tr></thead><tbody>' +
       rows.map(function (t) { return txRow(t, hit); }).join('') +
       '</tbody></table></div>';
@@ -1011,7 +1011,7 @@
     head('收支明細', '');
     var h = '<div class="page">';
     h += '<nav class="entry-access" aria-label="選擇記帳方式"><button class="btn btn--go" data-manual-entry>手動輸入實際金額</button>' +
-      '<button class="btn" data-paragraph-entry>文字解析記帳</button><a class="btn" href="#/exchange">國際匯率換算</a></nav>';
+      '<button class="btn" data-paragraph-entry>文字解析記帳</button><button class="btn" data-receipt-entry>掃描發票記帳</button><a class="btn" href="#/exchange">國際匯率換算</a></nav>';
 
     /* 篩選放在標題那一列，跟「記一筆」並排——不要自己佔一整條 */
     h += foldHead('entry', '所有紀錄', '記一筆', '', null, filterBar(), pickToggle());
@@ -1093,6 +1093,7 @@
       '<div class="mbar__p" id="modePanel" hidden>' +
         modeRow('para', '段落記帳', '一次寫一整段，自動切成好幾筆') +
         modeRow('single', '手動輸入實際金額', '不使用文字解析，直接輸入收入或支出') +
+        '<button class="mbar__i" type="button" data-receipt-entry><span class="mbar__t">掃描發票記帳</span><span class="mbar__d">拍照帶出總額，核對後記錄一筆</span></button>' +
       '</div>' +
     '</div>';
 
@@ -3872,7 +3873,7 @@
     else $view.innerHTML = '<div class="page"><a href="https://165.npa.gov.tw/" target="_blank" rel="noopener noreferrer">165 全民防騙網</a></div>';
   }
   function vAI() {
-    head('免費 AI 家庭助理', '模型在你的裝置執行，先核對再記帳。');
+    head('免費 AI 家庭助理', '理財教練與操作幫手，理解需求並查看有來源的資料。');
     if (global.AIAssistant) global.AIAssistant.render($view, { user: ME && ME.user });
     else $view.innerHTML = '<div class="page"><div class="card">頁面正在更新，請重新整理。</div></div>';
   }
@@ -3905,6 +3906,8 @@
   var ANY = ['reset', 'verify-email', 'appearance', 'tutorial', 'fraud'];
 
   function paint() {
+    if (global.VoiceAccessibility) global.VoiceAccessibility.beforeRoute();
+    if (global.ReceiptEntry) global.ReceiptEntry.close(true);
     if (TXARCHIVE) { TXARCHIVE.destroy(); TXARCHIVE=null; }
     TXLOAD++;
     var requestedHash = location.hash;
@@ -3915,6 +3918,7 @@
     API.authState().then(function (a) {
       if (requestedHash !== location.hash) return;
       AUTH_LOGGED_IN = a.loggedIn;
+      if (!a.loggedIn && global.VoiceAccessibility) global.VoiceAccessibility.setAccount(null);
       if (!a.loggedIn && global.AIAssistant) global.AIAssistant.setAccount(null);
       if (ANY.indexOf(page) >= 0) { render(); return; }
       /* 登入閘。沒登入只能待在 login／register／forgot，
@@ -3936,6 +3940,7 @@
       (ME && ME.user && page !== 'ai' ? Promise.resolve(ME) : API.me()).then(function (m) {
         if (requestedHash !== location.hash) return;
         ME = m;
+        if (global.VoiceAccessibility) global.VoiceAccessibility.setAccount(m.user);
         if (global.AIAssistant) global.AIAssistant.setAccount(m.user);
         var admin = !!m.user.isPlatformAdmin;
         if (admin && page !== 'admin') { location.hash = '#/admin'; return; }
@@ -3968,8 +3973,11 @@
         document.body.classList.toggle('public-settings', !a.loggedIn && (page === 'appearance' || page === 'tutorial' || page === 'fraud'));
         /* 勾選模式只屬於收支明細。離開就收掉，不然成員頁的明細也會長出勾選框 */
         if (page !== 'entry') { PICK.on = false; PICK.ids = []; }
+        function renderRoute() {
+        if (requestedHash !== location.hash) return;
         (ROUTES[page] || vHome)(parts[1], parts[2]);
         enhanceMedia();
+        if (page === 'settings' && global.VoiceAccessibility) global.VoiceAccessibility.mountSettings($view);
         /* 總覽就是儀表板；其他頁面左上角出現「總覽」可以回去 */
         var hb = document.getElementById('homeBtn');
         if (hb) hb.hidden = page === '' || page === 'admin' || OPEN.indexOf(page) >= 0;
@@ -3978,6 +3986,9 @@
         Array.prototype.forEach.call(document.querySelectorAll('.tabbar__i[data-tab]'), function (b) {
           b.classList.toggle('on', b.dataset.tab === tab);
         });
+        }
+        if (global.PageTransitions) global.PageTransitions.run($view,{route:requestedHash,authenticated:a.loggedIn,accountId:ME&&ME.user&&ME.user.id},renderRoute);
+        else renderRoute();
       }
     });
   }
@@ -4030,6 +4041,16 @@
     if (q) { openHelp(q.dataset.help); return; }
     if (t.closest('[data-retry]')) { ME = null; CATS = []; paint(); return; }
     if (t.closest('[data-verify-again]')) { EMAIL_VERIFY_TOKEN = ''; vVerifyEmail(); return; }
+    if (t.closest('[data-receipt-entry]')) {
+      if (!global.ReceiptEntry || !ME || !ME.user) { toast('請登入並重新整理後再使用發票辨識', 'err'); return; }
+      var receiptActor=String(ME.user.id),receiptRoute=location.hash,receiptSaved=false;
+      API.groups().then(function(d){
+        if(!ME||!ME.user||String(ME.user.id)!==receiptActor||location.hash!==receiptRoute)return;
+        var writable=(d.groups||[]).filter(function(g){return !g.archived&&!g.archivedAt&&!g.settledAt&&(String(g.owner)===receiptActor||Array.isArray(g.members)&&g.members.some(function(id){return String(id)===receiptActor;}));});
+        global.ReceiptEntry.open({api:API,categories:cats(),groups:writable,groupId:GROUP==='all'?null:GROUP,onSaved:function(){receiptSaved=true;if(/^#\/entry(?:\/|$)/.test(location.hash))loadTx();},onClose:function(){if(receiptSaved&&location.hash===receiptRoute&&!/^#\/entry(?:\/|$)/.test(location.hash))paint();}});
+      }).catch(function(err){toast(err.message||'無法取得可寫入活動，請稍後重試','err');});
+      return;
+    }
     if (t.closest('[data-manual-entry]') || t.closest('[data-paragraph-entry]')) {
       MODE = t.closest('[data-manual-entry]') ? 'single' : 'para';
       FOLD.entry = true;
@@ -5347,6 +5368,7 @@
   }, { passive: true });
 
   window.addEventListener('hashchange', paint);
+  if (global.VoiceAccessibility) global.VoiceAccessibility.init();
 
   /* 更早的版本有一個顯示 API 模式的小徽章。那是給開發者看的，
      介面上已經拿掉——這裡留一個保險，元素不在就不要炸。 */

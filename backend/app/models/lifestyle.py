@@ -90,3 +90,22 @@ class SavingsJar(Base):
     photo_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     photo_mime: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+
+class AdditionalSavingsJar(Base):
+    """Additional private jars; the original per-user jar is never migrated away."""
+    __tablename__ = "additional_savings_jars"
+    __table_args__ = (
+        CheckConstraint("target_amount >= 1 AND target_amount <= 1000000000000", name="ck_extra_jar_target"),
+        CheckConstraint("saved_amount >= 0 AND saved_amount <= 1000000000000", name="ck_extra_jar_saved"),
+        CheckConstraint("shape IN ('pig', 'dinosaur', 'heart', 'photo')", name="ck_extra_jar_shape"),
+    )
+    id: Mapped[int] = mapped_column(BigID, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    target_amount: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
+    saved_amount: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False, default=Decimal("0"))
+    shape: Mapped[str] = mapped_column(Text, nullable=False, default="pig")
+    photo_bytes: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    photo_mime: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)

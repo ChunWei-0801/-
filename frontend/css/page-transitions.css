@@ -1,0 +1,16 @@
+html { view-transition-name: none; }
+#view { view-transition-name: page-content; }
+html[data-route-moving] #view { overflow-x: clip; }
+html[data-route-moving] #view .page { animation: none; }
+::view-transition-group(page-content) { animation-duration: 240ms; }
+::view-transition-old(page-content) { animation: route-exit-forward 240ms cubic-bezier(.2,.7,.2,1) both; }
+::view-transition-new(page-content) { animation: route-enter-forward 240ms cubic-bezier(.2,.7,.2,1) both; }
+html[data-route-direction="back"]::view-transition-old(page-content) { animation-name: route-exit-back; }
+html[data-route-direction="back"]::view-transition-new(page-content) { animation-name: route-enter-back; }
+@keyframes route-enter-forward { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes route-exit-forward { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-18px); } }
+@keyframes route-enter-back { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes route-exit-back { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(24px); } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(page-content), ::view-transition-old(page-content), ::view-transition-new(page-content) { animation: none !important; }
+}
