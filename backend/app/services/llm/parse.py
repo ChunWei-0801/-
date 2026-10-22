@@ -18,11 +18,81 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.services.llm import client
 
 MODEL_UNAVAILABLE = "模型服務還沒接上，先用前端的規則解析"
+
+# These checks only withhold a lottery draft that needs review. They never
+# create a transaction, choose a category or turn a model's expense into income.
+_LOTTERY = re.compile(r"威力彩|大樂透|大乐透|樂透|乐透|今彩|彩券|彩票|刮刮樂|刮刮乐|運動彩券|運彩|运彩|\b(?:lottery|powerball|scratch[- ]?(?:card|off))\b", re.I)
+_WINNING = re.compile(r"中(?:獎|奖|頭獎|头奖|了|到)|兌(?:獎|奖)|領(?:獎|奖)|(?:獎|奖)金|贏了|赢了|\b(?:won|winnings|winning)\b", re.I)
+_PURCHASE = re.compile(r"買|买|購|购|投注|下注|花|\b(?:bought|buy|spent|paid)\b", re.I)
+_NEGATED_WIN = re.compile(r"(?:沒|没|未|沒有|没有|不曾|並未|并未|不會|不会|還沒|还没)\s*(?:有|能|曾|會|会)?\s*(?:中|領獎|领奖|兌獎|兑奖)|\b(?:didn't|did not|never|not|no)\s+(?:win|won|winnings|prize)\b", re.I)
+_NONACTUAL = re.compile(
+    r"如果|假如|假設|假设|要是|萬一|万一|希望|願望|愿望|夢到|梦到|夢見|梦见|幻想|假想|假裝|假装|"
+    r"可能|也許|也许|打算|準備|准备|明天|後天|后天|尚未|還沒領|还没领|未領|未领|"
+    r"(?:中獎|中奖|中了).{0,8}(?:的話|的话|就會|就会)|"
+    r"不是真的|不是.*(?:中獎|中奖)|假(?:中獎|中奖|消息)|詐騙|诈骗|聽說|听说|新聞|新闻|報導|报道|"
+    r"朋友|同事|同學|同学|爸爸|媽媽|妈妈|哥哥|姐姐|弟弟|妹妹|別人|别人|其他人|有人|人家|鄰居|邻居|網友|网友|得主|"
+    r"(?<!其)[他她](?:們|们)?|[?？]|嗎|吗|如何|怎麼|怎么|能否|會不會|会不会|是不是|"
+    r"\b(?:if|would|could|hope|wish|dream|friend|colleague|coworker|he|she|they|someone|tomorrow|might)\b",
+    re.I,
+)
+_NEGATED_PURCHASE = re.compile(r"(?:沒|没|沒有|没有|未|不曾)\s*(?:購買|购买|買|买|投注|下注)|\b(?:didn't|did not|never)\s+(?:buy|purchase)\b", re.I)
+_CLAUSE = re.compile(r"[，,。；;！!？?\n]")
+_SENTENCE = re.compile(r"[。；;！!？?\n]")
+_CONDITIONAL = re.compile(r"如果|假如|假設|假设|要是|萬一|万一|希望|願望|愿望|夢到|梦到|幻想|\b(?:if|hope|wish|dream)\b", re.I)
+_SELF = re.compile(r"我|本人|自己|\b(?:I|my)\b", re.I)
+_CONSEQUENCE = re.compile(r"\s*(?:我|本人|自己|I)?\s*(?:就|會|会|能|可以|有|收入|拿|領|领|would|could)", re.I)
+_LOTTERY_HINT = "彩券買入與中獎需分開核對，請確認這筆是否為本人實際收支，再選擇收支類型與分類。"
+
+
+def _lottery_needs_review(text: str, span: str, kind: str | None, item_count: int) -> bool:
+    """Check the source clause, including a subject or condition omitted by a model span."""
+    if not (_LOTTERY.search(text) or _LOTTERY.search(span)):
+        return False
+    prefix = ""
+    if span:
+        starts = [match.start() for match in re.finditer(re.escape(span), text)]
+        if len(starts) != 1:
+            # An invented or ambiguous lottery span cannot establish ownership.
+            return bool(_LOTTERY.search(span) or _WINNING.search(span) or kind == "income")
+        start, end = starts[0], starts[0] + len(span)
+        before = list(_CLAUSE.finditer(text[:start]))
+        after = _CLAUSE.search(text, end)
+        stop = after.end() if after and after.group() in "?？" else after.start() if after else len(text)
+        source = text[before[-1].end() if before else 0:stop]
+        sentence_before = list(_SENTENCE.finditer(text[:start]))
+        prefix = text[sentence_before[-1].end() if sentence_before else 0:start]
+    elif item_count == 1:
+        source = text
+    else:
+        # An ungrounded income row in a lottery batch needs confirmation; a
+        # model's sourced salary or meal row is checked against its own clause.
+        return kind == "income"
+    if not (_LOTTERY.search(source) or _WINNING.search(source)):
+        # A conditional lottery consequence may omit the word "中獎" from its
+        # own span, while an unrelated salary or meal row must remain intact.
+        return bool(kind == "income" and _CONDITIONAL.search(prefix)
+                    and _LOTTERY.search(prefix) and _CONSEQUENCE.match(source))
+    if _CONDITIONAL.search(prefix) or (_NONACTUAL.search(prefix) and not _SELF.search(source)):
+        return True
+    purchase = bool(_PURCHASE.search(source))
+    winning = bool(_WINNING.search(source))
+    negated_win = bool(_NEGATED_WIN.search(source))
+    if _NONACTUAL.search(source) or _NEGATED_PURCHASE.search(source):
+        return True
+    if negated_win:
+        # "買威力彩100但沒中獎" still documents a real purchase, never winnings.
+        return not (purchase and kind == "expense")
+    if winning:
+        return kind != "income" and not (purchase and kind == "expense")
+    if purchase:
+        return kind != "expense"
+    return True
 
 
 def parse_batch(text: str, categories: list[dict[str, Any]], today: str) -> dict[str, Any]:
@@ -43,6 +113,8 @@ def parse_batch(text: str, categories: list[dict[str, Any]], today: str) -> dict
         "kind（expense 或 income）、cat（下面分類清單裡的 id）、merchant（店家，沒有就空字串）、",
         "note（備註，沒有就空字串）、conf（date、amount、kind、cat 各一個 0 到 1 的信心度）。",
         "抽不到的欄位填 null，不要猜。「昨天」「前天」要換算成日期。",
+        "彩券、威力彩等：本人實際中獎是 income，購買彩券是 expense，買入與中獎必須分開。",
+        "沒中獎、假設、願望、疑問或他人中獎不能當成本人的收入；無法確認實際收支時 kind、cat 填 null，不能捏造交易。",
         "今天是 " + today + "。分類清單：",
     ]
     for c in categories:
@@ -81,6 +153,8 @@ def parse_batch(text: str, categories: list[dict[str, Any]], today: str) -> dict
         if not isinstance(raw, dict):
             continue
         missing = []
+        span = str(raw.get("span") or "")
+        lottery_review = _lottery_needs_review(text, span, raw.get("kind"), len(raw_items))
         try:
             day = date.fromisoformat(str(raw.get("date"))).isoformat()
         except ValueError:
@@ -93,26 +167,26 @@ def parse_batch(text: str, categories: list[dict[str, Any]], today: str) -> dict
         if amount is None or amount <= 0:
             amount = None
             missing.append("amount")
-        kind = raw.get("kind") if raw.get("kind") in ("expense", "income") else None
+        kind = raw.get("kind") if not lottery_review and raw.get("kind") in ("expense", "income") else None
         if kind is None:
             missing.append("kind")
-        cat = str(raw.get("cat") or "")
+        cat = str(raw.get("cat") or "") if not lottery_review else ""
         if cat not in kinds or (kind is not None and kinds[cat] != kind):
             cat = None
             missing.append("cat")
         conf = raw.get("conf") if isinstance(raw.get("conf"), dict) else {}
         items.append({
             "seq": len(items) + 1,
-            "span": str(raw.get("span") or "")[:100],
+            "span": span[:100],
             "date": day,
             "amount": float(amount) if amount is not None else None,
             "kind": kind,
             "cat": cat,
             "merchant": str(raw.get("merchant") or "")[:50],
             "note": str(raw.get("note") or "")[:100],
-            "conf": {k: score(conf.get(k)) for k in ("date", "amount", "kind", "cat")},
+            "conf": {k: 0.0 if lottery_review and k in {"kind", "cat"} else score(conf.get(k)) for k in ("date", "amount", "kind", "cat")},
             "missing": missing,
-            "hint": "這一筆有欄位抽不到，補上才能存" if missing else "",
+            "hint": _LOTTERY_HINT if lottery_review else "這一筆有欄位抽不到，補上才能存" if missing else "",
         })
     if not items:
         raise client.ModelError("模型沒有從這段話解析出任何一筆")

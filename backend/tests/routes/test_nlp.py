@@ -106,6 +106,151 @@ def test_parse_batch_模型的問題一律_503(api, model, monkeypatch):
     assert api.post("/api/nlp/parse-batch", headers=login(me), json={"text": " "}).status_code == 422
 
 
+@pytest.mark.route(*BATCH)
+@pytest.mark.parametrize("text", [
+    "威力彩中了200000000", "我今天威力彩中獎200000000", "刮刮樂贏了200000000",
+    "我的大樂透獎金200000000入帳", "I won 200000000 in the lottery",
+])
+def test_parse_batch_clear_lottery_model_income_is_preserved_without_writing(api, model, text):
+    me = user("lottery-income@x.tw", "核對者")
+    cats = categories()
+    income = str(cats["其他收入"].id)
+    model["reply"] = {"items": [_item(span=text, amount=200000000, kind="income", cat=income)]}
+    result = api.post("/api/nlp/parse-batch", headers=login(me), json={"text": text})
+    assert result.status_code == 200, result.text
+    item = result.json()["items"][0]
+    assert (item["kind"], item["cat"], item["amount"], item["missing"]) == ("income", income, 200000000, [])
+    assert result.json()["by"] == "model"
+    assert "本人實際中獎是 income" in model["calls"][0] and "他人中獎" in model["calls"][0]
+    assert crud.count(Transaction) == 0 and crud.count(NlpParse) == 0
+
+
+@pytest.mark.route(*BATCH)
+@pytest.mark.parametrize("text,span", [
+    ("威力彩沒中獎200000000", "威力彩沒中獎200000000"),
+    ("威力彩沒有中獎200000000", "威力彩沒有中獎200000000"),
+    ("威力彩未中獎200000000", "威力彩未中獎200000000"),
+    ("如果我的威力彩中了200000000", "威力彩中了200000000"),
+    ("假設威力彩中獎200000000", "威力彩中獎200000000"),
+    ("希望威力彩中獎200000000", "威力彩中獎200000000"),
+    ("夢到我威力彩中了200000000", "威力彩中了200000000"),
+    ("朋友威力彩中了200000000", "威力彩中了200000000"),
+    ("我朋友威力彩中了200000000", "威力彩中了200000000"),
+    ("同事威力彩中了200000000", "威力彩中了200000000"),
+    ("他威力彩中了200000000", "威力彩中了200000000"),
+    ("新聞有人威力彩中了200000000", "威力彩中了200000000"),
+    ("威力彩中了200000000嗎", "威力彩中了200000000"),
+    ("威力彩中了200000000？", "威力彩中了200000000"),
+    ("明天威力彩中獎200000000", "威力彩中獎200000000"),
+    ("威力彩中獎200000000還沒領", "威力彩中獎200000000"),
+    ("不是威力彩中獎200000000", "威力彩中獎200000000"),
+    ("買威力彩200000000", "買威力彩200000000"),
+    ("沒有買威力彩200000000", "買威力彩200000000"),
+    ("If I won 200000000 in the lottery", "I won 200000000 in the lottery"),
+    ("My friend won 200000000 in the lottery", "won 200000000 in the lottery"),
+    ("I did not win 200000000 in the lottery", "I did not win 200000000 in the lottery"),
+    ("威力彩沒中獎", "威力彩中了200000000"),
+    ("朋友威力彩中了200000000，我威力彩中了200000000", "威力彩中了200000000"),
+    ("如果買了威力彩，就中獎200000000", "中獎200000000"),
+    ("如果威力彩中獎，我就有200000000收入", "我就有200000000收入"),
+    ("朋友說，威力彩中了200000000", "威力彩中了200000000"),
+    ("如果威力彩中獎200000000", "收入200000000"),
+])
+def test_parse_batch_lottery_nonactual_third_party_or_purchase_income_needs_review(api, model, text, span):
+    me = user("lottery-review@x.tw", "核對者")
+    cats = categories()
+    model["reply"] = {"items": [_item(span=span, amount=200000000, kind="income", cat=str(cats["其他收入"].id))]}
+    result = api.post("/api/nlp/parse-batch", headers=login(me), json={"text": text})
+    assert result.status_code == 200, result.text
+    item = result.json()["items"][0]
+    assert item["kind"] is None and item["cat"] is None
+    assert item["missing"] == ["kind", "cat"] and "本人實際收支" in item["hint"]
+    assert item["conf"]["kind"] == item["conf"]["cat"] == 0
+    assert crud.count(Transaction) == 0 and crud.count(NlpParse) == 0
+
+
+@pytest.mark.route(*BATCH)
+def test_parse_batch_lottery_expense_contradiction_is_withheld_and_unrelated_row_survives(api, model):
+    me = user("lottery-expense@x.tw", "核對者")
+    cats = categories()
+    food, other = str(cats["餐飲"].id), str(cats["其他"].id)
+    model["reply"] = {"items": [
+        _item(span="威力彩中了200000000", amount=200000000, cat=other),
+        _item(span="早餐55", cat=food),
+    ]}
+    result = api.post("/api/nlp/parse-batch", headers=login(me), json={"text": "威力彩中了200000000，早餐55"})
+    assert result.status_code == 200, result.text
+    prize, breakfast = result.json()["items"]
+    assert prize["kind"] is None and prize["cat"] is None and prize["missing"] == ["kind", "cat"]
+    assert (breakfast["kind"], breakfast["cat"], breakfast["amount"], breakfast["missing"]) == ("expense", food, 55, [])
+    assert crud.count(Transaction) == 0 and crud.count(NlpParse) == 0
+
+
+@pytest.mark.route(*BATCH)
+@pytest.mark.parametrize("text", ["買威力彩100", "今天花100買彩券", "買威力彩100但沒中獎"])
+def test_parse_batch_actual_ticket_purchase_remains_expense(api, model, text):
+    me = user("lottery-purchase@x.tw", "核對者")
+    cats = categories()
+    other = str(cats["其他"].id)
+    model["reply"] = {"items": [_item(span=text, amount=100, cat=other)]}
+    result = api.post("/api/nlp/parse-batch", headers=login(me), json={"text": text})
+    assert result.status_code == 200, result.text
+    item = result.json()["items"][0]
+    assert (item["kind"], item["cat"], item["amount"], item["missing"]) == ("expense", other, 100, [])
+    assert crud.count(Transaction) == 0
+
+
+@pytest.mark.route(*BATCH)
+def test_parse_batch_lottery_qualifier_does_not_change_independent_salary_or_explicit_self_winnings(api, model):
+    me = user("lottery-independent@x.tw", "核對者")
+    cats = categories()
+    salary, income = str(cats["薪資"].id), str(cats["其他收入"].id)
+    model["reply"] = {"items": [
+        _item(span="威力彩中了200000000", amount=200000000, kind="income", cat=income),
+        _item(span="今天薪水30000", amount=30000, kind="income", cat=salary),
+    ]}
+    response = api.post("/api/nlp/parse-batch", headers=login(me), json={"text": "希望威力彩中了200000000，今天薪水30000"})
+    assert response.status_code == 200, response.text
+    prize, wage = response.json()["items"]
+    assert prize["missing"] == ["kind", "cat"]
+    assert (wage["kind"], wage["cat"], wage["amount"], wage["missing"]) == ("income", salary, 30000, [])
+
+    model["reply"] = {"items": [_item(span="我威力彩中了200000000", amount=200000000, kind="income", cat=income)]}
+    response = api.post("/api/nlp/parse-batch", headers=login(me), json={"text": "朋友付午餐55，我威力彩中了200000000"})
+    assert response.status_code == 200, response.text
+    assert response.json()["items"][0]["missing"] == []
+    assert crud.count(Transaction) == 0 and crud.count(NlpParse) == 0
+
+
+@pytest.mark.route(*BATCH)
+def test_parse_batch_missing_lottery_span_requires_review_without_projecting_onto_sourced_salary(api, model):
+    me = user("lottery-missing-span@x.tw", "核對者")
+    cats = categories()
+    salary, income = str(cats["薪資"].id), str(cats["其他收入"].id)
+    model["reply"] = {"items": [
+        _item(span="", amount=200000000, kind="income", cat=income),
+        _item(span="薪水30000", amount=30000, kind="income", cat=salary),
+    ]}
+    response = api.post("/api/nlp/parse-batch", headers=login(me), json={"text": "朋友威力彩中了200000000，薪水30000"})
+    assert response.status_code == 200, response.text
+    prize, wage = response.json()["items"]
+    assert prize["missing"] == ["kind", "cat"]
+    assert (wage["kind"], wage["cat"], wage["missing"]) == ("income", salary, [])
+    assert crud.count(Transaction) == 0 and crud.count(NlpParse) == 0
+
+
+@pytest.mark.route(*ONE)
+def test_parse_one_lottery_wrong_expense_needs_explicit_review_without_income_fallback(api, model):
+    me = user("lottery-single@x.tw", "核對者")
+    cats = categories()
+    model["reply"] = {"items": [_item(span="", amount=200000000, cat=str(cats["其他"].id))]}
+    result = api.post("/api/nlp/parse", headers=login(me), json={"text": "威力彩中了200000000"})
+    assert result.status_code == 200, result.text
+    assert result.json()["out"]["kind"] is None and result.json()["out"]["cat"] is None
+    assert result.json()["by"] == "model"
+    assert crud.count(Transaction) == 0 and crud.count(NlpParse) == 0
+
+
 # ===========================================================================
 # POST /api/nlp/confirm
 # ===========================================================================

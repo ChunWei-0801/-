@@ -196,7 +196,8 @@ function mapClassification(label, retained, original, rowIndex) {
 const sourceCategoryAliases = {
   food:['餐飲','餐饮','飲食','饮食','餐費','餐费','飲食費','饮食费','food','dining','meals','food & dining','food/dining'],
   transit:['交通','交通費','交通费','交通運輸','交通运输','transit','transport','transportation'],
-  salary:['薪資','薪资','薪水','工資','工资','薪資收入','薪资收入','salary','wages','payroll']
+  salary:['薪資','薪资','薪水','工資','工资','薪資收入','薪资收入','salary','wages','payroll'],
+  winnings:['中獎','中奖','中獎收入','中奖收入','彩券獎金','彩票奖金','彩金','其他收入','lottery winnings','winnings','other income','miscellaneous income']
 };
 function sourceClause(input, evidence) {
   function boundary(at) {
@@ -222,8 +223,21 @@ function sourceIntent(input, evidence) {
   // or amounts. They check only an already model-selected, source-aligned row.
   const clause = sourceClause(input,evidence);
   const globalNonActual = /以下(?:是|為|为)?.{0,8}(?:範例|范例|預算|预算)|(?:全部|所有).{0,5}(?:沒有|没有|未發生|未发生)|沒有(?:任何)?(?:交易|支出|收入)|没有(?:任何)?(?:交易|支出|收入)/.test(input);
-  const caution = globalNonActual || /沒有|没有|沒買|没买|不買|不买|未買|未买|未付款|尚未|還沒|还没|不是|不會|不会|假設|假设|如果|預算|预算|打算|計畫|计划|預計|预计|明天|下週|下周|下個月|下个月|將要|将要|範例|范例|例如|退款|退費|退费|退貨|退货|報銷|报销|代墊|代垫|代付|借款|借錢|借钱|還款|还款|還錢|还钱|轉帳|转账|轉賬|转账|請客|请客|他人付款|別人付|别人付|\b(?:refund|reimbursement|reimbursed|loan|transfer|budget|hypothetical|example|tomorrow|not|didn't|haven't|would|might|will)\b/i.test(clause);
+  const lottery = /威力彩|大樂透|大乐透|彩券|彩票|樂透|乐透|刮刮樂|刮刮乐|抽獎|抽奖|中獎|中奖/.test(clause);
+  const cautionClause = lottery ? clause.replace(/(?:沒(?:有)?|没(?:有)?|未|不)(?:有)?中(?:獎|奖|了)?/g,'') : clause;
+  const caution = globalNonActual || /沒有|没有|沒買|没买|不買|不买|未買|未买|未付款|尚未|還沒|还没|不是|不會|不会|假設|假设|如果|預算|预算|打算|計畫|计划|預計|预计|明天|下週|下周|下個月|下个月|將要|将要|範例|范例|例如|退款|退費|退费|退貨|退货|報銷|报销|代墊|代垫|代付|借款|借錢|借钱|還款|还款|還錢|还钱|轉帳|转账|轉賬|转账|請客|请客|他人付款|別人付|别人付|\b(?:refund|reimbursement|reimbursed|loan|transfer|budget|hypothetical|example|tomorrow|not|didn't|haven't|would|might|will)\b/i.test(cautionClause);
   if (caution) return {kind:null,group:null,reason:'SOURCE_NONACTUAL_OR_AMBIGUOUS'};
+  if (lottery) {
+    const purchase = /購買|购买|買|买|付款|支付|花費|花费|花了/.test(clause);
+    const negativeWin = /(?:沒(?:有)?|没(?:有)?|未|不)(?:有)?中(?:獎|奖|了)?/.test(clause);
+    const won = /中了|中獎|中奖|贏了|赢了|贏得|赢得/.test(clause) && !negativeWin;
+    const received = /收到|領到|领到|領取|领取|入帳|入账|收入/.test(clause);
+    const uncertain = /沒買|没买|沒有買|没有买|未買|未买|不買|不买|未領|未领|假如|要是|下期|可能|希望|想中|會中|会中|中獎機率|中奖概率|中獎率|中奖率|中獎號碼|中奖号码|獎池|奖池|最高獎金|最高奖金|頭獎金額|头奖金额|[?？]|嗎|吗/.test(clause)
+      || /朋友|同事|爸爸|媽媽|妈妈|父親|父亲|母親|母亲|家人|哥哥|弟弟|姊姊|姐姐|妹妹|鄰居|邻居|別人|别人|有人|他人|第三人|新聞|新闻|聽說|听说|據說|据说|報導|报道|(?:他|她)(?:的|今天|昨天|前天|威力彩|大樂透|大乐透|彩券|彩票|樂透|乐透|中了|中獎|中奖|買了|买了|領到|领到|收到)/.test(clause)
+      || /[?？]/.test(input) || /^\s*(?:假設|假设|如果|假如|要是|聽說|听说|據說|据说|新聞|新闻|朋友說|朋友说)/.test(input);
+    if (uncertain || purchase && (won || received) || negativeWin && !purchase || !purchase && !won && !received) return {kind:null,group:null,reason:'SOURCE_NONACTUAL_OR_AMBIGUOUS'};
+    return purchase ? {kind:'expense',group:null} : {kind:'income',group:'winnings'};
+  }
   const food = /早餐|午餐|晚餐|早飯|早饭|午飯|午饭|晚飯|晚饭|餐費|餐费|餐點|餐点|便當|便当|咖啡|飲料|饮料|奶茶|麵包|面包|點心|点心|外食|\b(?:breakfast|lunch|dinner|coffee|meal|meals)\b/i.test(clause);
   const transit = /公車|公交|巴士|捷運|地鐵|地铁|車票|车票|計程車|出租車|出租车|停車費|停车费|加油|油錢|油钱|交通費|交通费|高鐵|高铁|台鐵|台铁|火車票|火车票|\b(?:bus fare|train ticket|subway|metro|taxi|parking|gasoline|fuel)\b/i.test(clause);
   const salary = /薪資|薪资|薪水|工資|工资|薪酬|月薪|\b(?:salary|payroll|wages)\b/i.test(clause);
@@ -259,7 +273,7 @@ function assistClassification(item, input, evidence, categories, rowIndex, adjus
   if (matches.length === 1) adjustField(item,'category',matches[0].id,rowIndex,'SOURCE_CATEGORY_CUE',adjustments);
   else {
     const chosen = categories.find(category => category.id === item.category);
-    const chosenGroup = chosen && Object.keys(sourceCategoryAliases).find(group => chosen.kind === (group === 'salary' ? 'income' : 'expense') && sourceCategoryAliases[group].includes(chosen.name.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim()));
+    const chosenGroup = chosen && Object.keys(sourceCategoryAliases).find(group => chosen.kind === (group === 'salary' || group === 'winnings' ? 'income' : 'expense') && sourceCategoryAliases[group].includes(chosen.name.normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim()));
     const contradicted = chosen && chosen.kind !== intent.kind || intent.group && chosenGroup && chosenGroup !== intent.group;
     if (contradicted) adjustField(item,'category',null,rowIndex,'SOURCE_CLASSIFICATION_UNCLEAR',adjustments);
     else reviewField(item,'category',rowIndex,matches.length > 1 ? 'SOURCE_CATEGORY_AMBIGUOUS' : 'SOURCE_CLASSIFICATION_UNVERIFIED',adjustments);

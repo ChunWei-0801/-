@@ -364,6 +364,8 @@ def parse_batch(body: ParseIn, me: User, db: Session = Depends(get_db)):
                     "kind（expense 或 income）、cat（下面分類清單裡的 id）、merchant（店家，沒有就空字串）、",
                     "note（備註，沒有就空字串）、conf（date、amount、kind、cat 各一個 0 到 1 的信心度）。",
                     "抽不到的欄位填 null，不要猜。「昨天」「前天」要換算成日期。",
+                    "彩券、威力彩等：本人實際中獎是 income，購買彩券是 expense，買入與中獎必須分開。",
+                    "沒中獎、假設、願望、疑問或他人中獎不能當成本人的收入；無法確認實際收支時 kind、cat 填 null，不能捏造交易。",
                     "今天是 " + today + "。分類清單：",
                 ]
                 for c in categories:
@@ -402,6 +404,8 @@ def parse_batch(body: ParseIn, me: User, db: Session = Depends(get_db)):
                     if not isinstance(raw, dict):
                         continue
                     missing = []
+                    span = str(raw.get("span") or "")
+                    lottery_review = _lottery_needs_review(text, span, raw.get("kind"), len(raw_items))
                     try:
                         day = date.fromisoformat(str(raw.get("date"))).isoformat()
                     except ValueError:
@@ -414,26 +418,26 @@ def parse_batch(body: ParseIn, me: User, db: Session = Depends(get_db)):
                     if amount is None or amount <= 0:
                         amount = None
                         missing.append("amount")
-                    kind = raw.get("kind") if raw.get("kind") in ("expense", "income") else None
+                    kind = raw.get("kind") if not lottery_review and raw.get("kind") in ("expense", "income") else None
                     if kind is None:
                         missing.append("kind")
-                    cat = str(raw.get("cat") or "")
+                    cat = str(raw.get("cat") or "") if not lottery_review else ""
                     if cat not in kinds or (kind is not None and kinds[cat] != kind):
                         cat = None
                         missing.append("cat")
                     conf = raw.get("conf") if isinstance(raw.get("conf"), dict) else {}
                     items.append({
                         "seq": len(items) + 1,
-                        "span": str(raw.get("span") or "")[:100],
+                        "span": span[:100],
                         "date": day,
                         "amount": float(amount) if amount is not None else None,
                         "kind": kind,
                         "cat": cat,
                         "merchant": str(raw.get("merchant") or "")[:50],
                         "note": str(raw.get("note") or "")[:100],
-                        "conf": {k: score(conf.get(k)) for k in ("date", "amount", "kind", "cat")},
+                        "conf": {k: 0.0 if lottery_review and k in {"kind", "cat"} else score(conf.get(k)) for k in ("date", "amount", "kind", "cat")},
                         "missing": missing,
-                        "hint": "這一筆有欄位抽不到，補上才能存" if missing else "",
+                        "hint": _LOTTERY_HINT if lottery_review else "這一筆有欄位抽不到，補上才能存" if missing else "",
                     })
                 if not items:
                     raise client.ModelError("模型沒有從這段話解析出任何一筆")

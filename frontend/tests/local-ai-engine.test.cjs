@@ -535,3 +535,39 @@ test('all unsupported candidates and malformed envelopes still fail without crea
     const {reply,h}=await extractFixture(raw);assert.equal(reply.type,'error');assert.equal(h.calls.requests.length,2);assert.equal(reply.error.code,'AI_INVALID_DRAFT');
   }
 });
+
+// Synthetic replay of the reference screenshot, not observed local-model output.
+test('lottery winnings and ticket purchases use opposite directions without hiding raw model predictions',async()=>{
+  const context={...draftContext,categories:[...draftContext.categories,{id:'other-income',name:'其他收入',kind:'income'}]};
+  const win={...modelItem,sourceText:'威力彩中了200000000',amountText:'200000000',dateText:null};
+  const {reply,value,h}=await extractFixture(modelDraft([win]),win.sourceText,context);
+  assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);
+  assert.deepEqual(value.items.map(i=>[i.kind,i.amount,i.category]),[['income',200000000,'other-income']]);
+  assert.equal(reply.result.modelDraft.items[0].kind,'expense');assert.equal(reply.result.rawModelOutput,modelDraft([win]));
+  assert.equal(reply.result.normalization.sourceRuleAssisted,true);
+  for(const sourceText of ['買威力彩100元','買彩券100元沒中獎','買彩券100元沒有中獎']){
+    const purchase=await extractFixture(modelDraft([{...win,sourceText,amountText:'100',classification:'收入｜薪資'}]),sourceText,context);
+    assert.equal(purchase.reply.type,'result');assert.equal(purchase.value.items[0].kind,'expense',sourceText);assert.equal(purchase.value.items[0].category,null);
+  }
+});
+
+test('nonactual or third-party lottery claims require manual direction even when model quotes omit the qualifier',async()=>{
+  for(const input of ['我沒有中獎200元','如果威力彩中了200元','明天威力彩中了200元','朋友威力彩中了200元','他威力彩中了200元','新聞說威力彩中了200元','威力彩中獎機率200','威力彩中了200元嗎','威力彩中了200元？','如果去買彩券，就威力彩中了200元','買威力彩100元中了200元']){
+    const amountText=input.includes('100元')?'100':'200';
+    const sourceText=input.includes('威力彩中了200元')?'威力彩中了200元':input;
+    const row={...modelItem,sourceText,amountText,dateText:null,classification:'收入｜薪資'};
+    if(!sourceText.includes(amountText))row.sourceText=input;
+    const {reply,value}=await extractFixture(modelDraft([row]),input);
+    assert.equal(reply.type,'result',input);assert.equal(value.items[0].kind,null,input);assert.equal(value.items[0].category,null,input);
+    assert.ok(value.items[0].missingFields.includes('kind'));assert.equal(reply.result.modelDraft.items[0].kind,'income');
+  }
+});
+
+test('lottery assistance respects local clauses and uniquely named current categories rather than IDs',async()=>{
+  const context={...draftContext,categories:[...draftContext.categories,{id:'new-id',name:'其他收入',kind:'income'}]};
+  const rows=[{...modelItem,sourceText:'威力彩中了200元',amountText:'200',dateText:null},{...modelItem,sourceText:'威力彩中了300元',amountText:'300',dateText:null}];
+  const mixed=await extractFixture(modelDraft(rows),'朋友威力彩中了200元，自己威力彩中了300元',context);
+  assert.equal(mixed.value.items[0].kind,null);assert.deepEqual([mixed.value.items[1].kind,mixed.value.items[1].category],['income','new-id']);
+  const duplicate=await extractFixture(modelDraft([rows[0]]),'威力彩中了200元',{...context,categories:[...context.categories,{id:'ambiguous',name:'其他收入',kind:'income'}]});
+  assert.equal(duplicate.value.items[0].kind,'income');assert.equal(duplicate.value.items[0].category,null);
+});

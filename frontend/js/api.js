@@ -923,23 +923,45 @@
     ['C01', /早餐|午餐|晚餐|宵夜|吃|飯|咖啡|飲料|麵包|便當|餐/]
   ];
   var MERCHANTS = ['全家', '7-11', '萊爾富', '全聯', '家樂福', '好市多', '星巴克', '麥當勞', '加油站'];
-  function parseLine(text) {
+  // A narrowly scoped rule, not a model prediction. Lottery purchases and
+  // actual winnings have opposite directions; reports and hypotheticals need
+  // a deliberate user choice instead of the generic expense default.
+  function lotteryDirection(text, context) {
+    var t = String(text || '').normalize('NFKC');
+    if (!/威力彩|大樂透|大乐透|彩券|彩票|樂透|乐透|刮刮樂|刮刮乐|抽獎|抽奖|中獎|中奖/.test(t)) return null;
+    var purchase = /購買|购买|買|买|付款|支付|花費|花费|花了/.test(t);
+    var negativeWin = /(?:沒(?:有)?|没(?:有)?|未|不)(?:有)?中(?:獎|奖|了)?/.test(t);
+    var won = /中了|中獎|中奖|贏了|赢了|贏得|赢得/.test(t) && !negativeWin;
+    var received = /收到|領到|领到|領取|领取|入帳|入账|收入/.test(t);
+    var uncertain = /沒買|没买|沒有買|没有买|未買|未买|不買|不买|尚未|還沒|还没|未領|未领|假設|假设|如果|假如|要是|預算|预算|打算|計畫|计划|預計|预计|明天|下期|下週|下周|將要|将要|可能|希望|想中|會中|会中|範例|范例|例如|中獎機率|中奖概率|中獎率|中奖率|中獎號碼|中奖号码|獎池|奖池|最高獎金|最高奖金|頭獎金額|头奖金额|退款|退費|退费|借款|轉帳|转账|[?？]|嗎|吗/.test(t) || /朋友|同事|爸爸|媽媽|妈妈|父親|父亲|母親|母亲|家人|哥哥|弟弟|姊姊|姐姐|妹妹|鄰居|邻居|別人|别人|有人|他人|第三人|新聞|新闻|聽說|听说|據說|据说|報導|报道|(?:他|她)(?:的|今天|昨天|前天|威力彩|大樂透|大乐透|彩券|彩票|樂透|乐透|中了|中獎|中奖|買了|买了|領到|领到|收到)/.test(t);
+    uncertain = uncertain || /^\s*(?:假設|假设|如果|假如|要是|聽說|听说|據說|据说|新聞|新闻|朋友說|朋友说)/.test(context || t);
+    if (uncertain || purchase && (won || received) || negativeWin && !purchase || !purchase && !won && !received) {
+      return { kind: null, cat: null, hint: '尚無法確認這是本人已發生的收入或支出；請核對原文並選擇收支與分類。購買與中獎請分成兩筆。' };
+    }
+    return purchase ? { kind: 'expense', cat: 'C08', hint: '這筆是購買彩券的支出，請核對分類。' }
+      : { kind: 'income', cat: 'I04', hint: '這筆依中獎原文列為其他收入；請核對實際金額與日期。' };
+  }
+  function parseLine(text, context) {
     var t = String(text || '');
     var amount = amountOf(t);
     var rule = CAT_RULES.filter(function (r) { return r[1].test(t); })[0];
     var cat = rule ? rule[0] : 'C08';
     var kind = cat.charAt(0) === 'I' ? 'income' : 'expense';
+    var lottery = lotteryDirection(t, context);
+    if (lottery) { kind = lottery.kind; cat = lottery.cat; }
     var back = /前天/.test(t) ? 2 : (/昨天|昨晚/.test(t) ? 1 : 0);
     var d = new Date(todayStr() + 'T12:00:00');
     d.setDate(d.getDate() - back);
     var date = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
     var merchant = MERCHANTS.filter(function (x) { return t.indexOf(x) >= 0; })[0] || '';
     var missing = amount ? [] : ['amount'];
+    if (!kind) missing.push('kind');
+    if (!cat) missing.push('cat');
     return {
       date: date, amount: amount, kind: kind, cat: cat, merchant: merchant, note: '',
-      conf: { date: back ? 0.9 : 0.8, amount: amount ? 0.9 : 0, kind: rule ? 0.85 : 0.6, cat: rule ? 0.75 : 0.3 },
+      conf: { date: back ? 0.9 : 0.8, amount: amount ? 0.9 : 0, kind: lottery ? (kind ? 0.85 : 0) : rule ? 0.85 : 0.6, cat: lottery ? (cat ? 0.75 : 0) : rule ? 0.75 : 0.3 },
       missing: missing,
-      hint: amount ? (rule ? '' : '分類猜不出來，先放「其他」，確認時改一下。') : '這一句抓不到金額，補上才能存。'
+      hint: lottery ? lottery.hint + (!amount ? ' 這一句抓不到金額，補上才能存。' : '') : amount ? (rule ? '' : '分類猜不出來，先放「其他」，確認時改一下。') : '這一句抓不到金額，補上才能存。'
     };
   }
 
@@ -1948,7 +1970,7 @@
         if (!t) throw oops('先寫一段話', 422);
         var parts = t.split(/[，,。；;、\n]+|(?:然後|接著|還有)/).map(function (x) { return x.trim(); })
           .filter(function (x) { return x.length > 1; });
-        var items = parts.map(function (part, i) { return Object.assign({ seq: i + 1, span: part }, parseLine(part)); });
+        var items = parts.map(function (part, i) { return Object.assign({ seq: i + 1, span: part }, parseLine(part, t)); });
         return {
           raw: t, matched: false, fallback: true, by: 'rules', items: items,
           note: '此頁使用瀏覽器模擬資料與規則解析；確認後只儲存在這台裝置。'
@@ -3293,7 +3315,7 @@
     aiLocalKnowledge: { items: { id: 's', title: 's', text: 's', sourceLink: 's', score: 'n' } },
     transactions: { transactions: { id: 's', user: 's', date: 'd', amount: 'n', kind: 's', cat: 's', source: 's' } },
     deleteTransactions: { deleted: 's' },
-    nlpParseBatch: { items: { seq: 'n', span: 's', amount: 'n?', kind: 's', cat: 's?', conf: 'o', missing: 'a' } },
+    nlpParseBatch: { items: { seq: 'n', span: 's', amount: 'n?', kind: 's?', cat: 's?', conf: 'o', missing: 'a' } },
     categories: { categories: { id: 's', name: 's', kind: 's', color: 's' } },
     groups: { groups: { id: 's', name: 's', owner: 's', members: 'a', archived: 'b' } },
     budgets: { budgets: { user: 's', cat: 's', limit: 'n', used: 'n' } },
@@ -3480,7 +3502,7 @@
     nlpParseBatch: function (args) {
       var t = String(args[0] || '').trim();
       var items = t.split(/[，,。；;、\n]+/).map(function (x) { return x.trim(); }).filter(function (x) { return x.length > 1; })
-        .map(function (part, i) { return Object.assign({ seq: i + 1, span: part }, parseLine(part)); });
+        .map(function (part, i) { return Object.assign({ seq: i + 1, span: part }, parseLine(part, t)); });
       return lookups().then(function () {
         items.forEach(function (it) { it.cat = toBackendCat(it.cat); });
         return { raw: t, matched: false, fallback: true, items: items,
