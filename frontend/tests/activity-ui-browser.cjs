@@ -13,7 +13,10 @@ async function fixture(t){
  await page.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!==base)return route.abort();if(url.pathname.startsWith('/api/'))return route.fulfill({status:503,json:{detail:'Isolated UI: no backend or model'}});return route.continue();});
  await page.goto(base+'/?api=#/login');await page.waitForFunction(()=>window.API&&window.ActivityInvites&&window.TransactionArchive);await page.evaluate(()=>I18n.ready);
  await page.evaluate(async()=>{await API.register({name:'活動驗收',email:'activity.ui.fixture@example.test',password:'Fixture-password-9!'});await API.updateProfile({onboarded:true});location.hash='#/';});
- await page.reload();await page.locator('[data-personal-details]').waitFor();return{page,errors,base};
+ await page.reload();await page.locator('[data-personal-details]').waitFor();
+ assert.equal(await page.evaluate(()=>typeof window.VoiceAccessibility),'undefined','Cancelled voice features are not loaded');
+ assert.equal(await page.locator('[data-voice-root],[data-voice-settings]').count(),0,'No microphone launcher or voice settings remain');
+ return{page,errors,base};
 }
 
 test('real HTML keeps private details on dashboard, activity-only selection, month details and current-device login',async t=>{

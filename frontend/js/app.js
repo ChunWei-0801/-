@@ -3906,7 +3906,6 @@
   var ANY = ['reset', 'verify-email', 'appearance', 'tutorial', 'fraud'];
 
   function paint() {
-    if (global.VoiceAccessibility) global.VoiceAccessibility.beforeRoute();
     if (global.ReceiptEntry) global.ReceiptEntry.close(true);
     if (TXARCHIVE) { TXARCHIVE.destroy(); TXARCHIVE=null; }
     TXLOAD++;
@@ -3918,7 +3917,6 @@
     API.authState().then(function (a) {
       if (requestedHash !== location.hash) return;
       AUTH_LOGGED_IN = a.loggedIn;
-      if (!a.loggedIn && global.VoiceAccessibility) global.VoiceAccessibility.setAccount(null);
       if (!a.loggedIn && global.AIAssistant) global.AIAssistant.setAccount(null);
       if (ANY.indexOf(page) >= 0) { render(); return; }
       /* 登入閘。沒登入只能待在 login／register／forgot，
@@ -3940,7 +3938,6 @@
       (ME && ME.user && page !== 'ai' ? Promise.resolve(ME) : API.me()).then(function (m) {
         if (requestedHash !== location.hash) return;
         ME = m;
-        if (global.VoiceAccessibility) global.VoiceAccessibility.setAccount(m.user);
         if (global.AIAssistant) global.AIAssistant.setAccount(m.user);
         var admin = !!m.user.isPlatformAdmin;
         if (admin && page !== 'admin') { location.hash = '#/admin'; return; }
@@ -3977,7 +3974,6 @@
         if (requestedHash !== location.hash) return;
         (ROUTES[page] || vHome)(parts[1], parts[2]);
         enhanceMedia();
-        if (page === 'settings' && global.VoiceAccessibility) global.VoiceAccessibility.mountSettings($view);
         /* 總覽就是儀表板；其他頁面左上角出現「總覽」可以回去 */
         var hb = document.getElementById('homeBtn');
         if (hb) hb.hidden = page === '' || page === 'admin' || OPEN.indexOf(page) >= 0;
@@ -5368,7 +5364,6 @@
   }, { passive: true });
 
   window.addEventListener('hashchange', paint);
-  if (global.VoiceAccessibility) global.VoiceAccessibility.init();
 
   /* 更早的版本有一個顯示 API 模式的小徽章。那是給開發者看的，
      介面上已經拿掉——這裡留一個保險，元素不在就不要炸。 */

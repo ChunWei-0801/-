@@ -2,7 +2,6 @@
 (function () {
   'use strict';
   if(window.SafetyCenter)window.SafetyCenter.init();
-  if(window.VoiceAccessibility)window.VoiceAccessibility.init();
   var api=window.LocalAI,controller=null,generation=0,running=false,failureDetails=null,statusValue=null,view=null,languageReady=false,clock=null,clockTimer=null,lastLoadMs=null;
   var ids=['modelLoad','modelCancel','modelUnload','modelCache','modelStatus','modelProgress','modelInput','modelRun','modelBenchmark','modelOutput','modelMetrics','modelMetricsSummary','modelTechnical','modelLanguage','modelTiming','modelCompare','modelExport'];
   var ui={};ids.forEach(function(id){ui[id]=document.getElementById(id);});
