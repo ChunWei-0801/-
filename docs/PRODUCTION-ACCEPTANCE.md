@@ -1,21 +1,39 @@
 # Production acceptance handoff
 
-The current deployed source is `2fbe3d39d14057156bffef09e56721d6cda04fd6`,
-resource version **173**, at `https://fambudget-recovery-20261017.onrender.com`.
-Render `dep-dbce44uq1p3s73d55cc0` reports live, finished
-2026-10-22 00:04:03 Asia/Taipei. The service remains free with auto-deploy off.
-GitHub run [39630746107](https://github.com/ChunWei-0801/-/actions/runs/39630746107)
-passed both checks and real Chromium browser jobs. Local complete backend:
-916 passed. Related frontend runner checks: 72 passed, zero skips. The first
-feature CI attempt failed from a browser-only file in a job without Playwright;
-the workflow was corrected before deployment without reducing assertions.
+The current deployed source is `1ea4609a7174e847367fbe7c8b54d5bc3aabf792`,
+resource version **174**, at `https://fambudget-recovery-20261017.onrender.com`.
+Render `dep-dbcsjb4s728c738458b0` reports live, finished
+2026-10-22 16:32:37 Asia/Taipei. The service remains free with auto-deploy off.
+GitHub run [39747878274](https://github.com/ChunWei-0801/-/actions/runs/39747878274)
+passed checks and real Chromium browser jobs. Complete local backend: 1036
+passed. Related frontend: 87 passed, zero skips. All 49 stage-two remote blobs
+and eight stage-one blobs were verified. Original failed environment retained.
 
-**v174 preparation:** activity terminology and selection, Taipei year/month
-folders, activity-name search, independent cross-family invitations (0007
-additive migration), current-device omission, and lottery-direction checks
-now pass 1036 complete backend and 87 related frontend checks (zero skips).
-This stage is not yet deployed; see WORKLOG-20261022.md. Current live source
-above remains v173 until deployment status is verified.
+## v174 activity and transaction changes
+
+- Personal ledger is now called 收支明細; ledgers are 活動. The header only
+  lists activities and has an honest empty state. The dashboard keeps the
+  all-details entry; historical private-container data remains accessible.
+- Authorized year/month folders, Taipei month-end closed status, month search,
+  200-row pagination and activity name filtering retain existing edit, photo
+  and selection actions. Grouping does not move, delete or lock transactions.
+- Nine authenticated invitation routes allow code or full-email account
+  invitations independent of family membership. Codes are hashed, single-use
+  and expire after seven days; acceptance is atomic. Independent joins survive
+  family departure; legacy family-sharing revocation remains intact. Only the
+  joined activity's records become visible. Additive migration 0007 preserves
+  prior data in isolated upgrade tests; PostgreSQL offline DDL also validated.
+- The current device is omitted from the other-device list and keeps its
+  session after revocation. Unknown parsed direction/category stay explicitly
+  unselected until a manual choice. Lottery purchases and actual winnings use
+  opposite directions with disclosed rule assistance and preserved raw model
+  predictions; synthetic tests are not fresh model-quality measurements.
+
+Test the refreshed site with `/?v=174#/`, details `/#/entry`, activities
+`/#/groups`, devices `/#/profile`, and no-write AI `/ai-test.html?v=174`.
+No real friend was messaged and no production test transactions were created.
+New device/production interaction acceptance remains pending user testing.
+See WORKLOG-20261022.md for the full release record.
 
 ## Current changes and evidence limits
 
@@ -40,7 +58,7 @@ above remains v173 until deployment status is verified.
   The three verified private historical/QA backups remain separate evidence.
 - Original failed environment retained; changes committed and pushed in stages.
 
-Public no-write AI test: `/ai-test.html?v=173`. Public fraud page: `/#/fraud`.
+Public no-write AI test: `/ai-test.html?v=174`. Public fraud page: `/#/fraud`.
 Reload first so an old tab does not keep the previous logout implementation.
 Reference-site research is documented in `LLM-REFERENCE-REVIEW.md`; historical
 public code does not establish that external site's current model or state.
@@ -49,7 +67,7 @@ See `FREE-LLM.md` and `WORKLOG-20261021.md` for details.
 ## Existing acceptance and backup handoff
 
 The user saved and published the updated environment policy on 2026-10-19.
-The latest observed runtime revision is 910 (2026-10-21) and still lacks the
+The latest observed runtime revision is 926 (2026-10-22) and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
