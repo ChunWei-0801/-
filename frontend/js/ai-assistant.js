@@ -25,7 +25,7 @@
   function idOf(user) { return user && user.user ? String(user.user.id || '') : user && user.id != null ? String(user.id) : ''; }
   function accountStamp(value) { var user=value&&value.user?value.user:value||{}; return [idOf(value),user.familyId||user.family_id||'',user.role||user.familyRole||'',user.permissionsVersion||user.membershipVersion||''].map(String).join('|'); }
   function active(s, job) { return current === s && !s.closed && (job == null || s.job === job) && s.accountStamp === accountStamp(account); }
-  function message(s, value, error) { if (!active(s)) return; s.message.textContent = value || ''; s.message.classList.toggle('is-error', !!error); }
+  function message(s, value, error) { if (!active(s)) return; s.draftStatusActive=false; s.message.textContent = value || ''; s.message.classList.toggle('is-error', !!error); }
   function testText(key, fallback) { return global.I18n && global.I18n.t ? global.I18n.t('aiTest.' + key, fallback) : fallback; }
   function formatTest(key, fallback, vars) { return String(testText(key,fallback)).replace(/\{(\w+)\}/g,function(whole,name){return vars && Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):whole;}); }
   function clockNow() { return global.performance && typeof global.performance.now==='function' ? global.performance.now() : Date.now(); }
@@ -36,8 +36,9 @@
     if(s.stage) labels.push(formatTest('elapsedStage','{stage} · {seconds} s elapsed',{stage:s.stage.label,seconds:seconds(Math.max(0,clockNow()-s.stage.started))}));
     if(Number.isFinite(s.checkingMs)) labels.push(formatTest('stageElapsed','{stage}: {seconds} s',{stage:t('checking').replace(/[…]+$/,''),seconds:seconds(s.checkingMs)}));
     if(Number.isFinite(s.loadMs)) labels.push(formatTest('loadElapsed','Model startup: {seconds} s',{seconds:seconds(s.loadMs)}));
-    if(Number.isFinite(s.generationMs)) labels.push(formatTest('generationElapsed','Completed: {seconds} s',{seconds:seconds(s.generationMs)}));
+    if(Number.isFinite(s.generationMs)) labels.push(formatTest('generationElapsed','Generation workflow: {seconds} s',{seconds:seconds(s.generationMs)}));
     if(Number.isFinite(s.firstTokenMs)) labels.push(formatTest('firstTokenElapsed','Model starts output: {seconds} s',{seconds:seconds(s.firstTokenMs)}));
+    if(Number.isFinite(s.decodeMs)) labels.push(formatTest('decodeElapsed','Output generation: {seconds} s',{seconds:seconds(s.decodeMs)}));
     s.timingLabel.textContent=labels.join(' · ');s.timingLabel.hidden=!labels.length;
   }
   function stopClock(s) { if(s.clockTimer!=null)global.clearInterval(s.clockTimer);s.clockTimer=null;s.stage=null;renderTiming(s); }
@@ -50,14 +51,17 @@
   }
   function reviewText(key, vars) {
     var labels = /^zh/.test(lang()) ? {
-      excludedTitle:'已排除未通過檢查的模型候選',excludedNotice:'有 {count} 筆模型候選未通過原文或金額檢查，已排除。請核對保留的草稿，並自行確認是否有漏記。',excludedRow:'第 {index} 號模型候選沒有成為可記帳草稿。',excludedSource:'原文中找不到對應內容。',excludedAmount:'金額或其引用無法核對。',excludedFields:'欄位格式或來源資訊無法核對。',reviewChecksTitle:'核對提醒',sourceAssistNotice:'這些草稿結合模型抽取與原文規則檢查。規則可能調整收支或分類，請逐筆確認。',sourceChange:'{field}已依原文檢查調整，請確認。',sourceCleared:'{field}在原文中無法確認，已留白；請核對，必要時自行補充。',sourceUnverified:'{field}尚未經原文規則確認，請自行核對。',ambiguousSource:'這段文字可能不是已發生的明確收支，請自行確認收支與分類。',originalChoice:'模型原判斷：{kind}／{category}。',finalChoice:'待確認草稿：{kind}／{category}。'
+      draftNeedsCompletion:'生成已結束，但必要欄位不完整；補齊前無法確認。',draftReviewRequired:'生成已結束；確認前請逐筆核對所有欄位與是否漏記。',draftCoveragePartial:'草稿可能有漏筆或合併；確認前請核對原始輸入。',draftCoverageUnknown:'尚未驗證筆數是否完整；請核對原始輸入，確認是否漏筆或合併。',draftFieldsComplete:'必要欄位已有值；內容是否完整與正確仍需你核對。',assistedDraftTitle:'原文檢查後的草稿（仍需核對）',modelOutputSeparate:'模型原始輸出另外保留於下方；來源規則補正不代表模型正確率。',cannotConfirm:'補齊必要欄位前無法確認。',
+      excludedTitle:'已排除未通過檢查的模型候選',excludedNotice:'有 {count} 筆模型候選未通過原文或金額檢查，已排除。請核對保留的草稿，並自行確認是否有漏記。',excludedRow:'第 {index} 號模型候選沒有成為可記帳草稿。',excludedSource:'原文中找不到對應內容。',excludedAmount:'金額或其引用無法核對。',excludedFields:'欄位格式或來源資訊無法核對。',reviewChecksTitle:'核對提醒',sourceAssistNotice:'這些草稿結合模型抽取與原文規則。規則可能補回或調整欄位與筆數；請逐筆核對，這不代表模型正確率。',sourceChange:'{field}已依原文檢查調整，請確認。',sourceCleared:'{field}在原文中無法確認，已留白；請核對，必要時自行補充。',sourceUnverified:'{field}尚未經原文規則確認，請自行核對。',ambiguousSource:'這段文字可能不是已發生的明確收支，請自行確認收支與分類。',originalChoice:'模型原判斷：{kind}／{category}。',finalChoice:'待確認草稿：{kind}／{category}。'
     } : {
-      excludedTitle:'Model candidates excluded after checks',excludedNotice:'{count} model candidates failed checks against the original text or amount and were excluded. Review the retained drafts and check for any missing entries.',excludedRow:'Model candidate {index} was not turned into a savable draft.',excludedSource:'No matching content was found in the original text.',excludedAmount:'The amount or its quoted evidence could not be verified.',excludedFields:'The field format or source information could not be verified.',reviewChecksTitle:'Review reminders',sourceAssistNotice:'These drafts combine model extraction with checks against the original text. Rules may change entry kinds or categories. Review every draft.',sourceChange:'{field} was adjusted after checking the original text. Please confirm it.',sourceCleared:'{field} could not be confirmed in the original text and was left blank. Review it and add it if needed.',sourceUnverified:'{field} has not been confirmed by the source-text rules. Please check it yourself.',ambiguousSource:'This text may not describe a clear, completed income or expense. Review the entry kind and category yourself.',originalChoice:'Original model choice: {kind} / {category}.',finalChoice:'Draft to review: {kind} / {category}.'
+      draftNeedsCompletion:'Generation finished, but required fields are missing. Complete them before confirming.',draftReviewRequired:'Generation finished. Check every field and whether any entries are missing before confirming.',draftCoveragePartial:'The draft may omit or merge entries. Check the original input before confirming.',draftCoverageUnknown:'Entry completeness has not been verified. Check the original input for missing or merged entries.',draftFieldsComplete:'Required fields are present. Completeness and correctness still require your review.',assistedDraftTitle:'Draft after source checks (requires review)',modelOutputSeparate:'Original model output is shown separately below; source checks are not model accuracy.',cannotConfirm:'Cannot confirm until required fields are completed.',
+      excludedTitle:'Model candidates excluded after checks',excludedNotice:'{count} model candidates failed checks against the original text or amount and were excluded. Review the retained drafts and check for any missing entries.',excludedRow:'Model candidate {index} was not turned into a savable draft.',excludedSource:'No matching content was found in the original text.',excludedAmount:'The amount or its quoted evidence could not be verified.',excludedFields:'The field format or source information could not be verified.',reviewChecksTitle:'Review reminders',sourceAssistNotice:'These drafts combine model extraction and source rules. Rules may restore or change fields and entries. Review every draft; this does not measure model accuracy.',sourceChange:'{field} was adjusted after checking the original text. Please confirm it.',sourceCleared:'{field} could not be confirmed in the original text and was left blank. Review it and add it if needed.',sourceUnverified:'{field} has not been confirmed by the source-text rules. Please check it yourself.',ambiguousSource:'This text may not describe a clear, completed income or expense. Review the entry kind and category yourself.',originalChoice:'Original model choice: {kind} / {category}.',finalChoice:'Draft to review: {kind} / {category}.'
     };
     return String(testText(key,labels[key] || t('unverified'))).replace(/\{(\w+)\}/g,function(whole,name){return vars && Object.prototype.hasOwnProperty.call(vars,name)?String(vars[name]):whole;});
   }
   function rowChecks(normalization, index, includeAll) {
-    var reasons=['OPTIONAL_MERCHANT_UNSUPPORTED','OPTIONAL_DATE_UNSUPPORTED','OPTIONAL_FIELD_EMPTY','SOURCE_KIND_CUE','SOURCE_CATEGORY_CUE','SOURCE_CATEGORY_AMBIGUOUS','SOURCE_CLASSIFICATION_UNCLEAR','SOURCE_CLASSIFICATION_UNVERIFIED','SOURCE_NONACTUAL_OR_AMBIGUOUS'];
+    if(!Number.isInteger(index)||index<0)return [];
+    var reasons=['OPTIONAL_MERCHANT_UNSUPPORTED','OPTIONAL_MERCHANT_IS_TRANSACTION','SOURCE_DATE_CUE','SOURCE_CURRENCY_CUE','OPTIONAL_DATE_UNSUPPORTED','OPTIONAL_FIELD_EMPTY','SOURCE_KIND_CUE','SOURCE_CATEGORY_CUE','SOURCE_CATEGORY_AMBIGUOUS','SOURCE_CLASSIFICATION_UNCLEAR','SOURCE_CLASSIFICATION_UNVERIFIED','SOURCE_NONACTUAL_OR_AMBIGUOUS'];
     var notes=normalization && Array.isArray(normalization.adjustments) ? normalization.adjustments.filter(function(item){return item && item.rowIndex===index && ['kind','category','merchant','date','amount','currency','classification'].includes(item.field) && ['clear','set','review'].includes(item.action) && reasons.includes(item.reason);}).slice(0,30).map(function(item){return {field:item.field==='classification'?'category':item.field,reason:item.reason,action:item.action};}) : [];
     if(includeAll)return notes;
     // Later checks describe the final candidate; avoid saying both “blank” and “filled” for one field.
@@ -67,6 +71,7 @@
     return normalization&&Array.isArray(normalization.rejectedRows)?normalization.rejectedRows.filter(function(item){return item&&Number.isInteger(item.modelRowIndex)&&item.modelRowIndex>=0&&item.modelRowIndex<10;}).slice(0,10):[];
   }
   function originalRowIndex(normalization, index) {
+    if(normalization&&normalization.sourceRecovery&&Array.isArray(normalization.sourceRecovery.recoveredRows)&&normalization.sourceRecovery.recoveredRows.some(function(item){return item&&item.draftIndex===index;}))return null;
     if(!normalization||!Array.isArray(normalization.rowMappings))return index;
     var entries=normalization.rowMappings.filter(function(item){return item&&item.draftIndex===index&&Number.isInteger(item.modelRowIndex)&&item.modelRowIndex>=0&&item.modelRowIndex<10;});
     return entries.length===1?entries[0].modelRowIndex:null;
@@ -149,6 +154,7 @@
     s.period.disabled = s.busy; s.scope.disabled = s.busy; s.topic.disabled = s.busy; s.input.disabled = s.busyKind === 'saving';
     if (s.review) s.review.querySelectorAll('input,select,button').forEach(function (n) { n.disabled = s.busy; });
     s.runtimeLabel.textContent = s.busyKind === 'loading' ? t('loading') : s.busyKind === 'generating' ? t('running') : ready() ? t('ready') : t('idle');
+    if(s.review)refreshDraftMissing(s);
     if(s.operations)s.operations.refresh();
   }
   function abortJob(s, announce) {
@@ -238,7 +244,7 @@
     var input=s.input.value.trim(); if (!input && /^(report|coach)$/.test(s.mode)) input=t(s.mode); if (!input) return message(s,t('enterText'),true);
     if (input.length > 3000) return message(s,t('tooLong'),true);
     if (!ready()) return message(s,t('loadFirst'),true);
-    var job=begin(s,'generating'), task=s.mode, context, result;s.generationMs=null;s.firstTokenMs=null;startClock(s,task==='draft'?t('running'):t('retrieval'));
+    var job=begin(s,'generating'), task=s.mode, context, result;s.generationMs=null;s.firstTokenMs=null;s.decodeMs=null;startClock(s,task==='draft'?t('running'):t('retrieval'));
     s.output.replaceChildren(); s.drafts=[]; s.review=null; s.rawInput=input; s.modelOutput=''; s.rawModelOutput=''; s.normalization=null;
     try {
       if (task === 'draft') { context={today:today(),timezone:(global.Intl || Intl).DateTimeFormat().resolvedOptions().timeZone,categories:s.categories.map(function(c) { return {id:String(c.id),name:scrub(c.name),kind:c.kind}; })}; }
@@ -257,29 +263,32 @@
       startClock(s,t('running'));
       result=await global.LocalAI.generate({task:task,input:scrub(input),context:context,language:lang(),signal:s.controller.signal,onToken:function(token) { if(task!=='draft')streamToken(s,job,answer,token); }});
       if (!active(s,job)) return;
-      clearStream(s);s.generationMs=completionMs(result);var observed=safeTiming(result);s.firstTokenMs=observed.firstTokenMs;renderTiming(s);
+      clearStream(s);s.generationMs=completionMs(result);var observed=safeTiming(result);s.firstTokenMs=observed.firstTokenMs;s.decodeMs=observed.decodeMs;renderTiming(s);
       s.modelOutput=String(result.text || '');
-      s.rawModelOutput=typeof result.rawModelOutput==='string'?result.rawModelOutput.slice(0,12000):s.modelOutput;
+      s.rawModelOutput=typeof result.rawModelOutput==='string'?result.rawModelOutput.slice(0,12000):'';
       if (task === 'draft') {
         var draft=checkDraft(s.modelOutput,s.categories), modelDraft=result.modelDraft&&Array.isArray(result.modelDraft.items)?result.modelDraft:null;
         s.normalization=result.normalization||null;s.drafts=draft.items;
         // A rejected raw row may be null or malformed. Only parse the mapped retained original for audit.
         s.originalDrafts=s.drafts.map(function(row,index){
           var sourceIndex=originalRowIndex(s.normalization,index);row.modelRowIndex=sourceIndex;
-          if(!modelDraft)return JSON.parse(JSON.stringify(row));
-          if(sourceIndex===null||!modelDraft.items[sourceIndex]){var invalid=new Error(t('invalidDraft'));invalid.code='AI_INVALID_DRAFT';throw invalid;}
+          if(!modelDraft)return null;
+          if(sourceIndex===null||!modelDraft.items[sourceIndex])return null;
           return checkDraft(JSON.stringify({items:[modelDraft.items[sourceIndex]],warnings:[]}),s.categories).items[0];
         });
-        s.drafts.forEach(function(row,index){row.reviewChecks=rowChecks(s.normalization,row.modelRowIndex);row.ruleAdjusted=excludedCandidates(s.normalization).length>0||rowChecks(s.normalization,row.modelRowIndex,true).some(function(item){return item.action==='set'||item.action==='clear';});row.modelChoice=s.originalDrafts[index];});
-        renderDrafts(s,modelDraft&&Array.isArray(modelDraft.warnings)?modelDraft.warnings.filter(function(value){return typeof value==='string';}).slice(0,10):draft.warnings);
+        s.drafts.forEach(function(row,index){row.reviewChecks=rowChecks(s.normalization,row.modelRowIndex);row.modelChoice=s.originalDrafts[index];var adjusted=s.normalization&&Array.isArray(s.normalization.adjustments)&&s.normalization.adjustments.some(function(item){return item&&item.rowIndex===row.modelRowIndex&&['date','amount','currency','kind','category','classification','merchant','note'].includes(item.field)&&['set','clear'].includes(item.action);});var differs=row.modelChoice&&['date','amount','originalAmount','kind','cat','merchant','note','currency'].some(function(field){return row.modelChoice[field]!==row[field];});row.ruleAdjusted=row.modelRowIndex===null||excludedCandidates(s.normalization).length>0||!!adjusted||!!(s.normalization&&s.normalization.sourceRuleAssisted&&(!row.modelChoice||differs));});
+        renderDrafts(s,modelDraft&&Array.isArray(modelDraft.warnings)?modelDraft.warnings.filter(function(value){return typeof value==='string';}).slice(0,10):[]);
       }
       else answer.textContent=s.modelOutput;
-      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,timing:observed,promptProfile:safeProfile(result.promptProfile),loadMs:finiteMs(result.loadMs),requestMs:finiteMs(result.requestMs),usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length + (context.knowledge && context.knowledge.items || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),excludedCandidateCount:excludedCandidates(result.normalization).length,sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,rating:null});
-      renderMetrics(s); message(s,result.finishReason === 'length' ? t('resultTruncated') : t('finished'),result.finishReason === 'length');
+      s.measurements.push({task:task,model:String(result.model || runtimeStatus().model || ''),elapsedMs:Number.isFinite(result.elapsedMs) ? result.elapsedMs : null,timing:observed,promptProfile:safeProfile(result.promptProfile),loadMs:finiteMs(result.loadMs),requestMs:finiteMs(result.requestMs),usage:safeUsage(result.usage),finishReason:typeof result.finishReason === 'string' ? result.finishReason : null,sourceCount:task === 'help' ? (s.knowledge.items || []).length : task === 'draft' ? 0 : (s.context.sources || []).length + (context.knowledge && context.knowledge.items || []).length,sourceRuleAssisted:!!(result.normalization&&result.normalization.sourceRuleAssisted),excludedCandidateCount:excludedCandidates(result.normalization).length,sourceAdjustmentCount:result.normalization&&Array.isArray(result.normalization.adjustments)?Math.min(80,result.normalization.adjustments.filter(function(item){return item&&['set','clear'].includes(item.action);}).length):0,draftStatus:task==='draft'?draftReadiness(s.drafts,s.categories,s.normalization):null,rating:null});
+      renderMetrics(s);
+      if(result.finishReason==='length')message(s,t('resultTruncated'),true);
+      else if(task==='draft')updateDraftStatus(s,true);
+      else message(s,t('finished'));
     } catch (error) {
       if (active(s,job)) {
         clearStream(s);
-        s.generationMs=completionMs(error&&error.details);
+        s.generationMs=completionMs(error&&error.details);s.firstTokenMs=safeTiming(error&&error.details).firstTokenMs;s.decodeMs=safeTiming(error&&error.details).decodeMs;
         message(s,errorMessage(error),true); s.output.replaceChildren();
         var details=error && error.details;
         if (details && typeof details.rawOutput==='string') s.rawModelOutput=details.rawOutput.slice(0,12000);
@@ -293,28 +302,50 @@
     } finally { if (active(s,job)) setBusy(s,false); }
   }
   function preserveRaw(s) {
-    var details=el('details','ait-raw'); add(details,el('summary','',t('raw')),el('pre','',s.rawInput));
-    var rawModel=s.rawModelOutput||s.modelOutput;
-    if (rawModel) add(details,el('h3','',t('modelRaw')),el('p','ait-muted',testText('rawOutputNotice',t('unverified'))),el('pre','',rawModel)); add(s.output,details,sourceLink('#/entry',t('manual')));
+    var details=el('details','ait-raw'); details.dataset.aiOriginalInput='';add(details,el('summary','',t('raw')),el('pre','',s.rawInput));add(s.output,details);
+    var rawModel=s.rawModelOutput,model=el('details','ait-raw');model.dataset.aiModelOutput='';add(model,el('summary','',testText('rawOutputTitle',t('modelRaw'))));
+    if(rawModel)add(model,el('p','ait-muted',testText('rawOutputNotice',t('unverified'))),el('pre','',rawModel));
+    else add(model,el('p','ait-muted',testText('modelOutputUnavailable',/^zh/.test(lang())?'執行環境未提供模型原始輸出，無法確認模型自行產生的內容。':'The runtime did not provide the original model output. The model’s unassisted result cannot be verified.')));add(s.output,model);
+    add(s.output,sourceLink('#/entry',t('manual')));
   }
   function syncRows(s) {
     if (!s.review) return;
     s.review.querySelectorAll('[data-ai-row]').forEach(function(node) { var row=s.drafts[Number(node.dataset.aiRow)]; if (!row) return; node.querySelectorAll('[data-ai-field]').forEach(function (input) { row[input.dataset.aiField]=input.type === 'checkbox' ? input.checked : input.value; }); });
   }
+  function rowMissing(row,categories) {
+    return {date:!validDate(row.date),amount:!validMoney(row.amount),kind:!/^(expense|income)$/.test(row.kind),category:!categories.some(function(c){return String(c.id)===String(row.cat)&&c.kind===row.kind;}),currency:row.currency!=='TWD'&&row.fxConfirmed!==true};
+  }
+  function draftReadiness(rows,categories,normalization) {
+    var missingRows=rows.filter(function(row){var missing=rowMissing(row,categories);return Object.keys(missing).some(function(key){return missing[key];});}).length;
+    var coverage=normalization&&normalization.coverage&&normalization.coverage.status;
+    return {requiredFieldsComplete:rows.length>0&&missingRows===0,missingRequiredRows:missingRows,coverageStatus:coverage==='complete'||coverage==='partial'?coverage:'unknown',usableDraft:false,reviewRequired:true};
+  }
+  function updateDraftStatus(s, force) {
+    if(!active(s)||!s.review||(!force&&(!s.draftStatusActive||s.busy)))return;
+    var readiness=draftReadiness(s.drafts,s.categories,s.normalization),key=!readiness.requiredFieldsComplete?'draftNeedsCompletion':readiness.coverageStatus==='partial'?'draftCoveragePartial':readiness.coverageStatus==='unknown'?'draftCoverageUnknown':'draftReviewRequired';
+    message(s,reviewText(key),!readiness.requiredFieldsComplete||readiness.coverageStatus==='partial');s.draftStatusActive=true;
+  }
   function refreshDraftMissing(s) {
     if(!s.review)return;syncRows(s);
     s.review.querySelectorAll('[data-ai-row]').forEach(function(card){
       var row=s.drafts[Number(card.dataset.aiRow)];if(!row)return;
-      var missing={date:!validDate(row.date),amount:!validMoney(row.amount),kind:!/^(expense|income)$/.test(row.kind),category:!s.categories.some(function(c){return String(c.id)===String(row.cat)&&c.kind===row.kind;})};
-      Object.keys(missing).forEach(function(key){var control=card.querySelector('[data-ai-field="'+(key==='category'?'cat':key)+'"]');if(control){if(missing[key])control.setAttribute('aria-invalid','true');else control.removeAttribute('aria-invalid');}});
+      var missing=rowMissing(row,s.categories);
+      Object.keys(missing).forEach(function(key){var control=card.querySelector('[data-ai-field="'+(key==='category'?'cat':key==='currency'?'fxConfirmed':key)+'"]');if(control){if(missing[key])control.setAttribute('aria-invalid','true');else control.removeAttribute('aria-invalid');}});
       var notice=card.querySelector('[data-ai-missing-fields]'),fields=Object.keys(missing).filter(function(key){return missing[key];}).map(function(key){return t(key);});
-      notice.hidden=!fields.length;notice.textContent=fields.length?formatTest('missingFields','Fields to complete: {fields}',{fields:fields.join('、')}):'';
+      card.dataset.draftReady=String(!fields.length);notice.hidden=!fields.length;notice.classList.toggle('is-error',!!fields.length);notice.textContent=fields.length?formatTest('missingFields','Fields to complete: {fields}',{fields:fields.join('、')})+' '+reviewText('cannotConfirm'):'';
     });
+    var readiness=draftReadiness(s.drafts,s.categories,s.normalization),summary=s.review.querySelector('[data-ai-draft-status]');
+    if(summary){summary.dataset.requiredFieldsComplete=String(readiness.requiredFieldsComplete);summary.classList.toggle('is-error',!readiness.requiredFieldsComplete);summary.textContent=reviewText(readiness.requiredFieldsComplete?'draftFieldsComplete':'draftNeedsCompletion');}
+    var saveButton=s.review.querySelector('[data-ai-action="save"]');if(saveButton)saveButton.disabled=s.busy||!readiness.requiredFieldsComplete;
   }
   function rowInput(s,row,index,key,type) { var node=el('input'); node.type=type || 'text'; node.value=row[key] || ''; node.dataset.aiField=key; node.autocomplete='off'; if (key==='amount') { node.inputMode='decimal'; node.maxLength=16; } if (key==='merchant') node.maxLength=200; if (key==='note') node.maxLength=1000; return field(t(key),node); }
   function renderDrafts(s,warnings) {
     s.output.replaceChildren(); var review=el('section','ait-review'); s.review=review;
-    add(review,el('h2','',t('review')),el('p','ait-note',formatTest('draftCount','{count} drafts to review',{count:s.drafts.length})),el('p','ait-muted',t('reviewHelp')));
+    add(review,el('h2','',s.normalization?reviewText('assistedDraftTitle'):t('review')),el('p','ait-note',formatTest('draftCount','{count} drafts to review',{count:s.drafts.length})),el('p','ait-muted',t('reviewHelp')));
+    var readiness=el('p','ait-note');readiness.dataset.aiDraftStatus='';add(review,readiness);
+    var coverage=draftReadiness(s.drafts,s.categories,s.normalization).coverageStatus;if(coverage!=='complete'){var coverageNotice=el('p','ait-note',reviewText(coverage==='partial'?'draftCoveragePartial':'draftCoverageUnknown'));coverageNotice.dataset.aiCoverageStatus=coverage;add(review,coverageNotice);}
+    add(review,el('p','ait-muted',reviewText('modelOutputSeparate')));
+    var recovered=s.normalization&&s.normalization.sourceRecovery&&Array.isArray(s.normalization.sourceRecovery.recoveredRows)?s.normalization.sourceRecovery.recoveredRows.length:0;if(recovered)add(review,el('p','ait-note',formatTest('sourceRecoveryNotice','Source rules recovered {count} drafts; these were not separate rows in the original model output.',{count:recovered})));
     renderExcluded(s,review);
     if(s.drafts.some(function(row){return row.ruleAdjusted;}))add(review,el('p','ait-note',reviewText('sourceAssistNotice')));
     if (warnings && warnings.length) { var warning=el('div','ait-note'); add(warning,el('strong','',t('draftWarnings'))); warnings.forEach(function (v) { add(warning,el('p','',v)); }); add(review,warning); }
@@ -344,7 +375,7 @@
     if (!validateRows(s.drafts,s.categories,s.groupId,s.groups)) return message(s,t('validation'),true);
     if (!s.review.querySelector('[data-ai-approve]').checked) return message(s,t('consentRequired'),true);
     var attach=s.review.querySelector('[data-ai-attach]'), upload=!!(attach && attach.checked), file=s.file;
-    var rows=s.drafts.map(function(row,index) { var orig=s.originalDrafts[index] || row; return {date:row.date,amount:Number(row.amount),kind:row.kind,cat:row.cat,merchant:row.merchant,note:row.note,span:s.rawInput,groupId:s.groupId,orig:{by:row.ruleAdjusted?'hybrid':'model',date:orig.date || null,amount:validMoney(orig.amount) ? Number(orig.amount) : null,kind:orig.kind || null,cat:orig.cat || null,merchant:orig.merchant,note:orig.note}}; });
+    var rows=s.drafts.map(function(row,index) { var orig=s.originalDrafts[index] || {}; return {date:row.date,amount:Number(row.amount),kind:row.kind,cat:row.cat,merchant:row.merchant,note:row.note,span:s.rawInput,groupId:s.groupId,orig:{by:row.ruleAdjusted?'hybrid':'model',date:orig.date || null,amount:validMoney(orig.amount) ? Number(orig.amount) : null,kind:orig.kind || null,cat:orig.cat || null,merchant:orig.merchant,note:orig.note}}; });
     var job=begin(s,'saving'); message(s,t('saving'));
     try {
       var identity=await global.API.me(); if (!active(s,job)) return;
@@ -379,12 +410,12 @@
     return clean;
   }
   function completionMs(result) { if(!result)return null;var request=finiteMs(result.requestMs),total=safeTiming(result).totalMs;return request!==null?request:total!==null?total:finiteMs(result.elapsedMs); }
-  function evaluation(s) { return {schemaVersion:3,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,timing:safeTiming(item),promptProfile:safeProfile(item.promptProfile),loadMs:finiteMs(item.loadMs),requestMs:finiteMs(item.requestMs),usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,sourceRuleAssisted:item.sourceRuleAssisted===true,excludedCandidateCount:Number.isInteger(item.excludedCandidateCount)&&item.excludedCandidateCount>=0?Math.min(10,item.excludedCandidateCount):0,sourceAdjustmentCount:Number.isInteger(item.sourceAdjustmentCount)&&item.sourceAdjustmentCount>=0?Math.min(80,item.sourceAdjustmentCount):0,rating:item.rating}; }),failedRuns:(s.failedMeasurements||[]).map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,timing:safeTiming(item),promptProfile:safeProfile(item.promptProfile),loadMs:finiteMs(item.loadMs),requestMs:finiteMs(item.requestMs),usage:safeUsage(item.usage),finishReason:item.finishReason,attempts:item.attempts,errorCode:/^AI_[A-Z_]+$/.test(item.errorCode||'')?item.errorCode:'AI_INFERENCE_FAILED'}; }),note:'Observed session measurements only; failed runs are separate from successful runs. No quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
+  function evaluation(s) { return {schemaVersion:3,type:'local-ai-trial-measurements',containsPrivateContent:false,modelRuns:s.measurements.map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,timing:safeTiming(item),promptProfile:safeProfile(item.promptProfile),loadMs:finiteMs(item.loadMs),requestMs:finiteMs(item.requestMs),usage:safeUsage(item.usage),finishReason:item.finishReason,sourceCount:item.sourceCount,sourceRuleAssisted:item.sourceRuleAssisted===true,excludedCandidateCount:Number.isInteger(item.excludedCandidateCount)&&item.excludedCandidateCount>=0?Math.min(10,item.excludedCandidateCount):0,sourceAdjustmentCount:Number.isInteger(item.sourceAdjustmentCount)&&item.sourceAdjustmentCount>=0?Math.min(80,item.sourceAdjustmentCount):0,draftStatus:item.draftStatus?{requiredFieldsComplete:item.draftStatus.requiredFieldsComplete===true,missingRequiredRows:Number.isInteger(item.draftStatus.missingRequiredRows)?Math.min(10,Math.max(0,item.draftStatus.missingRequiredRows)):null,coverageStatus:['complete','partial'].includes(item.draftStatus.coverageStatus)?item.draftStatus.coverageStatus:'unknown',usableDraft:false,reviewRequired:true}:null,rating:item.rating}; }),failedRuns:(s.failedMeasurements||[]).map(function(item) { return {task:item.task,model:item.model,elapsedMs:item.elapsedMs,timing:safeTiming(item),promptProfile:safeProfile(item.promptProfile),loadMs:finiteMs(item.loadMs),requestMs:finiteMs(item.requestMs),usage:safeUsage(item.usage),finishReason:item.finishReason,attempts:item.attempts,errorCode:/^AI_[A-Z_]+$/.test(item.errorCode||'')?item.errorCode:'AI_INFERENCE_FAILED'}; }),note:'Observed session measurements only; completed generations and failed runs are recorded separately. A completed generation is not a verified usable draft. No quality score is inferred. Contract fixture tests are not inference quality evaluations.'}; }
   function renderMetrics(s) {
     s.metrics.replaceChildren(el('h2','',t('metrics')),el('p','ait-muted',t('metricsHelp')));
     var last=s.measurements[s.measurements.length-1], list=el('dl','ait-metrics-grid');
     var duration=completionMs(last);
-    [[t('model'),last && last.model || t('noMeasurement')],[t('finished'),duration!==null ? (duration/1000).toFixed(2)+' s' : t('noMeasurement')],[t('tokens'),last && Object.keys(last.usage).length ? Object.keys(last.usage).map(function(k) { return k+': '+last.usage[k]; }).join(' · ') : t('noTokenCount')],[t('retrieved'),last ? String(last.sourceCount) : t('noMeasurement')],[t('calls'),String(s.measurements.length)]].forEach(function(item) { var cell=el('div'); add(cell,el('dt','',item[0]),el('dd','',item[1])); add(list,cell); }); add(s.metrics,list);
+    [[t('model'),last && last.model || t('noMeasurement')],[testText('generationTimeLabel',/^zh/.test(lang())?'生成流程耗時':'Generation workflow time'),duration!==null ? (duration/1000).toFixed(2)+' s' : t('noMeasurement')],[t('tokens'),last && Object.keys(last.usage).length ? Object.keys(last.usage).map(function(k) { return k+': '+last.usage[k]; }).join(' · ') : t('noTokenCount')],[t('retrieved'),last ? String(last.sourceCount) : t('noMeasurement')],[t('calls'),String(s.measurements.length)]].forEach(function(item) { var cell=el('div'); add(cell,el('dt','',item[0]),el('dd','',item[1])); add(list,cell); }); add(s.metrics,list);
     if(last&&last.timing&&Number.isFinite(last.timing.firstTokenMs))add(s.metrics,el('p','ait-muted',formatTest('firstTokenElapsed','Model starts output: {seconds} s',{seconds:seconds(last.timing.firstTokenMs)})));
     var rating=select([['',t('unrated')],['supported',t('supported')],['unsupported',t('unsupportedRating')]]); rating.dataset.aiRating=''; rating.value=last && last.rating || ''; rating.disabled=!last; add(s.metrics,field(t('quality'),rating),el('p','ait-muted',t('feedback')),button(t('downloadEvaluation'),'download-evaluation'),el('p','ait-muted',t('evaluationPrivacy')));
   }
@@ -411,7 +442,7 @@
     if (s.imageURL) URL.revokeObjectURL(s.imageURL); s.file=file; s.imageURL=URL.createObjectURL(file); s.preview.src=s.imageURL; s.preview.hidden=false; s.imageName.textContent=file.name || t('imageSelected'); s.removeImage.hidden=false; refreshControls(s);
   }
   function removeImage(s) { if (s.imageURL) URL.revokeObjectURL(s.imageURL); s.imageURL=null; s.file=null; s.preview.removeAttribute('src'); s.preview.hidden=true; s.imageName.textContent=''; s.removeImage.hidden=true; refreshControls(s); }
-  function clearContent(s,announce) { abortJob(s,false);if(s.operations)s.operations.clear(); s.context=null; s.knowledge=null; s.rawInput=''; s.modelOutput=''; s.rawModelOutput=''; s.normalization=null; s.drafts=[]; s.originalDrafts=[]; s.groupId=''; s.photoRetry=null;s.checkingMs=null;s.loadMs=null;s.generationMs=null;s.firstTokenMs=null;renderTiming(s); s.input.value=''; s.output.replaceChildren(); s.review=null; removeImage(s); renderFacts(s); if (global.LocalAI && global.LocalAI.clearSession) global.LocalAI.clearSession(); refreshControls(s); if (announce) message(s,t('cleared')); }
+  function clearContent(s,announce) { abortJob(s,false);if(s.operations)s.operations.clear(); s.context=null; s.knowledge=null; s.rawInput=''; s.modelOutput=''; s.rawModelOutput=''; s.normalization=null; s.drafts=[]; s.originalDrafts=[]; s.groupId=''; s.photoRetry=null;s.checkingMs=null;s.loadMs=null;s.generationMs=null;s.firstTokenMs=null;s.decodeMs=null;renderTiming(s); s.input.value=''; s.output.replaceChildren(); s.review=null; removeImage(s); renderFacts(s); if (global.LocalAI && global.LocalAI.clearSession) global.LocalAI.clearSession(); refreshControls(s); if (announce) message(s,t('cleared')); }
   function changeMode(s,mode) {
     if (!s.availableModes.includes(mode) || s.busyKind==='saving') return;
     abortJob(s,false); s.mode=mode; s.drafts=[]; s.review=null; s.output.replaceChildren();
@@ -451,8 +482,8 @@
     s.click=function(event) { var target=event.target.closest && event.target.closest('[data-ai-action],[data-ai-mode]'); if (!target || !wrap.contains(target)) return; if (target.dataset.aiMode) return changeMode(s,target.dataset.aiMode); var action=target.dataset.aiAction;
       if(action==='load')startModel(s); else if(action==='cancel')abortJob(s,true); else if(action==='unload'){clearContent(s,false); if(global.LocalAI&&global.LocalAI.unload)global.LocalAI.unload(); refreshControls(s); message(s,t('unloaded'));} else if(action==='clear')clearContent(s,true); else if(action==='run')run(s); else if(action==='facts')viewFacts(s,0); else if(action==='more')viewFacts(s,(s.context.transactions.offset || 0)+(s.context.transactions.returnedCount || 12)); else if(action==='ocr')recognize(s); else if(action==='remove-image')removeImage(s); else if(action==='save')save(s); else if(action==='remove-row'){syncRows(s);s.groupId=s.review.querySelector('[data-ai-group]').value;s.drafts.splice(Number(target.dataset.aiIndex),1);s.originalDrafts.splice(Number(target.dataset.aiIndex),1);renderDrafts(s,[]);} else if(action==='retry-photo'){var job=begin(s,'saving');uploadPhoto(s,job).finally(function(){if(active(s,job))setBusy(s,false);});} else if(action==='download-evaluation')downloadEvaluation(s);
     };
-    s.change=function(event) { var node=event.target; if(node.hasAttribute('data-ai-file')){var file=node.files&&node.files[0];node.value='';if(file)setImage(s,file);} if(node.hasAttribute('data-ai-rating')&&s.measurements.length)s.measurements[s.measurements.length-1].rating=node.value||null; if(node===s.scope||node===s.period){s.context=null;s.output.replaceChildren();renderFacts(s);} if(node.closest('[data-ai-row]')||node.hasAttribute('data-ai-group')){var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;refreshDraftMissing(s);} };
-    wrap.addEventListener('click',s.click); wrap.addEventListener('change',s.change); s.inputChange=function(event){if(event.target.hasAttribute('data-ai-approve'))return;var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;if(event.target.closest('[data-ai-row]'))refreshDraftMissing(s);};wrap.addEventListener('input',s.inputChange);
+    s.change=function(event) { var node=event.target; if(node.hasAttribute('data-ai-file')){var file=node.files&&node.files[0];node.value='';if(file)setImage(s,file);} if(node.hasAttribute('data-ai-rating')&&s.measurements.length)s.measurements[s.measurements.length-1].rating=node.value||null; if(node===s.scope||node===s.period){s.context=null;s.output.replaceChildren();renderFacts(s);} if(node.closest('[data-ai-row]')||node.hasAttribute('data-ai-group')){var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;refreshDraftMissing(s);if(node.closest('[data-ai-row]'))updateDraftStatus(s);} };
+    wrap.addEventListener('click',s.click); wrap.addEventListener('change',s.change); s.inputChange=function(event){if(event.target.hasAttribute('data-ai-approve'))return;var approve=s.review&&s.review.querySelector('[data-ai-approve]');if(approve)approve.checked=false;if(event.target.closest('[data-ai-row]')){refreshDraftMissing(s);updateDraftStatus(s);}};wrap.addEventListener('input',s.inputChange);
     renderMetrics(s); changeMode(s,modes[0]); if(s.accountId&&global.API&&global.API.categories&&global.API.groups)loadLookups(s); else message(s,t('login'),true);
     return s;
   }
@@ -464,5 +495,5 @@
     if(global.LocalAI&&global.LocalAI.clearSession)global.LocalAI.clearSession();
   }
   function setAccount(user) { var old=accountStamp(account), next=accountStamp(user); if(old!==next)cleanup(); account=user||null; }
-  global.AIAssistant={render:function(container,options){return render(container,options);},renderReceipt:function(container,options){return render(container,options,['draft']);},cleanup:cleanup,setAccount:setAccount,messages:words,testing:Object.freeze({renderLegacyTrial:function(container,options){return render(container,options,['draft','ledger','coach','report','help']);},checkDraft:checkDraft,validateRows:validateRows,contextForModel:contextForModel,safeRoute:safeRoute,scrub:scrub,evaluation:evaluation,completionMs:completionMs,validMoney:validMoney,validDate:validDate,rowChecks:rowChecks,originalRowIndex:originalRowIndex,ocr:OCR})};
+  global.AIAssistant={render:function(container,options){return render(container,options);},renderReceipt:function(container,options){return render(container,options,['draft']);},cleanup:cleanup,setAccount:setAccount,messages:words,testing:Object.freeze({renderLegacyTrial:function(container,options){return render(container,options,['draft','ledger','coach','report','help']);},checkDraft:checkDraft,validateRows:validateRows,contextForModel:contextForModel,safeRoute:safeRoute,scrub:scrub,evaluation:evaluation,completionMs:completionMs,validMoney:validMoney,validDate:validDate,rowChecks:rowChecks,originalRowIndex:originalRowIndex,draftReadiness:draftReadiness,ocr:OCR})};
 })(typeof window!=='undefined'?window:globalThis);

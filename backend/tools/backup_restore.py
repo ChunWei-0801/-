@@ -241,6 +241,15 @@ def _pg_url(url: str) -> str:
     parsed = urlsplit(url)
     if parsed.scheme not in ("postgres", "postgresql") or not parsed.hostname or not parsed.path.strip("/"):
         raise BackupError("Use a complete PostgreSQL URL from an environment variable")
+    parameters = parse_qsl(parsed.query, keep_blank_values=True)
+    loopback = [value for name, value in parameters if name == "hostaddr"]
+    if loopback:
+        # A platform-approved TCP forward may listen only on loopback. Keep
+        # the actual source hostname for TLS verification and source identity;
+        # this option neither opens a tunnel nor grants destination access.
+        ssl_modes = [value for name, value in parameters if name == "sslmode"]
+        if len(loopback) != 1 or loopback[0] not in ("127.0.0.1", "::1") or ssl_modes != ["verify-full"]:
+            raise BackupError("A loopback forward requires one loopback hostaddr and sslmode=verify-full")
     return url
 
 
@@ -261,7 +270,8 @@ def _pg_env(url: str) -> dict:
         env["PGPASSWORD"] = unquote(parsed.password)
     options = {"sslmode": "PGSSLMODE", "sslrootcert": "PGSSLROOTCERT", "sslcert": "PGSSLCERT",
                "sslkey": "PGSSLKEY", "connect_timeout": "PGCONNECT_TIMEOUT", "options": "PGOPTIONS",
-               "application_name": "PGAPPNAME", "channel_binding": "PGCHANNELBINDING"}
+               "application_name": "PGAPPNAME", "channel_binding": "PGCHANNELBINDING",
+               "hostaddr": "PGHOSTADDR"}
     for name, value in parse_qsl(parsed.query):
         if name not in options:
             raise BackupError("Unsupported PostgreSQL URL option")

@@ -43,6 +43,17 @@ test('contract fixture: invalid model output never becomes an invented draft', (
   assert.equal(tools.validateRows(items,categories,'5',groups),false);
 });
 
+test('contract fixture: completed generation never implies a complete or verified draft', () => {
+  const complete=tools.checkDraft(draft(),categories).items;
+  const status=tools.draftReadiness(complete,categories,{coverage:{status:'complete'}});
+  assert.equal(status.requiredFieldsComplete,true);assert.equal(status.usableDraft,false);assert.equal(status.reviewRequired,true);
+  const incomplete=tools.checkDraft(draft({date:null,amount:null}),categories).items;
+  const missing=tools.draftReadiness(incomplete,categories,{coverage:{status:'partial'}});
+  assert.equal(missing.requiredFieldsComplete,false);assert.equal(missing.missingRequiredRows,1);assert.equal(missing.coverageStatus,'partial');
+  assert.equal(tools.draftReadiness(complete,categories,null).coverageStatus,'unknown','a lack of coverage checks is never labelled complete');
+  assert.equal(tools.originalRowIndex({sourceRecovery:{recoveredRows:[{draftIndex:1}]}},1),null,'a source-recovered draft has no original model row');
+});
+
 test('contract fixture: calendar and money validation prevents permissive Number coercion', () => {
   for (const value of ['2026-02-29','2026-13-01','2026-10-32','2026-1-1',''])assert.equal(tools.validDate(value),false,value);
   assert.equal(tools.validDate('2024-02-29'),true);
@@ -93,6 +104,9 @@ test('contract fixture: review notes accept only fixed reasons and stay attached
   const notes=JSON.parse(JSON.stringify(tools.rowChecks(normalization,1)));
   assert.deepEqual(notes,[{field:'kind',reason:'SOURCE_KIND_CUE',action:'set'},{field:'merchant',reason:'OPTIONAL_MERCHANT_UNSUPPORTED',action:'clear'}]);
   assert.equal(JSON.stringify(notes).includes('PRIVATE'),false,'private before/after values are not copied into review metadata');
+  const recovered={adjustments:[{rowIndex:null,draftIndex:0,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set'}]};
+  assert.deepEqual(JSON.parse(JSON.stringify(tools.rowChecks(recovered,null))),[],'source-restored rows cannot borrow another model row’s review reminders');
+  assert.deepEqual(JSON.parse(JSON.stringify(tools.rowChecks({adjustments:[{rowIndex:0,field:'date',reason:'SOURCE_DATE_CUE',action:'set'},{rowIndex:0,field:'currency',reason:'SOURCE_CURRENCY_CUE',action:'set'}]},0))),[{field:'date',reason:'SOURCE_DATE_CUE',action:'set'},{field:'currency',reason:'SOURCE_CURRENCY_CUE',action:'set'}]);
 });
 
 test('contract fixture: final-field reminders replace intermediate clears while pure review stays unmodified',()=>{
@@ -128,6 +142,20 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
         if(__fixture.draftFailure){const error=new Error('The model did not produce usable draft items.');error.code='AI_NO_DRAFT';error.details={rawOutput:'{"items":[],"warnings":["<img src=x onerror=alert(1)>"]}',elapsedMs:42,model:'CONTRACT FIXTURE — NOT INFERENCE',finishReason:'stop',usage:{completion_tokens:6},attempts:2};throw error;}
         const result={text:options.task==='draft'?JSON.stringify({items:[{date:'2026-10-19',amount:65,currency:__fixture.foreign?'USD':'TWD',kind:'expense',category:'1',merchant:'<img src=x onerror=alert(1)>',note:'fixture note',missingFields:[]}],warnings:[]}):'Explanation <img src=x onerror=alert(1)> [summary:2026-10]',model:'CONTRACT FIXTURE — NOT INFERENCE',elapsedMs:20,requestMs:1234,timing:{totalMs:20,firstTokenMs:5,decodeMs:10,cleanupMs:5},usage:{promptTokens:10,completionTokens:12},finishReason:'stop'};
         if(options.task==='draft')result.rawModelOutput='{"items":[{"sourceText":"MODEL SOURCE FIXTURE","amountText":"65","classification":"支出｜Food"}],"warnings":[]}';
+        if(__fixture.withoutRaw && options.task==='draft'){delete result.rawModelOutput;const canonical=JSON.parse(result.text);canonical.warnings=['SOURCE WARNING WITHOUT MODEL PROVENANCE'];result.text=JSON.stringify(canonical);}
+        if(__fixture.incomplete && options.task==='draft'){
+          const item={date:null,amount:null,currency:'TWD',kind:'expense',category:'1',merchant:'今天早餐65元，午餐120元。',note:'',missingFields:['amount','date']};
+          result.text=JSON.stringify({items:[item],warnings:[]});result.modelDraft={items:[item],warnings:[]};
+          result.rawModelOutput=JSON.stringify({items:[{sourceText:'今天早餐65元，午餐120元。',amountText:'65元',dateText:'',merchantText:'今天早餐65元，午餐120元。',classification:'支出｜Food'}],warnings:[]});
+          result.normalization={sourceRuleAssisted:true,coverage:{status:'partial',sourceCandidateCount:2,modelRowCount:1,draftRowCount:1,missingAmountRows:[0],missingRequiredRows:[0],uncoveredSourceCount:1},adjustments:[]};
+          result.requestMs=52300;result.timing={totalMs:52300,firstTokenMs:43903,decodeMs:8394};
+        }
+        if(__fixture.recovered && options.task==='draft'){
+          const first={date:'2026-10-19',amount:65,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'breakfast'};
+          result.text=JSON.stringify({items:[first,{...first,amount:120,note:'lunch'}],warnings:[]});
+          result.modelDraft={items:[{...first,date:null,amount:null}],warnings:[]};
+          result.normalization={sourceRuleAssisted:true,coverage:{status:'complete',sourceCandidateCount:2,modelRowCount:1,draftRowCount:2,missingAmountRows:[],missingRequiredRows:[],uncoveredSourceCount:0},sourceRecovery:{recoveredRows:[{draftIndex:1,reason:'SOURCE_TRANSACTION_RECOVERED'}]},rowMappings:[{draftIndex:0,modelRowIndex:0}],adjustments:[]};
+        }
         if(__fixture.hybrid && options.task==='draft'){
           const items=[{date:'2026-10-19',amount:65,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'fixture breakfast',missingFields:[]},{date:'2026-10-19',amount:120,currency:'TWD',kind:'expense',category:'1',merchant:null,note:'fixture lunch',missingFields:[]}];
           result.text=JSON.stringify({items,warnings:['INTERNAL SOURCE RULE WARNING SHOULD NOT APPEAR']});
@@ -176,26 +204,44 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.equal(await page.locator('[data-ai-technical]').evaluate(node=>node.open),false,'failed technical JSON is folded below the readable error');
     assert.equal(await page.locator('.ait-output img').count(),0,'raw failed model output is inert text');
     assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'failure never writes accounting');
-    await page.evaluate(()=>{__fixture.draftFailure=false;});
+    await page.evaluate(()=>{__fixture.draftFailure=false;__fixture.incomplete=true;});
+    await page.locator('textarea').fill('今天早餐65元，午餐120元。');await page.locator('[data-ai-action="run"]').click();await page.waitForSelector('[data-ai-row]');
+    assert.equal(await page.locator('[data-ai-draft-status]').getAttribute('data-required-fields-complete'),'false');
+    assert.match(await page.locator('.ait-status').textContent(),/required fields are missing/);
+    assert.equal(await page.locator('.ait-status').evaluate(node=>node.classList.contains('is-error')),true,'incomplete extraction is not a successful usable draft');
+    assert.match(await page.locator('[data-ai-coverage-status="partial"]').textContent(),/omit or merge/);
+    assert.match(await page.locator('[data-ai-missing-fields]').textContent(),/Date/);assert.match(await page.locator('[data-ai-missing-fields]').textContent(),/TWD amount/);
+    assert.match(await page.locator('[data-ai-missing-fields]').textContent(),/Cannot confirm/);
+    assert.equal(await page.locator('[data-ai-field="date"]').getAttribute('aria-invalid'),'true');assert.equal(await page.locator('[data-ai-field="amount"]').getAttribute('aria-invalid'),'true');
+    assert.equal(await page.locator('[data-ai-action="save"]').isDisabled(),true);assert.equal(await page.evaluate(()=>__fixture.writes.length),0);
+    assert.match(await page.locator('[data-ai-timing]').textContent(),/Generation workflow: 52.3 s/);assert.match(await page.locator('[data-ai-timing]').textContent(),/Model starts output: 43.9 s/);assert.match(await page.locator('[data-ai-timing]').textContent(),/Output generation: 8.4 s/);
+    assert.equal(await page.locator('[data-ai-original-input]').count(),1);assert.equal(await page.locator('[data-ai-model-output]').count(),1,'original model output has a separate labelled region');
+    await page.locator('[data-ai-field="date"]').fill('2026-10-19');await page.locator('[data-ai-field="amount"]').fill('65');
+    assert.match(await page.locator('.ait-status').textContent(),/omit or merge/,'completing fields does not conceal partial entry coverage');
+    assert.equal(await page.locator('.ait-status').evaluate(node=>node.classList.contains('is-error')),true);
+    await page.locator('[data-ai-field="amount"]').fill('');assert.match(await page.locator('.ait-status').textContent(),/required fields are missing/,'edits refresh the missing-field status');
+    await page.evaluate(()=>{__fixture.incomplete=false;});
+
     await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: breakfast USD 65');
     await page.locator('[data-ai-action="run"]').click();
     await page.waitForSelector('[data-ai-row]');
-    assert.match(await page.locator('.ait-raw').textContent(),/MODEL SOURCE FIXTURE/,'review preserves the actual model extraction, separately from canonical editable fields');
+    assert.match(await page.locator('[data-ai-model-output]').textContent(),/MODEL SOURCE FIXTURE/,'review preserves the actual model extraction, separately from canonical editable fields');
     assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'generation never writes');
     assert.equal(await page.locator('[data-ai-field="amount"]').inputValue(),'','foreign amount is never auto-converted');
     assert.equal(await page.locator('[data-ai-field="amount"]').getAttribute('aria-invalid'),'true','the required blank amount is clearly marked');
     assert.match(await page.locator('[data-ai-missing-fields]').textContent(),/TWD amount/);
     assert.match(await page.locator('.ait-review').textContent(),/1 drafts to review/);
     assert.match(await page.locator('[data-ai-timing]').textContent(),/Model starts output:/,'first-token timing describes any model output, not a usable draft');
-    assert.match(await page.locator('[data-ai-timing]').textContent(),/Completed: 1.2 s/,'the main completed summary prefers full request time');
+    assert.match(await page.locator('[data-ai-timing]').textContent(),/Generation workflow: 1.2 s/,'the main completed summary prefers full request time');
     assert.equal(await page.locator('.ait-metrics-grid div').nth(1).locator('dd').textContent(),'1.23 s','the metrics use the same full request duration');
     await page.locator('[data-ai-group]').selectOption('5');
     await page.locator('[data-ai-approve]').check();
-    await page.locator('[data-ai-action="save"]').click();
+    assert.equal(await page.locator('[data-ai-action="save"]').isDisabled(),true,'incomplete currency draft cannot be confirmed');
     assert.equal(await page.evaluate(()=>__fixture.writes.length),0,'invalid currency draft is blocked');
     await page.locator('[data-ai-field="amount"]').fill('2015.00');
     assert.equal(await page.locator('[data-ai-field="amount"]').getAttribute('aria-invalid'),null,'correcting a required field removes its stale missing marker');
     await page.locator('[data-ai-field="fxConfirmed"]').check();
+    assert.match(await page.locator('.ait-status').textContent(),/completeness has not been verified/,'complete fields with unknown coverage do not claim a complete draft');
     await page.locator('[data-ai-approve]').check();
     await page.locator('[data-ai-action="save"]').click();
     await page.waitForFunction(()=>__fixture.writes.length===1);
@@ -231,7 +277,26 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     await page.locator('[data-ai-group]').selectOption('5');await page.locator('[data-ai-approve]').check();await page.locator('[data-ai-action="save"]').click();
     await page.waitForFunction(()=>__fixture.writes.length===3);
     assert.equal(await page.evaluate(()=>__fixture.writes[2].orig.by),'model','review-only notes never relabel an unchanged model draft as hybrid');
-    await page.evaluate(()=>{__fixture.reviewOnly=false;});
+    await page.evaluate(()=>{__fixture.reviewOnly=false;__fixture.recovered=true;});
+    await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: recovered breakfast 65 and lunch 120');await page.locator('[data-ai-action="run"]').click();await page.waitForFunction(()=>document.querySelectorAll('[data-ai-row]').length===2);
+    assert.match(await page.locator('.ait-review').textContent(),/Source rules recovered 1 drafts/,'source recovery is disclosed separately from original model output');
+    assert.equal(await page.locator('[data-ai-draft-status]').getAttribute('data-required-fields-complete'),'true');
+    assert.match(await page.locator('.ait-status').textContent(),/Check every field/,'source recovery never turns completion into verified model success');
+    assert.equal(await page.locator('[data-ai-coverage-status]').count(),0,'reported complete coverage does not show an unknown-coverage claim');
+    assert.equal(await page.evaluate(()=>__fixture.writes.length),3,'source recovery never writes automatically');
+    await page.locator('[data-ai-group]').selectOption('5');await page.locator('[data-ai-action="save"]').click();
+    assert.equal(await page.locator('.ait-status').textContent(),'Check the review confirmation first.');
+    await page.locator('[data-ai-row="0"] [data-ai-field="note"]').fill('Reviewed breakfast');
+    assert.equal(await page.locator('.ait-status').textContent(),'Check the review confirmation first.','field edits do not override an unrelated confirmation error');
+
+    await page.evaluate(()=>{__fixture.recovered=false;__fixture.withoutRaw=true;});
+    await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: no raw output reported');await page.locator('[data-ai-action="run"]').click();await page.waitForFunction(()=>document.querySelectorAll('[data-ai-row]').length===1);
+    assert.match(await page.locator('[data-ai-model-output]').textContent(),/did not provide the original model output/);
+    assert.equal(await page.locator('[data-ai-model-output] pre').count(),0,'canonical or assisted JSON never impersonates missing original model output');
+    assert.equal((await page.locator('.ait-review').textContent()).includes('SOURCE WARNING WITHOUT MODEL PROVENANCE'),false,'normalized warnings without a model draft are never labelled model notices');
+    await page.evaluate(()=>{__fixture.withoutRaw=false;});
+
+
 
     await page.evaluate(()=>{__fixture.partial=true;});
     await page.locator('textarea').fill('CONTRACT FIXTURE ONLY: malformed candidate, food65, salary30000');

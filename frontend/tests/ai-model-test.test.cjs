@@ -9,7 +9,7 @@ const packs = Object.fromEntries(languages.map(language=>[language,JSON.parse(fs
 
 test('public-page failure messages are present in all six locales',()=>{
   for(const language of languages){
-    for(const key of ['invalidDraft','noOutput','incomplete','runtimeFailure','timeout','busy','failedMetrics','rawOutput','rawOutputNotice']){
+    for(const key of ['invalidDraft','noOutput','incomplete','runtimeFailure','timeout','busy','failedMetrics','rawOutput','rawOutputNotice','draftNeedsCompletion','draftReviewRequired','draftCoveragePartial','draftCoverageUnknown','cannotConfirm','draftStatusLabel','draftFieldsComplete','sourceRecoveryNotice','rawOutputTitle','decodeElapsed','modelOutputUnavailable','generationTimeLabel']){
       assert.ok(packs[language].messages['aiTest.'+key],language+' '+key);
     }
     assert.deepEqual(Object.keys(packs[language].messages).sort(),Object.keys(packs['zh-TW'].messages).sort());
@@ -55,7 +55,10 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
           return {...success,text:JSON.stringify({items,warnings:assisted?['INTERNAL RULE WARNING']:[]}),modelDraft:{items:assisted?original:items,warnings:[]},promptProfile:options.promptProfile,timing:{firstTokenMs:4,totalMs:12},normalization:assisted?{sourceRuleAssisted:true,adjustments:items.flatMap((item,rowIndex)=>[{rowIndex,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:original[rowIndex].kind,value:item.kind},{rowIndex,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set',previous:original[rowIndex].category,value:item.category}])}:null};
         }
         if(__modelFixture.mode==='defer')return new Promise(resolve=>{__modelFixture.resolve=()=>resolve(success);});
+        if(__modelFixture.mode==='mergedIncomplete')return {...success,text:JSON.stringify({items:[{amount:null,kind:'expense',currency:'TWD',date:null,category:'FOOD',merchant:'今天早餐65元，午餐120元。'}],warnings:[]}),rawModelOutput:'{"items":[{"sourceText":"今天早餐65元，午餐120元。","amountText":"65元","dateText":"","merchantText":"今天早餐65元，午餐120元。","classification":"支出｜其他"}],"warnings":[]}',modelDraft:{items:[{amount:null,kind:'expense',currency:'TWD',date:null,category:'OTHER'}],warnings:[]},requestMs:52300,timing:{totalMs:52297,firstTokenMs:43903,decodeMs:8394},normalization:{sourceRuleAssisted:true,coverage:{status:'partial',sourceCandidateCount:2,modelRowCount:1,draftRowCount:1,missingAmountRows:[0],missingRequiredRows:[0],uncoveredSourceCount:1},rowMappings:[{draftIndex:0,modelRowIndex:0}],adjustments:[{rowIndex:0,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set',previous:'OTHER',value:'FOOD'}]}};
+        if(__modelFixture.mode==='sourceRecovered')return {...success,text:JSON.stringify({items:[{amount:65,kind:'expense',currency:'TWD',date:options.context.today,category:'FOOD'},{amount:120,kind:'expense',currency:'TWD',date:options.context.today,category:'FOOD'}],warnings:[]}),modelDraft:{items:[{amount:65,kind:'expense',currency:'TWD',date:null,category:'OTHER'}],warnings:[]},normalization:{sourceRuleAssisted:true,coverage:{status:'complete'},rowMappings:[{draftIndex:0,modelRowIndex:0},{draftIndex:1,modelRowIndex:null}],adjustments:[{rowIndex:0,field:'date',reason:'SOURCE_DATE_CUE',action:'set',previous:null,value:options.context.today}],sourceRecovery:{recoveredRows:[{draftIndex:1}],mergedModelRows:[{modelRowIndex:0,sourceCandidateCount:2}],omittedSourceCount:0}}};
         if(__modelFixture.mode==='success')return success;
+        if(__modelFixture.mode==='noRaw')return {...success,rawModelOutput:undefined};
         const error=new Error('PRIVATE INPUT must not leak through raw error messages');
         if(__modelFixture.mode==='unknown'){error.code='AI_UNKNOWN_FAILURE';throw error;}
         error.code='AI_INVALID_DRAFT';
@@ -97,7 +100,7 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
       assert.equal(await page.locator('#modelStatus').textContent(),packs[language].messages['aiTest.invalidDraft']);
       assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs[language].messages['aiTest.rawOutput']);
       assert.equal(await page.locator('#modelRawOutput').textContent(),raw,'changing language never rewrites model content');
-      assert.equal(await page.locator('#modelMetricsSummary').textContent(),packs[language].messages['aiTest.failedMetrics']);
+      assert.ok((await page.locator('#modelMetricsSummary').textContent()).startsWith(packs[language].messages['aiTest.failedMetrics']));
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,language+' stays within 320px');
     }
     await page.evaluate(()=>{__modelFixture.mode='success';});
@@ -111,9 +114,37 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     assert.equal(normalizedEvidence.rawModelOutput,'CONTRACT RAW MODEL OUTPUT — NOT INFERENCE');
     assert.equal(normalizedEvidence.normalizedDraft.items[0].amount,65);
     assert.equal(normalizedEvidence.normalization.requiresHumanReview,true);
-    assert.equal(await page.locator('#modelDiagnostics').isVisible(),false,'successful retry hides prior failure');
-    assert.equal(await page.locator('#modelRawOutput').textContent(),'','successful retry clears rejected content');
+    assert.equal(await page.locator('#modelDiagnostics').isVisible(),true,'original model output stays separate from the mapped draft');
+    assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs.es.messages['aiTest.rawOutputTitle']);
+    assert.equal(await page.locator('#modelRawOutput').textContent(),'CONTRACT RAW MODEL OUTPUT — NOT INFERENCE','successful retry replaces the previous failure output with the actual original model output');
+    assert.equal(await page.locator('#modelDiagnostics').evaluate(node=>node.open),false,'original model output starts folded for a completed reply');
+    assert.equal(normalizedEvidence.draftAssessment.coverageStatus,'unknown','missing coverage evidence never implies a complete draft');
+    assert.equal(normalizedEvidence.draftAssessment.validatedForConfirmation,false);
     assert.equal((await page.locator('#modelMetrics').textContent()).includes('"status": "failed"'),false);
+    // Reproduce the merged breakfast/lunch response without treating generation as a usable draft.
+    await page.locator('[data-language-select]').selectOption('zh-TW');
+    await page.evaluate(()=>{__modelFixture.mode='mergedIncomplete';});await page.locator('#modelRun').click();
+    await page.waitForFunction(()=>document.querySelector('[data-draft-index="0"]').dataset.requiredFieldsComplete==='false');
+    assert.equal(await page.locator('#modelStatus').textContent(),packs['zh-TW'].messages['aiTest.draftNeedsCompletion']);
+    assert.equal(await page.locator('#modelStatus').evaluate(node=>node.classList.contains('error')),true);
+    const incomplete=JSON.parse(await page.locator('#modelMetrics').textContent());
+    assert.equal(incomplete.draftAssessment.generationCompleted,true);assert.equal(incomplete.draftAssessment.requiredFieldsComplete,false);assert.equal(incomplete.draftAssessment.usableDraft,false);assert.equal(incomplete.draftAssessment.coverageStatus,'partial');
+    assert.equal(await page.locator('[data-missing-field="amount"]').count(),1);assert.equal(await page.locator('[data-missing-field="date"]').count(),1);
+    assert.ok((await page.locator('[data-missing-fields]').textContent()).includes(packs['zh-TW'].messages['aiTest.cannotConfirm']));
+    assert.ok((await page.locator('[data-draft-assessment]').textContent()).includes(packs['zh-TW'].messages['aiTest.draftCoveragePartial']));
+    assert.equal(incomplete.modelDraft.items[0].category,'OTHER');assert.equal(incomplete.normalizedDraft.items[0].category,'FOOD','a rule-corrected category is not rewritten into the original model result');
+    const timing=await page.locator('#modelMetricsSummary').textContent();for(const value of ['52.30','43.90','8.39'])assert.ok(timing.includes(value),value+' is shown from measured workflow timings');
+    const mergedRaw=await page.locator('#modelRawOutput').textContent();assert.ok(mergedRaw.includes('"amountText":"65元"'));assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs['zh-TW'].messages['aiTest.rawOutputTitle']);
+    for(const language of languages){await page.locator('[data-language-select]').selectOption(language);await page.waitForFunction(language=>document.documentElement.lang===language,language);assert.equal(await page.locator('#modelStatus').textContent(),packs[language].messages['aiTest.draftNeedsCompletion']);assert.equal(await page.locator('#modelRawOutput').textContent(),mergedRaw);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,language+' incomplete draft stays within 320px');}
+    await page.evaluate(()=>{__modelFixture.mode='sourceRecovered';});await page.locator('#modelRun').click();
+    await page.waitForFunction(()=>document.querySelectorAll('[data-draft-index]').length===2);
+    const recovered=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(recovered.modelDraft.items.length,1);assert.equal(recovered.normalizedDraft.items.length,2);assert.equal(recovered.draftAssessment.sourceRecoveredRows,1);assert.equal(recovered.draftAssessment.requiredFieldsComplete,true);assert.equal(recovered.draftAssessment.usableDraft,null,'complete fields do not establish independently verified correctness');
+    assert.ok((await page.locator('[data-draft-assessment]').textContent()).includes(packs.es.messages['aiTest.sourceRecoveryNotice'].replace('{count}','1')));
+    assert.ok((await page.locator('[data-draft-index="0"] [data-review-checks]').textContent()).includes(packs.es.messages['aiTest.sourceChange'].replace('{field}',packs.es.messages['aiTrial.date'])),'restored dates are disclosed as source-rule assistance');
+    await page.evaluate(()=>{__modelFixture.mode='noRaw';});await page.locator('#modelRun').click();
+    await page.waitForFunction(()=>document.querySelectorAll('[data-draft-index]').length===1);
+    assert.equal(await page.locator('#modelRawOutput').textContent(),packs.es.messages['aiTest.modelOutputUnavailable'],'a normalized draft is never presented as missing original model output');
+    assert.equal(JSON.parse(await page.locator('#modelMetrics').textContent()).rawModelOutput,null);
     await page.evaluate(()=>{__modelFixture.mode='unknown';});
     await page.locator('#modelRun').click();
     await page.waitForFunction(()=>document.querySelector('#modelStatus').dataset.errorCode==='AI_UNKNOWN_FAILURE');

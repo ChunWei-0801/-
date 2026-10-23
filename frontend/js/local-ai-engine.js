@@ -27,6 +27,13 @@
       var result = {};
       ['totalMs','firstTokenMs','decodeMs','promptTokens','completionTokens'].forEach(function(key) { result[key] = pass && typeof pass[key] === 'number' && Number.isFinite(pass[key]) && pass[key] >= 0 ? pass[key] : null; });
       result.attempt = pass && Number.isInteger(pass.attempt) && pass.attempt > 0 && pass.attempt <= 2 ? pass.attempt : null;
+      if (pass && pass.runtime && typeof pass.runtime === 'object' && !Array.isArray(pass.runtime)) {
+        result.runtime = {};
+        ['e2eMs','firstTokenMs','grammarInitMs','grammarPerTokenMs','prefillTokensPerSecond','decodeTokensPerSecond','outputTokenMs'].forEach(function(key) {
+          var value = pass.runtime[key];
+          result.runtime[key] = typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+        });
+      }
       return result;
     }) : [];
     return clean;
@@ -46,7 +53,7 @@
     });
     if (Object.keys(usage).length) clean.usage = usage;
     var validation = value.validation;
-    var reasons = ['SOURCE_NOT_FOUND','AMOUNT_NOT_IN_SOURCE','AMOUNT_BOUNDARY','EVIDENCE_REUSED','DATE_QUOTE_NOT_FOUND','MERCHANT_QUOTE_NOT_FOUND','INVALID_SHAPE','CLASSIFICATION_NOT_ALLOWED','NO_TRANSACTIONS','NO_USABLE_FIELDS'];
+    var reasons = ['SOURCE_NOT_FOUND','AMOUNT_NOT_IN_SOURCE','AMOUNT_UNSUPPORTED','AMOUNT_BOUNDARY','EVIDENCE_REUSED','DATE_QUOTE_NOT_FOUND','MERCHANT_QUOTE_NOT_FOUND','INVALID_SHAPE','CLASSIFICATION_NOT_ALLOWED','NO_TRANSACTIONS','NO_USABLE_FIELDS'];
     var fields = ['items','warnings','sourceText','amountText','classification','dateText','currency','merchantText','amount','kind','category','date','merchant','note','missingFields'];
     if (validation && reasons.includes(validation.reason)) {
       clean.validation = {reason:validation.reason};

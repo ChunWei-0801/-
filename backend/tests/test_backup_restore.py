@@ -109,6 +109,30 @@ class PrivateBackupTests(unittest.TestCase):
         self.assertEqual(env["PGSSLMODE"], "require")
         self.assertEqual(backup._pg_identity(url), backup._pg_identity(url.replace("member:encoded%40secret", "other:other")))
 
+    def test_approved_loopback_forward_preserves_tls_hostname_and_source_identity(self):
+        original = "postgresql://member:fixture-secret@db.example.test/ledger?sslmode=verify-full"
+        for address in ("127.0.0.1", "::1"):
+            with self.subTest(address=address):
+                forwarded = original + "&hostaddr=" + address
+                env = backup._pg_env(forwarded)
+                self.assertEqual(env["PGHOST"], "db.example.test")
+                self.assertEqual(env["PGHOSTADDR"], address)
+                self.assertEqual(env["PGPORT"], "5432")
+                self.assertEqual(env["PGSSLMODE"], "verify-full")
+                self.assertEqual(backup._pg_identity(original), backup._pg_identity(forwarded))
+
+    def test_loopback_forward_rejects_remote_addresses_and_weakened_tls(self):
+        original = "postgresql://member:fixture-secret@db.example.test/ledger?"
+        for query in (
+            "hostaddr=192.0.2.1&sslmode=verify-full", "hostaddr=localhost&sslmode=verify-full",
+            "hostaddr=127.0.0.1", "hostaddr=127.0.0.1&sslmode=require",
+            "hostaddr=127.0.0.1&sslmode=disable", "hostaddr=127.0.0.1&sslmode=prefer",
+            "hostaddr=127.0.0.1&hostaddr=::1&sslmode=verify-full",
+            "hostaddr=127.0.0.1&sslmode=disable&sslmode=verify-full",
+        ):
+            with self.subTest(query=query), self.assertRaises(backup.BackupError):
+                backup._pg_env(original + query)
+
 
 if __name__ == "__main__":
     unittest.main()

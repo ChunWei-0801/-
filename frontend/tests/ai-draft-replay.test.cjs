@@ -23,6 +23,13 @@ const recordedSalaryFailure = {
     {sourceText:'今天收到餐飲',amountText:'0',classification:'支出（未選分類）',dateText:'今天',currency:'TWD',merchantText:null}
   ], warnings:['未選分類']
 };
+// Latest screenshot: two expenses merged into one candidate with a unit-bearing
+// quote, empty date and the whole transaction used as merchant. JSON values are
+// transcribed from the screenshot, not a fresh inference or a latency benchmark.
+const recordedMergedFailure = {
+  items:[{sourceText:'今天早餐65元，午餐120元。',amountText:'65元',classification:'支出（未選分類）',dateText:'',currency:'TWD',merchantText:'今天早餐65元，午餐120元。'}],
+  warnings:[]
+};
 // Derived adversarial replay, not observed model output: the rejected candidate
 // comes first, and the retained salary needs a rule adjustment. This checks that
 // baseline comparisons and notices use model row 1 rather than draft row 0.
@@ -75,6 +82,7 @@ test('recorded user-device failure crosses real worker/controller/browser and re
         prebuiltAppConfig:{model_list:[]}, deleteModelAllInfoInCache:async()=>{}
       };
     `;
+    let replayMergedCandidate = false;
     const permitted = new Set(['/ai-test.html','/js/i18n.js','/js/local-ai-engine.js','/js/local-ai-evaluation.js','/js/ai-model-test.js','/js/local-ai-worker.js','/css/tokens.css','/css/ai-assistant.css','/css/safety-center.css','/js/safety-center.js']);
     await context.route('**/*', route => {
       const request = route.request(), url = new URL(request.url());
@@ -85,7 +93,8 @@ test('recorded user-device failure crosses real worker/controller/browser and re
       }
       if (!permitted.has(url.pathname)) { unexpected.push(url.pathname); return route.abort(); }
       if (url.pathname === '/js/local-ai-worker.js') {
-        return route.fulfill({contentType:'text/javascript',body:replayRuntime+workerSource.replace('import(RUNTIME_URL)','Promise.resolve(self.__recordedRuntime)')});
+        const runtime = replayMergedCandidate ? replayRuntime.replace(JSON.stringify(JSON.stringify(recordedFailure)),JSON.stringify(JSON.stringify(recordedMergedFailure))) : replayRuntime;
+        return route.fulfill({contentType:'text/javascript',body:runtime+workerSource.replace('import(RUNTIME_URL)','Promise.resolve(self.__recordedRuntime)')});
       }
       const contentType = url.pathname.endsWith('.html') ? 'text/html' : url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript';
       return route.fulfill({contentType,body:fs.readFileSync(path.join(root,url.pathname.slice(1)),'utf8')});
@@ -112,7 +121,7 @@ test('recorded user-device failure crosses real worker/controller/browser and re
     assert.ok(single.normalization.adjustments.some(change => change.rowIndex === 1 && change.field === 'merchant'));
     assert.ok(single.normalization.adjustments.some(change => change.rowIndex === 1 && change.field === 'kind'));
     assert.equal(await page.locator('#modelStatus').evaluate(node => node.classList.contains('error')),false);
-    assert.equal(await page.locator('#modelDiagnostics').isVisible(),false);
+    assert.equal(await page.locator('#modelDiagnostics').isVisible(),true,'the original model response remains separately accessible even after assistance');
     assert.ok(await page.locator('#modelOutput [data-review-checks]').count(),'source-check notices appear beside readable drafts');
     assert.equal(await page.locator('#modelTechnical').evaluate(node => node.open),false,'technical output stays folded');
 
@@ -161,6 +170,31 @@ test('recorded user-device failure crosses real worker/controller/browser and re
     assert.equal(await page.locator('#modelOutput [data-excluded-candidates] [data-excluded-row="0"]').isVisible(),true);
     assert.equal((await remainingCard.textContent()).includes('今天收到餐飲'),false);
     assert.equal(await page.locator('#modelStatus').evaluate(node => node.classList.contains('error')),false);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
+
+    // Reload only the replay transport. The real worker/controller/UI must fix
+    // the latest merged output without rewriting the single-row model evidence.
+    replayMergedCandidate = true;
+    await page.locator('#modelUnload').click();
+    await page.locator('#modelLoad').click();
+    await page.waitForFunction(() => !document.querySelector('#modelRun').disabled);
+    await page.locator('#modelInput').fill('今天早餐65元，午餐120元。');
+    await page.locator('#modelRun').click();
+    await page.waitForFunction(() => {
+      try { return JSON.parse(document.querySelector('#modelMetrics').textContent).normalizedDraft.items.length === 2; } catch (_) { return false; }
+    });
+    const merged = JSON.parse(await page.locator('#modelMetrics').textContent());
+    assert.deepEqual(JSON.parse(merged.rawModelOutput),recordedMergedFailure);
+    assert.equal(merged.modelDraft.items.length,1,'the model itself still omitted the second expense');
+    assert.deepEqual(merged.normalizedDraft.items.map(row => [row.amount,row.kind,row.category,row.merchant]),[[65,'expense','FOOD',null],[120,'expense','FOOD',null]]);
+    assert.ok(merged.normalizedDraft.items.every(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.date)),'the explicit today cue is source-grounded for both expenses');
+    assert.equal(merged.normalization.sourceRuleAssisted,true);
+    assert.ok(merged.normalization.sourceRecovery.recoveredRows.length>0,'source recovery is disclosed, never claimed as a second model prediction');
+    assert.equal(merged.normalization.coverage.status,'complete');
+    assert.equal(merged.measurement.attempts,1,'source recovery does not spend another inference');
+    assert.ok(await page.locator('[data-draft-assessment]').count());
+    assert.equal(await page.locator('#modelOutput .model-draft').count(),2);
+    assert.ok((await page.locator('#modelRawOutput').textContent()).includes('65元'));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
     assert.deepEqual(writes,[],'the public trial never writes a ledger/account');
     assert.deepEqual(unexpected,[],'no model weight, API, mail or other network request escaped the replay');

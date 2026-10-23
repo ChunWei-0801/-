@@ -112,8 +112,8 @@ test('controller separates observed automatic model load from full request time 
   clock=165;worker.emit('result',{result:{text:'{}',elapsedMs:42}});const result=await pending;
   assert.equal(result.loadMs,120);assert.equal(result.requestMs,165);assert.equal(result.elapsedMs,42);
   clock=180;const next=h.api.generate({task:'draft',input:'PRIVATE_INPUT'});
-  clock=220;worker.emit('error',{error:{code:'AI_INVALID_DRAFT',message:'invalid',details:{timing:{totalMs:35,firstTokenMs:10,decodeMs:20,cleanupMs:5,secret:'PRIVATE_SECRET',passes:[{attempt:1,totalMs:30,firstTokenMs:10,decodeMs:20,promptTokens:100,completionTokens:20,input:'PRIVATE_SECRET'}]}}}});
-  await assert.rejects(next,error=>{assert.equal(error.details.requestMs,40);assert.equal(error.details.loadMs,0);assert.equal(error.details.timing.totalMs,35);assert.equal(error.details.timing.passes[0].promptTokens,100);assert.equal(JSON.stringify(error.details).includes('PRIVATE_SECRET'),false);return true;});
+  clock=220;worker.emit('error',{error:{code:'AI_INVALID_DRAFT',message:'invalid',details:{timing:{totalMs:35,firstTokenMs:10,decodeMs:20,cleanupMs:5,secret:'PRIVATE_SECRET',passes:[{attempt:1,totalMs:30,firstTokenMs:10,decodeMs:20,promptTokens:100,completionTokens:20,input:'PRIVATE_SECRET',runtime:{e2eMs:30,firstTokenMs:10,grammarInitMs:2,grammarPerTokenMs:-1,prefillTokensPerSecond:123,decodeTokensPerSecond:'PRIVATE_SECRET',outputTokenMs:NaN,secret:'PRIVATE_SECRET'}},{attempt:2,runtime:{e2eMs:null,firstTokenMs:'1',grammarInitMs:Infinity,grammarPerTokenMs:0,prefillTokensPerSecond:-1,decodeTokensPerSecond:5,outputTokenMs:200}}]}}}});
+  await assert.rejects(next,error=>{assert.equal(error.details.requestMs,40);assert.equal(error.details.loadMs,0);assert.equal(error.details.timing.totalMs,35);assert.equal(error.details.timing.passes[0].promptTokens,100);assert.deepEqual({...error.details.timing.passes[0].runtime},{e2eMs:30,firstTokenMs:10,grammarInitMs:2,grammarPerTokenMs:null,prefillTokensPerSecond:123,decodeTokensPerSecond:null,outputTokenMs:null});assert.deepEqual({...error.details.timing.passes[1].runtime},{e2eMs:null,firstTokenMs:null,grammarInitMs:null,grammarPerTokenMs:0,prefillTokensPerSecond:null,decodeTokensPerSecond:5,outputTokenMs:200});assert.equal(JSON.stringify(error.details).includes('PRIVATE_SECRET'),false);return true;});
   assert.equal(JSON.stringify(h.api.status()).includes('timing'),false);assert.equal(JSON.stringify(h.api.status()).includes('PRIVATE_INPUT'),false);
 });
 
@@ -195,7 +195,9 @@ test('worker asks for verbatim source fields and readable labels, then keeps raw
   assert.ok(data.context.classifications.includes('支出｜餐飲'));assert.equal(JSON.stringify(data).includes('"id"'),false);
   assert.deepEqual(grammar.properties.items.items.properties.classification.enum,[...data.context.classifications,null]);
   assert.deepEqual(Object.keys(grammar.properties.items.items.properties).slice(0,3),['sourceText','amountText','classification']);
-  assert.ok(grammar.properties.items.items.properties.currency.enum.includes('TWD'));
+  assert.equal(grammar.properties.items.items.properties.currency.pattern,'^[A-Z]{3}$');
+  assert.equal(grammar.properties.items.items.properties.currency.enum,undefined);
+  assert.equal(request.repetition_penalty,1);assert.equal(request.presence_penalty,0);assert.equal(request.frequency_penalty,0);
   assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
   assert.equal(reply.result.rawModelOutput,raw);assert.notEqual(reply.result.rawModelOutput,reply.result.text);
   assert.deepEqual(value.items.map(i=>[i.amount,i.kind,i.category,i.date]),[[120,'expense','food','2026-10-18'],[800,'expense','fuel','2026-10-18']]);
@@ -215,13 +217,17 @@ test('baseline keeps the historical empty repair for explicit on-device flow com
   for(const request of h.calls.requests)assert.ok(new TextEncoder().encode(JSON.stringify(request.messages)).length<=3200);
 });
 
-test('compact flow removes unrelated few-shot transactions and unmentioned calendar tokens, retaining the same grammar',async()=>{
+test('compact flow removes unrelated examples and uses a stable ISO currency pattern with independent validation',async()=>{
   const baseline=await extractFixture(modelDraft(),undefined,undefined,{promptProfile:'baseline'});
   const compact=await extractFixture(modelDraft());
   const before=baseline.h.calls.requests[0],after=compact.h.calls.requests[0];
   assert.equal(before.messages.length,4);assert.equal(after.messages.length,2);
   assert.ok(new TextEncoder().encode(JSON.stringify(after.messages)).length<new TextEncoder().encode(JSON.stringify(before.messages)).length*0.7);
-  assert.equal(after.response_format.schema,before.response_format.schema);
+  const oldGrammar=JSON.parse(before.response_format.schema),newGrammar=JSON.parse(after.response_format.schema);
+  assert.ok(oldGrammar.properties.items.items.properties.currency.enum.includes('USD'));
+  assert.equal(newGrammar.properties.items.items.properties.currency.pattern,'^[A-Z]{3}$');
+  oldGrammar.properties.items.items.properties.currency=newGrammar.properties.items.items.properties.currency;
+  assert.deepEqual(newGrammar,oldGrammar,'other grammar constraints remain unchanged');
   assert.equal(JSON.stringify(after.messages).includes('920'),false);assert.equal(JSON.stringify(after.messages).includes('2001-06-10'),false);
   const context=JSON.parse(after.messages.at(-1).content.split('\n')[2]).context;
   assert.deepEqual(context.calendar,{'昨天':'2026-10-18'});
@@ -424,7 +430,8 @@ test('validation diagnostics identify reuse and date, merchant or classification
     [{...next,classification:'PRIVATE_LABEL'},'CLASSIFICATION_NOT_ALLOWED','classification']
   ]){
     const {reply}=await extractFixture(modelDraft([modelItem,second]),'昨天午餐120元，晚餐80元。');
-    assert.equal(reply.type,'result');assert.equal(JSON.parse(reply.result.text).items.length,1);assert.equal(reply.result.attempts,1);
+    assert.equal(reply.type,'result');assert.deepEqual(JSON.parse(reply.result.text).items.map(item=>item.amount),[120,80]);assert.equal(reply.result.attempts,1);
+    assert.equal(reply.result.normalization.sourceRecovery.recoveredRows.length,1,'the omitted real dinner is explicitly source-recovered');
     const detail=JSON.parse(JSON.stringify(reply.result.normalization.rejectedRows[0]));
     assert.deepEqual(detail,{reason,field,modelRowIndex:1});assert.equal(JSON.stringify(detail).includes('PRIVATE_'),false);
   }
@@ -452,16 +459,18 @@ test('recorded failure shape keeps model mistakes visible while optional merchan
   assert.deepEqual(value.warnings,[],'rule notices are metadata, not falsely labelled model warnings');
 });
 
-test('optional date and empty fields become explicit review adjustments without inventing a date or amount',async()=>{
+test('optional cleanup and explicit source date/currency recovery remain separate from the model draft',async()=>{
   for(const [extra,field] of [[{merchantText:''},'merchant'],[{dateText:'2099-01-01'},'date'],[{dateText:''},'date'],[{amountText:''},'amount'],[{currency:''},'currency']]){
     const {h,reply,value}=await extractFixture(modelDraft([{...modelItem,...extra}]));
     assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);
-    assert.equal(value.items[0][field],null);assert.ok(reply.result.normalization.adjustments.some(item=>item.field===field&&item.reason.startsWith('OPTIONAL_')&&item.action==='clear'));
+    assert.equal(value.items[0][field],field==='date'?'2026-10-18':field==='currency'?'TWD':null);assert.ok(reply.result.normalization.adjustments.some(item=>item.field===field&&item.reason.startsWith('OPTIONAL_')&&item.action==='clear'));
+    if(field==='date'||field==='currency')assert.ok(reply.result.normalization.adjustments.some(item=>item.field===field&&item.reason==='SOURCE_'+field.toUpperCase()+'_CUE'));
   }
   const date=await extractFixture(modelDraft([{...modelItem,dateText:'2026-10-19'}]),'今天午餐120元');
   assert.equal(date.value.items[0].date,'2026-10-19','provided calendar date is tied to the actual today quote');
   const notCited=await extractFixture(modelDraft([{...modelItem,dateText:'2026-10-18'}]),'今天午餐120元');
-  assert.equal(notCited.value.items[0].date,null,'a calendar value alone does not make an unmentioned yesterday valid');
+  assert.equal(notCited.value.items[0].date,'2026-10-19','the actual today source overrides the unmentioned yesterday prediction');
+  assert.equal(notCited.reply.result.modelDraft.items[0].date,'2026-10-18','the wrong model prediction remains visible');
   const noDate=await extractFixture(modelDraft([{...modelItem,dateText:null}]),'午餐120元');
   assert.equal(noDate.value.items[0].date,null,'no default today is invented');
 });
@@ -629,4 +638,142 @@ test('lottery assistance respects local clauses and uniquely named current categ
   assert.equal(mixed.value.items[0].kind,null);assert.deepEqual([mixed.value.items[1].kind,mixed.value.items[1].category],['income','new-id']);
   const duplicate=await extractFixture(modelDraft([rows[0]]),'威力彩中了200元',{...context,categories:[...context.categories,{id:'ambiguous',name:'其他收入',kind:'income'}]});
   assert.equal(duplicate.value.items[0].kind,'income');assert.equal(duplicate.value.items[0].category,null);
+});
+
+// Recorded device output replay. These tests verify the safety contract and
+// provenance only; they are not another model run or an accuracy measurement.
+test('recorded merged unit-bearing output recovers both source rows without rewriting the model prediction',async()=>{
+  const input='今天早餐65元，午餐120元。';
+  const raw='{"items":[{"sourceText":"今天早餐65元，午餐120元。","amountText":"65元","classification":"支出（未選分類）","dateText":"","currency":"TWD","merchantText":"今天早餐65元，午餐120元。"}],"warnings":[]}';
+  for(const promptProfile of ['baseline','compact-v1']){
+    const {reply,value,h}=await extractFixture(raw,input,draftContext,{promptProfile});
+    assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);assert.equal(reply.result.rawModelOutput,raw);
+    assert.deepEqual(value.items.map(item=>[item.amount,item.date,item.kind,item.category,item.merchant]),[[65,'2026-10-19','expense','food',null],[120,'2026-10-19','expense','food',null]]);
+    assert.deepEqual(value.items.map(item=>item.note),['今天早餐65元','午餐120元']);
+    assert.equal(reply.result.modelDraft.items.length,1);const model=reply.result.modelDraft.items[0];
+    assert.equal(model.amount,65);assert.equal(model.category,null);assert.equal(model.date,null);assert.equal(model.merchant,input);assert.equal(model.note,input);
+    const normalization=reply.result.normalization;
+    assert.equal(normalization.version,'source-grounded-v3');assert.equal(normalization.sourceRuleAssisted,true);
+    assert.equal(normalization.coverage.status,'complete');assert.equal(normalization.coverage.sourceCandidateCount,2);
+    assert.equal(normalization.coverage.modelRowCount,1);assert.equal(normalization.coverage.draftRowCount,2);
+    assert.deepEqual(JSON.parse(JSON.stringify(normalization.rowMappings)),[{draftIndex:0,modelRowIndex:0},{draftIndex:1,modelRowIndex:null}]);
+    assert.deepEqual(JSON.parse(JSON.stringify(normalization.sourceRecovery.mergedModelRows)),[{modelRowIndex:0,sourceCandidateCount:2}]);
+    assert.equal(normalization.sourceRecovery.recoveredRows.length,1);assert.equal(normalization.sourceRecovery.recoveredRows[0].draftIndex,1);
+    assert.deepEqual(value.warnings,[],'source rules never impersonate model warnings');
+  }
+});
+
+test('full quoted currency units preserve numeric boundaries and supported foreign currencies',async()=>{
+  for(const [amountText,currency] of [['65元','TWD'],['６５元','TWD'],['65台幣','TWD'],['65臺幣','TWD'],['65人民幣','CNY'],['65人民币','CNY'],['65日圓','JPY'],['CHF65元','CHF'],['CNY ¥65','CNY'],['USD 65.25','USD'],['NT$1,200元','TWD'],['65元TWD','TWD']]){
+    const input='今天午餐'+amountText+'。';
+    const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText:input,amountText,dateText:'今天',currency}]),input);
+    assert.equal(reply.type,'result',amountText);assert.equal(value.items.length,1,amountText);assert.equal(value.items[0].currency,currency,amountText);assert.ok(value.items[0].amount>0,amountText);
+  }
+  for(const [input,amountText] of [['今天午餐65元','5元'],['今天午餐120.50元','120'],['今天午餐1,200元','200元']]){
+    const {reply}=await extractFixture(modelDraft([{...modelItem,sourceText:input,amountText}]),input);assert.equal(reply.type,'error',amountText);
+  }
+  for(const amountText of ['0元','-65元','−65元']){
+    const input='今天午餐'+amountText;const {reply}=await extractFixture(modelDraft([{...modelItem,sourceText:input,amountText}]),input);assert.equal(reply.type,'error',amountText);
+  }
+});
+
+test('ambiguous or contradictory currency evidence requires review instead of forcing another ISO currency',async()=>{
+  for(const input of ['今天午餐¥65','今天午餐USD65元TWD','今天午餐XYZ65元']){
+    const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText:input,amountText:'65',dateText:'今天',currency:'CNY'}]),input);
+    assert.equal(reply.type,'result',input);assert.equal(value.items[0].currency,null,input);assert.equal(reply.result.normalization.coverage.status,'partial',input);
+    assert.equal(reply.result.modelDraft.items[0].currency,'CNY');
+  }
+  for(const promptProfile of ['baseline','compact-v1']){
+    const {reply}=await extractFixture(modelDraft([{...modelItem,currency:'XYZ'}]),undefined,undefined,{promptProfile});assert.equal(reply.error.code,'AI_INVALID_DRAFT');
+  }
+});
+
+test('unquoted unknown amounts and unsupported money wording cannot make a partial extraction complete',async()=>{
+  const first={...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'};
+  for(const omitted of ['午餐忘記金額','午餐六十五元','午餐120','晚餐100-120元','午餐約120元','午餐120元*2份','午餐130元的菜單']){
+    const input='今天早餐65元，'+omitted+'。';const {reply,value}=await extractFixture(modelDraft([first]),input);
+    assert.equal(reply.type,'result',omitted);assert.deepEqual(value.items.map(item=>item.amount),[65],omitted);assert.equal(reply.result.normalization.coverage.status,'partial',omitted);
+  }
+  const unknown=await extractFixture(modelDraft([{...first,amountText:null}]),'今天早餐65元');
+  assert.equal(unknown.value.items[0].amount,null);assert.equal(unknown.reply.result.normalization.coverage.status,'partial');
+  assert.deepEqual(Array.from(unknown.reply.result.normalization.coverage.missingAmountRows),[0]);
+});
+
+test('source recovery excludes negation, hypotheticals, third parties, refunds, transfers and failed payments',async()=>{
+  const first={...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'};
+  for(const extra of ['朋友午餐120元','午餐120元只是預算','如果午餐120元','午餐120元退款','轉帳120元','午餐120元付款失敗','午餐120元取消了','午餐120元只是想像','午餐120元是預估']){
+    const {reply,value}=await extractFixture(modelDraft([first]),'今天早餐65元，'+extra+'。');
+    assert.equal(reply.type,'result',extra);assert.deepEqual(value.items.map(item=>item.amount),[65],extra);assert.equal(reply.result.normalization.sourceRecovery.recoveredRows.length,0,extra);
+  }
+  for(const input of ['朋友今天午餐120元','今天沒有買午餐120元','午餐120元只是預算']){
+    const {reply,value}=await extractFixture(modelDraft([{...modelItem,sourceText:'午餐120元',dateText:'今天'}]),input);
+    assert.equal(reply.type,'result',input);assert.equal(value.items[0].kind,null,input);assert.equal(reply.result.normalization.coverage.status,'partial',input);
+  }
+});
+
+test('qualifiers after a comma cannot turn nonactual omitted claims into recovered purchases or income',async()=>{
+  const first={...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'};
+  for(const extra of ['午餐120元，我沒買','午餐120元，這是朋友吃的','午餐120元，都是預算','收到薪資30000元，還沒入帳']){
+    const {reply,value}=await extractFixture(modelDraft([first]),'今天早餐65元，'+extra+'。');
+    assert.equal(reply.type,'result',extra);assert.equal(value.items.length,1,extra);assert.equal(reply.result.normalization.sourceRecovery.recoveredRows.length,0,extra);
+  }
+});
+
+test('totals, tax, cash tendered and change do not become additional source-recovered transactions',async()=>{
+  const input='今天午餐小計100元，稅5元，總計105元，付現200元，找零95元。';
+  const raw=modelDraft([{...modelItem,sourceText:'總計105元',amountText:'105',dateText:'今天'}]);
+  const {reply,value}=await extractFixture(raw,input);
+  assert.equal(reply.type,'result');assert.deepEqual(value.items.map(item=>item.amount),[105]);assert.equal(value.items[0].kind,null);
+  assert.equal(reply.result.normalization.sourceRecovery.recoveredRows.length,0);assert.equal(reply.result.normalization.coverage.status,'partial');
+});
+
+test('dates, phones, invoice identifiers and quantity counts cannot be selected as money',async()=>{
+  for(const [input,amountText] of [['今天午餐10月20日','10'],['今天午餐2026-10-20','2026'],['午餐電話0912345678','0912345678'],['午餐發票AB12345678','12345678'],['午餐第2份','2']]){
+    const {reply}=await extractFixture(modelDraft([{...modelItem,sourceText:input,amountText,dateText:null}]),input);
+    assert.equal(reply.type,'error',input);assert.equal(reply.error.details.validation.reason,'AMOUNT_UNSUPPORTED',input);
+  }
+});
+
+test('currency restatements never become a second accepted transaction',async()=>{
+  for(const second of ['也就是120TWD','（TWD120）']){
+    const input='今天午餐120元'+(second.startsWith('（')?'':'，')+second+'。';
+    const rows=[{...modelItem,dateText:'今天'},{...modelItem,sourceText:second,amountText:'120',dateText:'今天'}];
+    const {reply,value}=await extractFixture(modelDraft(rows),input);
+    assert.equal(reply.type,'result',input);assert.deepEqual(value.items.map(item=>item.amount),[120],input);assert.equal(reply.result.modelDraft.items.length,2);
+    assert.equal(reply.result.normalization.rejectedRows[0].reason,'AMOUNT_UNSUPPORTED');
+  }
+});
+
+test('income recovery and date scopes stay tied to their own explicit source cues',async()=>{
+  const first={...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'昨天'};
+  const {reply,value}=await extractFixture(modelDraft([first]),'昨天早餐65元，今天收到薪資30000元。');
+  assert.equal(reply.type,'result');assert.deepEqual(value.items.map(item=>[item.amount,item.kind,item.category,item.date]),[[65,'expense','food','2026-10-18'],[30000,'income','salary','2026-10-19']]);
+  const noInheritance=await extractFixture(modelDraft([first]),'昨天早餐65元。午餐120元');
+  assert.equal(noInheritance.value.items[1].date,null);assert.equal(noInheritance.reply.result.normalization.coverage.status,'partial');
+  const dateBarrier=await extractFixture(modelDraft([first]),'昨天早餐65元，10月20日午餐120元');
+  assert.equal(dateBarrier.value.items[1].date,null);assert.equal(dateBarrier.reply.result.normalization.coverage.status,'partial');
+});
+
+test('recovery provenance cannot collide with retained original model row indexes',async()=>{
+  const raw=modelDraft([{...modelItem,sourceText:'不存在的交易999元',amountText:'999'},{...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'}]);
+  const {reply,value}=await extractFixture(raw,'今天早餐65元，午餐120元。');
+  assert.equal(value.items.length,2);assert.deepEqual(JSON.parse(JSON.stringify(reply.result.normalization.rowMappings)),[{draftIndex:0,modelRowIndex:1},{draftIndex:1,modelRowIndex:null}]);
+  const adjustments=reply.result.normalization.adjustments.filter(item=>item.draftIndex===1);
+  assert.ok(adjustments.length>0);assert.ok(adjustments.every(item=>item.rowIndex===null));
+});
+
+test('a source-unverified model row cannot borrow another verified row to make overall coverage complete',async()=>{
+  const rows=[{...modelItem,sourceText:'早餐65元',amountText:'65',dateText:'今天'},{...modelItem,sourceText:'星巴克120元',dateText:'今天'}];
+  const {reply,value}=await extractFixture(modelDraft(rows),'今天早餐65元，星巴克120元。');
+  assert.equal(value.items.length,2);assert.equal(reply.result.normalization.coverage.status,'unknown');
+  assert.deepEqual(Array.from(reply.result.normalization.coverage.unverifiedRows),[1]);
+});
+
+test('runtime timing keeps measured scalar fields per pass without summing rates or retaining extra data',async()=>{
+  const usages=[{prompt_tokens:20,completion_tokens:10,total_tokens:30,extra:{e2e_latency_s:1,time_to_first_token_s:.8,grammar_init_s:.2,grammar_per_token_s:.001,prefill_tokens_per_s:80,decode_tokens_per_s:10,time_per_output_token_s:.1,private:'PRIVATE_SECRET',latencyBreakdown:[1,2]}},{prompt_tokens:30,completion_tokens:12,total_tokens:42,extra:{e2e_latency_s:2,time_to_first_token_s:1,grammar_init_s:-1,grammar_per_token_s:null,prefill_tokens_per_s:90,decode_tokens_per_s:'PRIVATE_SECRET',time_per_output_token_s:Infinity}}];
+  const {reply}=await extractFixture(['{"wrong":[]}',modelDraft()],undefined,undefined,{usages});
+  assert.equal(reply.type,'result');assert.deepEqual({...reply.result.usage},{prompt_tokens:50,completion_tokens:22,total_tokens:72});
+  assert.deepEqual({...reply.result.timing.passes[0].runtime},{e2eMs:1000,firstTokenMs:800,grammarInitMs:200,grammarPerTokenMs:1,prefillTokensPerSecond:80,decodeTokensPerSecond:10,outputTokenMs:100});
+  assert.deepEqual({...reply.result.timing.passes[1].runtime},{e2eMs:2000,firstTokenMs:1000,prefillTokensPerSecond:90});
+  assert.equal(JSON.stringify(reply.result.timing).includes('PRIVATE_SECRET'),false);assert.equal(JSON.stringify(reply.result.usage).includes('PRIVATE_SECRET'),false);
 });
