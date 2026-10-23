@@ -6,6 +6,33 @@ on:
 permissions:
   contents: read
 jobs:
+  windows-backup:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Windows PowerShell launcher and private file permissions
+        shell: powershell
+        run: .\tools\windows-backup\tests\Test-Launcher.ps1
+      - name: Assemble standalone Windows backup tool
+        shell: powershell
+        run: |
+          $destination = Join-Path $env:RUNNER_TEMP 'FamBudget-Windows-Backup'
+          New-Item -ItemType Directory -Path $destination | Out-Null
+          foreach ($name in @('Start-Backup.cmd', 'Start-Backup.ps1', 'windows_backup.py', 'Dockerfile', 'README.md')) {
+            Copy-Item -LiteralPath (Join-Path 'tools/windows-backup' $name) -Destination $destination
+          }
+          Copy-Item -LiteralPath 'backend/tools/backup_restore.py' -Destination $destination
+          $files = Get-ChildItem -LiteralPath $destination -File | ForEach-Object {
+            @{name=$_.Name; sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
+          }
+          @{sourceCommit=$env:GITHUB_SHA; files=@($files)} | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath (Join-Path $destination 'package-integrity.json') -Encoding UTF8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FamBudget-Windows-Backup
+          path: ${{ runner.temp }}/FamBudget-Windows-Backup
+          if-no-files-found: error
+          retention-days: 30
   checks:
     runs-on: ubuntu-latest
     steps:

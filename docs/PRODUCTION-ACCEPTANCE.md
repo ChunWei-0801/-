@@ -64,12 +64,25 @@ Do not send the user through that setup loop or promise a direct public-host
 TCP grant. The tool cannot silently change platform configuration or bypass the
 enforced proxy. No production database connection has been attempted.
 
-A legitimate alternative is execution from the user's own computer over its
-normal network, retaining TLS verification and the existing read-only snapshot,
-encryption and isolated-restore safeguards. The existing CLI is POSIX-dependent
-(ownership/mode checks); do not claim it runs natively on Windows. A tailored
-local workflow still needs the user's OS and prerequisite checks. No portable
-one-click package or formal production backup is complete.
+The user confirmed Windows. `tools/windows-backup` now provides a local
+PowerShell launcher and a pinned official PG18 Debian/Linux Docker runner. It
+checks a local Docker Desktop Linux context, accepts the External URL through
+hidden input/stdin only, and runs the POSIX backup tool in a new private volume.
+It never publishes a restore port or changes Codex networking. A real synthetic
+TLS source-to-encryption-to-isolated-restore test passed: 2 tables, 5 rows, 2 PNG
+blobs (138 bytes), matching row/photo hashes, unchanged source and removed
+plaintext. These fixtures are not production data. PowerShell 7.4.7 on Linux
+passed 27 parser/helper cases; 17 Windows-only native argv/ACL/path checks await
+the new Windows PowerShell 5.1 CI job. That job also assembles the standalone
+download with the existing core script, without duplicating it in source.
+
+On Windows, private NTFS output folders keep ciphertext and key separate; copies
+are SHA256-verified before success. Safe failure stage/code is preserved, partial
+encrypted results can be salvaged, and the new local volume is retained. Forced
+termination can leave plaintext temporary files: keep the volume private, never
+share/upload it. Google Drive upload/download is not part of this launcher yet.
+Actual Docker Desktop execution, formal source connection, production backup,
+offsite copies and isolated production-data restore remain pending user testing.
 
 Official PG18 clients, a separate loopback-only TLS restore server and encrypted
 synthetic roundtrip (2 tables, 5 rows, 2 PNG blobs) are verified. The original

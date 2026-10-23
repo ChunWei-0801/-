@@ -45,6 +45,12 @@ PRODUCTION-ACCEPTANCE.md 為準；未記錄 live 前不可稱本版已上線。
 
 可評估由使用者自有電腦的正常網路執行備份與隔離還原。現有工具依賴 POSIX 權限／os.getuid，不能宣稱原生 Windows 可直接執行；需要先確認 Windows／macOS 及本機必要工具，再準備相應流程。尚無跨平台一鍵包，正式備份仍未完成；未新增 VPN、未接觸正式資料庫、未變更正式網站。
 
+使用者已確認 Windows，已新增 `tools/windows-backup`：PowerShell 本機 Docker Linux context 預檢、隱藏 URL 輸入、stdin 傳送、獨立 Linux 私人 volume、固定來源目的地與 verify-full、唯讀快照加密及全新容器內 loopback TLS 隔離還原。來源網址不進 argv、Docker inspect 環境、Git、檔案或錯誤輸出。Windows 密文／金鑰目錄分開，NTFS SID ACL 僅目前使用者與 SYSTEM，匯出逐檔及金鑰 SHA256 核對；安全錯誤階段保留，不用匯出失敗蓋住真正連線失敗。僅複製三個程式檔到建置暫存，不送整個儲存庫或 .env。
+
+固定官方 PostgreSQL 18.6 bookworm 多架構 digest 的映像實際建置成功；真正合成本機來源→備份加密→另一個全新 TLS 資料庫還原通過：2表、5列、2個有效PNG（138bytes），資料列與照片雜湊一致，來源未改變，明文演練庫與暫存dump已清除。原生 PowerShell 7.4.7 Linux 語法／引數／錯誤報告27項通過，Windows額外17項原生引數／NTFS ACL／路徑防護由新CI執行，不能在結果出現前算通過。原工具與runner18項聚焦測試通過。CI另組合獨立工具下載包，核心備份程式不複製進Git造成版本分歧。
+
+中止時可能留下明文暫存，保留的volume必須保持私人、不可整個分享／上傳。此工具尚不含Drive異地上傳；Windows Docker Desktop真實執行、正式資料連線／備份／隔離還原、異地上下載仍待使用者執行驗收。所有新測試只用合成資料；未接觸正式資料庫，正式網站仍是v178。
+
 最新 runtime1789 的 HTTP 限制已生效，TCP domains／IP ranges 仍空；正式資料庫尚未連線。變更需平台環境設定流程與使用者審核，已詢問面板是否支援 TCP，不能把 HTTP「額外允許的網域」當成 PostgreSQL TCP 權限，也不繞過代理或政策。
 
 官方 PostgreSQL 18.6 客戶端與全新、僅 loopback、高位 port、verify-full TLS 的隔離環境已備妥。未改動原故障容器或資料。已用原備份工具做本機合成來源→真正 custom dump→加密→另一個空資料庫還原：2表、5列、2個PNG BLOB（152 bytes），所有列／照片雜湊及 Decimal／日期／Unicode／JSON 等值相同。這是工具演練，不是正式備份，沒有上傳 Drive。
