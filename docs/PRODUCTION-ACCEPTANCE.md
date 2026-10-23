@@ -1,21 +1,68 @@
 # Production acceptance handoff
 
-The current deployed source is `f2247353938c3b34ed6a85c0a3113a9fdce5f27c`,
-resource version **178**, at `https://fambudget-recovery-20261017.onrender.com`.
-Render `dep-dbdftcbrjlhs73d5b3ng` reports live, finished
-2026-10-23 14:30:26 Asia/Taipei. Existing free plan and auto-deploy off are unchanged.
-GitHub workflow [39911481995](https://github.com/ChunWei-0801/-/actions/runs/39911481995)
-and its checks/browser jobs all report completed/success for that exact source.
-Full local backend: 1070 passed. Related frontend: 148 passed, zero skips,
-including actual Chromium and the latest recorded merged-output replay.
-Actual XGrammar WASM: 24 checks passed with a synthetic tokenizer, no weights or
-model inference. All 21 changed remote blobs and the complete source-history
-bundle were verified. Six languages have 1571 aligned message keys. Original
-failed environment/data and the withdrawn voice feature decision are preserved.
+The current deployed source is `f04d31399326e83fdd652fee6e97648bd0f0a05a`,
+resource version **179**, at `https://fambudget-recovery-20261017.onrender.com`.
+Render `dep-dbdoke2fngtc7382b040` reports live, finished **2026-10-24 00:26:20 Asia/Taipei**.
+The existing free plan and auto-deploy-off setting are unchanged. GitHub workflow
+[39986097499](https://github.com/ChunWei-0801/-/actions/runs/39986097499)
+completed successfully for that exact source: checks, browser and Windows backup.
+CI backend: 1080 passed. Local related frontend: 121 passed, zero skips,
+including actual Chromium and recorded-output replay. CI's dedicated browser
+job: 45 passed, zero skips, plus the lifestyle browser script. The non-browser
+CI job intentionally skips browser fixtures, covered by the dedicated browser
+job and local 121-run set. Six languages have 1572 aligned message keys.
+All 17 changed source blobs and the complete source-history bundle were verified.
+Direct public-host HTTP resource comparison was attempted but blocked by the
+executor proxy (403; the app hostname is absent from its current allowlist).
+Render live/commit and GitHub CI are verified; public resource hashes and
+real-device inference are not claimed as verified here.
+Original failed database SHA256 is unchanged. Voice remains withdrawn.
 
-## v178 latest device failure: merged purchases and unknown required fields
+## v179: post-validated JSON and single-run safe diagnostics
 
-The latest real device output merged breakfast 65 and lunch 120 into one row,
+Draft and receipt extraction now default to `fast-json-v1`, using the same free
+Qwen0.5B/WebLLM0.2.86 weights and runtime. The first inference omits
+`response_format` entirely. Even generic constrained JSON initializes grammar;
+simplifying only the schema does not remove that work. One failed format/source
+check may trigger one measured schema-constrained repair. Empty refusals are not
+forced into transactions. There is no hidden warm-up or paid fallback. A small
+independent transport/fee example illustrates separate expenses and income;
+fixed evaluation answers are not used as prompt examples. All source, amount,
+date, currency, classification and required-field checks remain in effect.
+
+The quick suite runs four inputs with the new pipeline. Optional paired
+comparison runs structured `compact-v1` and `fast-json-v1` on the same four inputs
+in alternating order (eight inferences). Model-only and source-assisted scores
+remain separate, including failures and repair cost. Baseline remains callable.
+
+A completed or failed single trial can download content-free diagnostic JSON.
+Only known model/profile identifiers, finite measured timing/usage/runtime
+statistics and counts are exported. Inputs, raw replies, amounts, dates,
+merchants, classifications, account IDs and hardware identifiers are excluded.
+Single arbitrary inputs are never scored against fixed gold cases. Available
+grammar-init/prefill/decode metrics are preserved rather than discarded by the
+evaluation sanitizer. Per-pass format distinguishes unconstrained generation
+from schema repair; overlapping runtime timings must not be subtracted into
+independent GPU stages. Model warning text remains visible and unmodified.
+
+The latest **v178** device screenshots show correct source-assisted 65/120
+expense/FOOD drafts with one recovered row, but raw inference was incomplete
+and retained a contradictory no-transactions warning. Displayed load2.82s,
+completion49.27s, first-output41.22s and decode8.04s are rounded observations.
+They do not prove grammar caused the wait or establish overall model accuracy.
+The earlier52.30s observation is not a controlled paired comparison.
+
+**There is no new v179 Qwen inference or observed speedup yet.** Contracts,
+Chromium fixtures and recorded output replay cannot establish model accuracy
+or device latency. Start with the same breakfast/lunch input on
+[`/ai-test.html?v=179`](https://fambudget-recovery-20261017.onrender.com/ai-test.html?v=179),
+then use the single-run diagnostic download. Do not ask the user to find or
+share private raw JSON again. Normal app: `/?v=179#/`.
+See [the v179 worklog](WORKLOG-20261023-AI-V179.md) for the exact scope.
+
+## Earlier merged-output failure repaired in v178
+
+An earlier real device output merged breakfast 65 and lunch 120 into one row,
 quoted 65元, omitted the date and reused the entire transaction as merchant. The
 old UI displayed one unknown-amount draft after 52.30 seconds (43.903 seconds to
 first output). That is a failed device observation, not a current quality pass.
@@ -44,11 +91,11 @@ are retained per pass without private text/token arrays or adding rates. Existin
 firstToken includes several stages; warm/loadMs0 does not establish grammar
 warmth, and overlapping runtime timings cannot be subtracted into GPU time.
 
-Open `/ai-test.html?v=178`, explicitly load, then try the same breakfast/lunch
+Open `/ai-test.html?v=179`, explicitly load, then try the same breakfast/lunch
 input first. It must show separate 65/120 review drafts if source recovery is
 needed. Source assistance is disclosed. Fresh model quality/latency and new
 production interactions still require the user's device. Do not request another
-copy of the already-transcribed raw failure. Normal site: `/?v=178#/`.
+copy of the already-transcribed raw failure. Normal site: `/?v=179#/`.
 
 ## Production backup and offsite restore verified (2026-10-23)
 
@@ -74,7 +121,7 @@ obtained on the user's Windows computer and independently restored here.
 
 This is a verified point-in-time application-data backup, not automatic ongoing
 backup. Entries or photos added afterward require a new backup run. Original
-failed resources are preserved; the deployed app remains v178. Follow
+failed resources are preserved; at that backup milestone the deployed app was v178. Follow
 [BACKUP-RECOVERY.md](BACKUP-RECOVERY.md) for future backup and recovery, keeping
 all actual Drive locations, keys, manifests and private data outside Git.
 
