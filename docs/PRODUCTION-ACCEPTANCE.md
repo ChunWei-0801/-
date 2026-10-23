@@ -54,10 +54,22 @@ copy of the already-transcribed raw failure. Normal site: `/?v=178#/`.
 
 The external hostname and database name are now verified and prepared privately;
 the credential-bearing user message is not duplicated in source or evidence.
-Runtime 1789 still has no TCP grants. The question about the platform's TCP
-configuration controls remains pending; HTTP website domains alone do not grant
-PostgreSQL access. The tool cannot silently change platform configuration or
-bypass the enforced proxy. No production database connection has been attempted.
+Runtime 1864 still has no VPN configuration or TCP grants. The user's expanded
+Advanced panel now shows Tailscale unset and TCP destinations None, with
+"Adding destinations requires a VPN with TCP support". The supported VPN
+reference further restricts resolved TCP endpoints to private RFC1918/CGNAT
+addresses. Adding the public Render External database hostname to HTTP domains,
+or configuring Tailscale alone, does not establish a usable database path.
+Do not send the user through that setup loop or promise a direct public-host
+TCP grant. The tool cannot silently change platform configuration or bypass the
+enforced proxy. No production database connection has been attempted.
+
+A legitimate alternative is execution from the user's own computer over its
+normal network, retaining TLS verification and the existing read-only snapshot,
+encryption and isolated-restore safeguards. The existing CLI is POSIX-dependent
+(ownership/mode checks); do not claim it runs natively on Windows. A tailored
+local workflow still needs the user's OS and prerequisite checks. No portable
+one-click package or formal production backup is complete.
 
 Official PG18 clients, a separate loopback-only TLS restore server and encrypted
 synthetic roundtrip (2 tables, 5 rows, 2 PNG blobs) are verified. The original

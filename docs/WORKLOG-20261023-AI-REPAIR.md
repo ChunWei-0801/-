@@ -41,6 +41,10 @@ PRODUCTION-ACCEPTANCE.md 為準；未記錄 live 前不可稱本版已上線。
 
 已取得並核對外部主機名稱；使用者提供的字串含密碼，不重複展示或放入 Git。正式設定由先前已授權的服務 API 私下準備，主機與資料庫名稱已核對，維持 TLS verify-full。該憑證後續需協調更換並同步網站設定，不能宣稱已重設或未確認就讓網站失去連線。
 
+後續展開「進階」的截圖已確認：Tailscale 未設定、TCP destinations None，並明載必須有支援 TCP 的 VPN 才能新增。重新檢查 runtime 1864，VPN 仍 false、TCP grant 仍空。另依平台 VPN 文件，TCP 解析結果僅支援 RFC1918／CGNAT 私人地址；不能再建議只加入公開 Render External 主機或只設定 Tailscale 即可完成。HTTP 網域不授予 PostgreSQL TCP 存取，亦不得繞過平台代理。
+
+可評估由使用者自有電腦的正常網路執行備份與隔離還原。現有工具依賴 POSIX 權限／os.getuid，不能宣稱原生 Windows 可直接執行；需要先確認 Windows／macOS 及本機必要工具，再準備相應流程。尚無跨平台一鍵包，正式備份仍未完成；未新增 VPN、未接觸正式資料庫、未變更正式網站。
+
 最新 runtime1789 的 HTTP 限制已生效，TCP domains／IP ranges 仍空；正式資料庫尚未連線。變更需平台環境設定流程與使用者審核，已詢問面板是否支援 TCP，不能把 HTTP「額外允許的網域」當成 PostgreSQL TCP 權限，也不繞過代理或政策。
 
 官方 PostgreSQL 18.6 客戶端與全新、僅 loopback、高位 port、verify-full TLS 的隔離環境已備妥。未改動原故障容器或資料。已用原備份工具做本機合成來源→真正 custom dump→加密→另一個空資料庫還原：2表、5列、2個PNG BLOB（152 bytes），所有列／照片雜湊及 Decimal／日期／Unicode／JSON 等值相同。這是工具演練，不是正式備份，沒有上傳 Drive。
