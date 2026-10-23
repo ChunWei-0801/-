@@ -62,7 +62,8 @@ addresses. Adding the public Render External database hostname to HTTP domains,
 or configuring Tailscale alone, does not establish a usable database path.
 Do not send the user through that setup loop or promise a direct public-host
 TCP grant. The tool cannot silently change platform configuration or bypass the
-enforced proxy. No production database connection has been attempted.
+enforced proxy. This cloud executor has not connected to production; the user's
+Windows-device result below is separate evidence.
 
 The user confirmed Windows. `tools/windows-backup` now provides a local
 PowerShell launcher and a pinned official PG18 Debian/Linux Docker runner. It
@@ -89,8 +90,22 @@ are SHA256-verified before success. Safe failure stage/code is preserved, partia
 encrypted results can be salvaged, and the new local volume is retained. Forced
 termination can leave plaintext temporary files: keep the volume private, never
 share/upload it. Google Drive upload/download is not part of this launcher yet.
-Actual Docker Desktop execution, formal source connection, production backup,
-offsite copies and isolated production-data restore remain pending user testing.
+The user has now supplied the actual Windows Docker Desktop success screen for
+run `20261023T135547Z-68c638aced66`. It reports a formal-source encrypted backup,
+an isolated restore with matching row/photo hashes, and matching exported-file
+hashes: **33 tables, 37 rows, 3 photo BLOBs**. The source URL is masked and no key
+bytes are visible. Ciphertext and key were written to separate Windows folders;
+the run's private volume is retained. Status is **user-device reported pass**,
+not an independent artifact audit by this executor. The current Windows backup
+files and verification report have not yet been received here. Private offsite
+upload, download-back hash checks and independent verification remain pending.
+Do not count the earlier synthetic fixtures as this production-device result.
+Two run-specific subfolders have now been created under the user's previously
+authorized, separate private backup/key folders. Parent and child permission
+readbacks show only the user's owner permission, no sharing. Folder locations
+are kept in private checkpoint evidence, not source. The user must upload the
+Windows ciphertext/manifest/verification files and key to their respective
+folders; no current production artifact has been uploaded or fetched yet.
 
 Official PG18 clients, a separate loopback-only TLS restore server and encrypted
 synthetic roundtrip (2 tables, 5 rows, 2 PNG blobs) are verified. The original
@@ -98,9 +113,11 @@ failed container is untouched and the reserved production restore database is
 empty. The backup tool's new hostaddr option permits only loopback plus unique
 verify-full; TLS retains the original hostname/source identity. Actual local
 psycopg/pg_dump succeeded, and the wrong TLS hostname was correctly rejected.
-Eight backup checks and full 1070-test backend passed. These are local preparation
-evidence; production encrypted backup, private offsite upload/download and full
-isolated restore are still incomplete. Credential rotation must be coordinated
+Eight backup checks and full 1070-test backend passed. Those earlier local
+preparations alone did not establish a production backup. The Windows screenshot
+now reports the local formal-source backup and isolated restore pass above;
+independent artifact and private offsite upload/download verification are still
+incomplete. Credential rotation must be coordinated
 with application configuration; it has not been performed. See
 WORKLOG-20261023-AI-REPAIR.md for evidence and continuation.
 
