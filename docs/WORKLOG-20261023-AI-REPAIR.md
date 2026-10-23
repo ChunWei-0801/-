@@ -48,3 +48,10 @@ PRODUCTION-ACCEPTANCE.md 為準；未記錄 live 前不可稱本版已上線。
 備份工具新增受限的 hostaddr 支援，供**經平台批准**的 loopback TCP 轉送使用：僅127.0.0.1／::1，且唯一 sslmode=verify-full；原主機仍用於 TLS 與來源識別，並映射給 pg_dump 的 PGHOSTADDR。不自行建立轉送或授予網路權限。弱 TLS、任意遠端地址、重複參數均拒絕；相關8項備份測試通過。新增參數另經真實本機 TLS／pg_dump 驗證，原主機名驗證保留，錯誤主機名配相同 loopback 地址確實被憑證驗證拒絕；來源識別不變，預留正式還原資料庫仍空。
 
 取得正式連線權限後：使用支援的轉送保留原 TLS 主機與來源身份、確認 source major 可由 client 支援，再作正式唯讀一致快照、加密、隔離還原與完整雜湊核對。最後沿用已授權的私人 Google Drive，備份與金鑰分開、下載回驗。完成前正式備份／復原仍是未完成，不以 GitHub、歷史 SQLite 或本機演練冒充。
+
+
+## 保存與部署
+
+來源 `f2247353938c3b34ed6a85c0a3113a9fdce5f27c` 的21個變動遠端blob全部驗證，完整歷史bundle已保存並驗證。GitHub workflow [39911481995](https://github.com/ChunWei-0801/-/actions/runs/39911481995) 及 checks／browser 兩job均 completed/success。完整隔離後端1070項、相關前端148項（零跳過）與24項真實WASM格式檢查通過。
+
+Render `dep-dbdftcbrjlhs73d5b3ng` 已於 2026-10-23 14:30:26（臺灣時間）回報live，來源相同，資源版本178，免費方案、自動部署關閉。先開 `https://fambudget-recovery-20261017.onrender.com/ai-test.html?v=178`，啟動後用原本早餐／午餐句子產生草稿，檢查65與120兩筆及來源核對提示。可以回報筆數／金額與耗時，不必再貼原始JSON。新實機品質／耗時、正式資料庫加密異地備份／隔離還原仍待完成，不能預填成功。

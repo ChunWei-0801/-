@@ -1,18 +1,77 @@
 # Production acceptance handoff
 
-The current deployed source is `510784ac9e490c91b71c2ce9597e8d17f326e015`,
-resource version **177**, at `https://fambudget-recovery-20261017.onrender.com`.
-Render `dep-dbd3kknb9u1s73ddmpng` reports live, finished
-2026-10-23 00:33:10 Asia/Taipei. The existing service remains free with auto-deploy off.
-GitHub workflow [39814053933](https://github.com/ChunWei-0801/-/actions/runs/39814053933)
-reports completed/success for that exact source; the actual Chromium job log
-records 44 passed, zero failures/skips, followed by the standalone lifestyle
-browser pass and successful Complete job step. Local affected frontend: 36
-passed, zero skips. No backend or migration changed. All eight remote changed
-blobs and the complete source-history bundle were verified. The original failed
-environment and its data remain intact.
+The current deployed source is `f2247353938c3b34ed6a85c0a3113a9fdce5f27c`,
+resource version **178**, at `https://fambudget-recovery-20261017.onrender.com`.
+Render `dep-dbdftcbrjlhs73d5b3ng` reports live, finished
+2026-10-23 14:30:26 Asia/Taipei. Existing free plan and auto-deploy off are unchanged.
+GitHub workflow [39911481995](https://github.com/ChunWei-0801/-/actions/runs/39911481995)
+and its checks/browser jobs all report completed/success for that exact source.
+Full local backend: 1070 passed. Related frontend: 148 passed, zero skips,
+including actual Chromium and the latest recorded merged-output replay.
+Actual XGrammar WASM: 24 checks passed with a synthetic tokenizer, no weights or
+model inference. All 21 changed remote blobs and the complete source-history
+bundle were verified. Six languages have 1571 aligned message keys. Original
+failed environment/data and the withdrawn voice feature decision are preserved.
 
-## v177 user withdrew voice and speech
+## v178 latest device failure: merged purchases and unknown required fields
+
+The latest real device output merged breakfast 65 and lunch 120 into one row,
+quoted 65元, omitted the date and reused the entire transaction as merchant. The
+old UI displayed one unknown-amount draft after 52.30 seconds (43.903 seconds to
+first output). That is a failed device observation, not a current quality pass.
+
+Unit-bearing exact quotes now map safely to complete amounts. Conservative
+source coverage detects merged/omitted candidates and can recover unambiguous
+explicit monetary clauses after at least one valid model row. Numeric boundaries,
+dates/IDs, duplicate occurrences, nonactual/third-party statements, receipt totals,
+prices/ranges/approximations and currency ambiguity have focused regression
+coverage. Blank/refused/all-forged model results do not become rule-generated
+model successes. Raw model rows, source recovery, row mappings and model-only
+scores stay separate. Unknown required fields and partial/unknown coverage are
+visible; incomplete fields cannot be confirmed. Human review remains mandatory.
+
+The latest transcribed raw JSON now crosses the actual worker/controller/browser
+replay to two source-assisted drafts, 65 and 120, with scoped explicit today cues,
+separate notes and empty merchants. The original model still has one candidate;
+that omission is not relabeled as a correct model prediction. This is recorded
+output replay, not a new Qwen inference or a measured speedup.
+
+The same free model/runtime remain. Compact currency grammar uses a stable ISO
+shape with semantic registry/source validation; baseline keeps its enum. Neutral
+penalties and compact JSON instructions reduce avoidable work without claiming
+observed gains. Optional runtime TTFT/grammar-init/prefill/decode scalar metrics
+are retained per pass without private text/token arrays or adding rates. Existing
+firstToken includes several stages; warm/loadMs0 does not establish grammar
+warmth, and overlapping runtime timings cannot be subtracted into GPU time.
+
+Open `/ai-test.html?v=178`, explicitly load, then try the same breakfast/lunch
+input first. It must show separate 65/120 review drafts if source recovery is
+needed. Source assistance is disclosed. Fresh model quality/latency and new
+production interactions still require the user's device. Do not request another
+copy of the already-transcribed raw failure. Normal site: `/?v=178#/`.
+
+## Backup state after external hostname was supplied
+
+The external hostname and database name are now verified and prepared privately;
+the credential-bearing user message is not duplicated in source or evidence.
+Runtime 1789 still has no TCP grants. The question about the platform's TCP
+configuration controls remains pending; HTTP website domains alone do not grant
+PostgreSQL access. The tool cannot silently change platform configuration or
+bypass the enforced proxy. No production database connection has been attempted.
+
+Official PG18 clients, a separate loopback-only TLS restore server and encrypted
+synthetic roundtrip (2 tables, 5 rows, 2 PNG blobs) are verified. The original
+failed container is untouched and the reserved production restore database is
+empty. The backup tool's new hostaddr option permits only loopback plus unique
+verify-full; TLS retains the original hostname/source identity. Actual local
+psycopg/pg_dump succeeded, and the wrong TLS hostname was correctly rejected.
+Eight backup checks and full 1070-test backend passed. These are local preparation
+evidence; production encrypted backup, private offsite upload/download and full
+isolated restore are still incomplete. Credential rotation must be coordinated
+with application configuration; it has not been performed. See
+WORKLOG-20261023-AI-REPAIR.md for evidence and continuation.
+
+## v177 user withdrew voice and speech (historical)
 
 The user opted out of voice input, reading aloud, voice/style selection and
 family recording. Both entry pages no longer load the voice CSS/JS. App init,
@@ -166,7 +225,7 @@ See `FREE-LLM.md` and `WORKLOG-20261021.md` for details.
 ## Existing acceptance and backup handoff
 
 The user saved and published the updated environment policy on 2026-10-19.
-The latest observed runtime revision is 1008 (2026-10-23 Asia/Taipei) and still lacks the
+The latest observed runtime revision is 1789 (2026-10-23 Asia/Taipei) and still lacks the
 production website and database destinations: the additional HTTP host allowlist
 contains `api.render.com`, `api.brevo.com`, and `open.er-api.com` alongside package
 manager presets; the production hostname was denied with `Tunnel 403`.
@@ -271,8 +330,10 @@ mailbox receipt still require their own evidence.
 
 ## Full database backup remains pending
 
-The complete private database backup still needs the external PostgreSQL hostname
-and permitted TCP access (normally port 5432). The internal Render database URL
+The external PostgreSQL hostname is now verified and prepared privately. The
+complete private production backup still requires permitted TCP access on 5432
+and the supported connection path; PG18 clients and an isolated TLS restore
+environment are already prepared. The internal Render database URL
 and HTTP-only API allowlist are insufficient. After those are available in the
 new task, use the existing `backend/tools/backup_restore.py` with credentials
 bound privately, store the backup outside Git with restrictive permissions, and
