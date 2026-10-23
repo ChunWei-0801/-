@@ -3,6 +3,8 @@
  * The failed user-device example is synthetic app-default text. Only WebLLM's
  * runtime/GPU probe is replaced: the actual worker, controller, HTML parser,
  * translations, source checks and result rendering run together in Chromium.
+ * These historical six-field replies explicitly exercise the retained compact
+ * extractor. The new default array protocol has its own bounded replay test.
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -53,6 +55,9 @@ test('recorded user-device failure crosses real worker/controller/browser and re
       Object.defineProperty(navigator, 'gpu', {configurable:true,value:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}});
       const NativeWorker = window.Worker;
       window.Worker = class RecordedRuntimeWorker extends NativeWorker {
+        postMessage(message,...rest) {
+          super.postMessage(message&&message.type==='generate'&&message.task==='draft'?{...message,promptProfile:'compact-v1'}:message,...rest);
+        }
         constructor(...args) {
           super(...args);
           this.addEventListener('message', event => {

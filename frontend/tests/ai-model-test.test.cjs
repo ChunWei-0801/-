@@ -9,7 +9,7 @@ const packs = Object.fromEntries(languages.map(language=>[language,JSON.parse(fs
 
 test('public-page failure messages are present in all six locales',()=>{
   for(const language of languages){
-    for(const key of ['invalidDraft','noOutput','incomplete','runtimeFailure','timeout','busy','failedMetrics','rawOutput','rawOutputNotice','draftNeedsCompletion','draftReviewRequired','draftCoveragePartial','draftCoverageUnknown','cannotConfirm','draftStatusLabel','draftFieldsComplete','sourceRecoveryNotice','rawOutputTitle','decodeElapsed','modelOutputUnavailable','generationTimeLabel']){
+    for(const key of ['invalidDraft','noOutput','incomplete','runtimeFailure','timeout','busy','failedMetrics','rawOutput','rawOutputNotice','draftNeedsCompletion','draftReviewRequired','draftCoveragePartial','draftCoverageUnknown','cannotConfirm','draftStatusLabel','draftFieldsComplete','sourceRecoveryNotice','rawOutputTitle','decodeElapsed','modelOutputUnavailable','generationTimeLabel','boundedLabel','classificationScope','classificationLabel','modelExtractionNotApplicable','classificationScore','previewPending','previewFailed','noSafeCandidates']){
       assert.ok(packs[language].messages['aiTest.'+key],language+' '+key);
     }
     assert.deepEqual(Object.keys(packs[language].messages).sort(),Object.keys(packs['zh-TW'].messages).sort());
@@ -49,10 +49,20 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
           if(index===1&&__modelFixture.mode==='benchmarkPartial'){const error=new Error('PRIVATE INPUT must not leak');error.code='AI_INVALID_DRAFT';error.details={rawOutput:'{"items":[]}',elapsedMs:55,model:'fixture-model'};throw error;}
           const items=entry.expected.items.map(item=>({...item}));
           const original=items.length?items.map(item=>({...item,kind:item.kind==='income'?'expense':'income',category:item.kind==='income'?'OTHER':'SALARY'})):[{amount:52000,kind:'income',currency:'TWD',date:options.context.today,category:'SALARY',merchant:null}];
-          if(__modelFixture.mode==='benchmarkEmptyError'&&index===3){const error=new Error('Empty fixture');error.code='AI_NO_DRAFT';error.details={rawOutput:'{"items":[]}',elapsedMs:15,validation:{reason:'NO_TRANSACTIONS'}};throw error;}
+          if(__modelFixture.mode==='benchmarkEmptyError'&&index===3&&options.promptProfile!=='bounded-labels-v1'){const error=new Error('Empty fixture');error.code='AI_NO_DRAFT';error.details={rawOutput:'{"items":[]}',elapsedMs:15,validation:{reason:'NO_TRANSACTIONS'}};throw error;}
           if(__modelFixture.mode==='benchmarkWrong'&&index===0)items[0]={...items[0],kind:'income',category:'SALARY'};
           const assisted=__modelFixture.mode==='benchmarkHybrid';
+          if(options.promptProfile==='bounded-labels-v1')return {...success,text:JSON.stringify({items,warnings:[]}),promptProfile:options.promptProfile,modelTask:'classify-source-candidates',inferencePerformed:items.length>0,modelDraft:null,classificationDraft:items.length?{items:assisted?original:items}:null,rawModelOutput:items.length?'[1,1]':null,timing:{firstTokenMs:4,totalMs:12},normalization:{sourceExtraction:true,classificationOnly:true,sourceRuleAssisted:true,coverage:{status:'complete'},rowMappings:items.map((item,index)=>({draftIndex:index,modelRowIndex:null})),classificationRowMappings:items.map((item,index)=>({draftIndex:index,candidateIndex:index})),adjustments:assisted?items.flatMap((item,rowIndex)=>[{rowIndex,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:original[rowIndex].kind,value:item.kind},{rowIndex,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set',previous:original[rowIndex].category,value:item.category}]):[]}};
+
           return {...success,text:JSON.stringify({items,warnings:assisted?['INTERNAL RULE WARNING']:[]}),modelDraft:{items:assisted?original:items,warnings:[]},promptProfile:options.promptProfile,timing:{firstTokenMs:4,totalMs:12},normalization:assisted?{sourceRuleAssisted:true,adjustments:items.flatMap((item,rowIndex)=>[{rowIndex,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:original[rowIndex].kind,value:item.kind},{rowIndex,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set',previous:original[rowIndex].category,value:item.category}])}:null};
+        }
+
+        if(__modelFixture.mode==='boundedDeferred'||__modelFixture.mode==='boundedLoop'){
+          const items=[{amount:65,kind:'expense',currency:'TWD',date:options.context.today,category:'FOOD',merchant:null,note:'今天早餐65元'},{amount:120,kind:'expense',currency:'TWD',date:options.context.today,category:'FOOD',merchant:null,note:'午餐120元'}];
+          const normalization={sourceExtraction:true,classificationOnly:true,sourceRuleAssisted:true,coverage:{status:'complete',sourceCandidateCount:2,uncoveredSourceCount:0},rowMappings:items.map((item,index)=>({draftIndex:index,modelRowIndex:index})),adjustments:[]};
+          const sourcePreview={draft:{items,warnings:[]},normalization,modelTask:'source-extraction-only'};options.onDraftPreview?.(sourcePreview);
+          if(__modelFixture.mode==='boundedDeferred')return new Promise(resolve=>{__modelFixture.resolve=()=>resolve({...success,text:JSON.stringify({items,warnings:[]}),modelTask:'classify-source-candidates',promptProfile:options.promptProfile,inferencePerformed:true,modelDraft:null,classificationDraft:{items},normalization,rawModelOutput:'[1,1]'});});
+          const error=new Error('PRIVATE LOOP INPUT');error.code='AI_TRUNCATED';error.details={modelTask:'classify-source-candidates',inferencePerformed:true,promptProfile:options.promptProfile,sourcePreview,rawOutput:'{"classification":"支出（未選分類）","classification":"收入｜薪資","result":'.repeat(5),elapsedMs:74669,requestMs:74671,attempts:1,finishReason:'length',usage:{prompt_tokens:390,completion_tokens:640,total_tokens:1030},timing:{totalMs:74669,firstTokenMs:21494,decodeMs:53175}};throw error;
         }
         if(__modelFixture.mode==='defer')return new Promise(resolve=>{__modelFixture.resolve=()=>resolve(success);});
         if(__modelFixture.mode==='mergedIncomplete')return {...success,text:JSON.stringify({items:[{amount:null,kind:'expense',currency:'TWD',date:null,category:'FOOD',merchant:'今天早餐65元，午餐120元。'}],warnings:[]}),rawModelOutput:'{"items":[{"sourceText":"今天早餐65元，午餐120元。","amountText":"65元","dateText":"","merchantText":"今天早餐65元，午餐120元。","classification":"支出｜其他"}],"warnings":[]}',modelDraft:{items:[{amount:null,kind:'expense',currency:'TWD',date:null,category:'OTHER'}],warnings:[]},requestMs:52300,timing:{totalMs:52297,firstTokenMs:43903,decodeMs:8394},normalization:{sourceRuleAssisted:true,coverage:{status:'partial',sourceCandidateCount:2,modelRowCount:1,draftRowCount:1,missingAmountRows:[0],missingRequiredRows:[0],uncoveredSourceCount:1},rowMappings:[{draftIndex:0,modelRowIndex:0}],adjustments:[{rowIndex:0,field:'category',reason:'SOURCE_CATEGORY_CUE',action:'set',previous:'OTHER',value:'FOOD'}]}};
@@ -147,6 +157,28 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     const timing=await page.locator('#modelMetricsSummary').textContent();for(const value of ['52.30','43.90','8.39'])assert.ok(timing.includes(value),value+' is shown from measured workflow timings');
     const mergedRaw=await page.locator('#modelRawOutput').textContent();assert.ok(mergedRaw.includes('"amountText":"65元"'));assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs['zh-TW'].messages['aiTest.rawOutputTitle']);
     for(const language of languages){await page.locator('[data-language-select]').selectOption(language);await page.waitForFunction(language=>document.documentElement.lang===language,language);assert.equal(await page.locator('#modelStatus').textContent(),packs[language].messages['aiTest.draftNeedsCompletion']);assert.equal(await page.locator('#modelRawOutput').textContent(),mergedRaw);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,language+' incomplete draft stays within 320px');}
+
+    await page.evaluate(()=>{__modelFixture.mode='boundedDeferred';delete __modelFixture.resolve;});await page.locator('#modelRun').click();
+    await page.waitForSelector('[data-source-preview="pending"]');
+    assert.equal(await page.locator('[data-source-preview="pending"] [data-draft-index]').count(),2,'source drafts appear before inference finishes');
+    assert.equal(await page.locator('#modelRun').isDisabled(),true);assert.equal(await page.locator('#modelExport').isDisabled(),true);
+    assert.equal((await page.locator('#modelOutput').textContent()).includes(packs.es.messages['aiTest.previewPending']),true);
+    await page.evaluate(()=>__modelFixture.resolve());await page.waitForFunction(()=>!document.querySelector('#modelRun').disabled);
+    assert.equal(await page.locator('[data-source-preview]').count(),0,'completed inference replaces the pending preview');
+    assert.equal((await page.locator('#modelOutput').textContent()).includes(packs.es.messages['aiTest.classificationScope']),true);
+    let classifiedEvidence=JSON.parse(await page.locator('#modelMetrics').textContent());
+    assert.equal(classifiedEvidence.modelDraft,null);assert.equal(classifiedEvidence.classificationDraft.items.length,2);assert.equal(classifiedEvidence.rawModelOutput,'[1,1]');
+    await page.evaluate(()=>{__modelFixture.mode='boundedLoop';});await page.locator('#modelRun').click();
+    await page.waitForSelector('[data-source-preview="failed"]');await page.waitForFunction(()=>!document.querySelector('#modelRun').disabled);
+    assert.equal(await page.locator('[data-source-preview="failed"] [data-draft-index]').count(),2,'failed or truncated inference never erases already checked source drafts');
+    assert.equal(await page.locator('#modelStatus').getAttribute('data-error-code'),'AI_TRUNCATED');
+    assert.equal((await page.locator('#modelOutput').textContent()).includes(packs.es.messages['aiTest.previewFailed']),true);
+    const loopEvidence=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(loopEvidence.status,'failed');assert.equal(loopEvidence.usableDraft,false);assert.equal(loopEvidence.requestMs,74671);
+    assert.match(await page.locator('#modelRawOutput').textContent(),/classification.*classification/,'looping original text remains inspectable as failed output');
+    singleDownload=page.waitForEvent('download');await page.locator('#modelExport').click();singleFile=await singleDownload;
+    singleDiagnostic=JSON.parse(fs.readFileSync(await singleFile.path(),'utf8'));
+    assert.equal(singleDiagnostic.status,'failed');assert.equal(singleDiagnostic.sourcePreviewRetained,true);assert.equal(singleDiagnostic.counts.draftRows,2);
+    assert.equal(JSON.stringify(singleDiagnostic).includes('早餐'),false);assert.equal(JSON.stringify(singleDiagnostic).includes('classification\":'),false);assert.equal(Object.hasOwn(singleDiagnostic,'sourcePreview'),false);
     await page.evaluate(()=>{__modelFixture.mode='sourceRecovered';});await page.locator('#modelRun').click();
     await page.waitForFunction(()=>document.querySelectorAll('[data-draft-index]').length===2);
     const recovered=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(recovered.modelDraft.items.length,1);assert.equal(recovered.normalizedDraft.items.length,2);assert.equal(recovered.draftAssessment.sourceRecoveredRows,1);assert.equal(recovered.draftAssessment.requiredFieldsComplete,true);assert.equal(recovered.draftAssessment.usableDraft,null,'complete fields do not establish independently verified correctness');
@@ -187,7 +219,7 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     await page.locator('[data-language-select]').selectOption('zh-TW');await page.evaluate(()=>{__modelFixture.mode='benchmarkHybrid';});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>document.querySelectorAll('[data-case-state="passed"]').length===4&&!document.querySelector('#modelBenchmark').disabled);
     const hybrid=JSON.parse(await page.locator('#modelMetrics').textContent());
-    assert.equal(hybrid.summaries['fast-json-v1'].model.passed,0);assert.equal(hybrid.summaries['fast-json-v1'].assisted.passed,4);assert.equal(hybrid.accuracyNotInferred,true);
+    assert.equal(hybrid.summaries['bounded-labels-v1'].model,null);assert.equal(hybrid.summaries['bounded-labels-v1'].classification.passed,0);assert.equal(hybrid.summaries['bounded-labels-v1'].classification.eligibleCases,3);assert.equal(hybrid.summaries['bounded-labels-v1'].assisted.passed,4);assert.equal(hybrid.accuracyNotInferred,true);
     assert.equal(await page.locator('#modelStatus').getAttribute('data-error-code'),null);
     assert.ok((await page.locator('[data-synthetic-case="1"] [data-review-checks]').first().textContent()).includes(packs['zh-TW'].messages['aiTest.reviewChecksTitle']));
     assert.equal((await page.locator('#modelOutput').textContent()).includes('SOURCE_KIND_CUE'),false);
@@ -195,29 +227,29 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     await page.evaluate(()=>{__modelFixture.mode='benchmarkPartial';});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>document.querySelector('[data-synthetic-case="4"]').dataset.caseState==='passed'&&!document.querySelector('#modelBenchmark').disabled);
     const partial=JSON.parse(await page.locator('#modelMetrics').textContent());
-    assert.equal(partial.summaries['fast-json-v1'].failed,1);assert.equal(partial.summaries['fast-json-v1'].attempted,4);assert.equal(partial.summaries['fast-json-v1'].assisted.passed,3);
+    assert.equal(partial.summaries['bounded-labels-v1'].failed,1);assert.equal(partial.summaries['bounded-labels-v1'].attempted,4);assert.equal(partial.summaries['bounded-labels-v1'].assisted.passed,3);
     assert.equal(await page.locator('[data-synthetic-case="2"]').getAttribute('data-case-state'),'error');
     // An explicitly verified empty response is a valid abstention, never a blanket error-as-success shortcut.
     await page.evaluate(()=>{__modelFixture.mode='benchmarkEmptyError';});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>document.querySelectorAll('[data-case-state="passed"]').length===4&&!document.querySelector('#modelBenchmark').disabled);
-    const abstained=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(abstained.summaries['fast-json-v1'].abstained,1);assert.equal(abstained.summaries['fast-json-v1'].assisted.passed,4);
+    const abstained=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(abstained.summaries['bounded-labels-v1'].abstained,0);assert.equal(abstained.summaries['bounded-labels-v1'].classification.notRun,1);assert.equal(abstained.summaries['bounded-labels-v1'].assisted.passed,4);
     // A/B runs only after explicit action and counterbalances order for each case.
     await page.locator('#modelComparison summary').click();await page.evaluate(()=>{__modelFixture.mode='benchmarkSuccess';__modelFixture.profiles=[];});
     await page.locator('#modelCompare').click();await page.waitForFunction(()=>document.querySelectorAll('[data-case-state="passed"]').length===8&&!document.querySelector('#modelCompare').disabled);
-    assert.deepEqual(await page.evaluate(()=>__modelFixture.profiles),['compact-v1','fast-json-v1','fast-json-v1','compact-v1','compact-v1','fast-json-v1','fast-json-v1','compact-v1']);
-    const paired=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(paired.summaries['compact-v1'].attempted,4);assert.equal(paired.summaries['fast-json-v1'].attempted,4);
+    assert.deepEqual(await page.evaluate(()=>__modelFixture.profiles),['compact-v1','bounded-labels-v1','bounded-labels-v1','compact-v1','compact-v1','bounded-labels-v1','bounded-labels-v1','compact-v1']);
+    const paired=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(paired.summaries['compact-v1'].attempted,4);assert.equal(paired.summaries['bounded-labels-v1'].attempted,4);
     assert.equal(paired.summaries['compact-v1'].latency.warm.firstTokenMs.median,4);assert.equal(await page.locator('#modelExport').isEnabled(),true);
     const downloading=page.waitForEvent('download');await page.locator('#modelExport').click();const download=await downloading,exported=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
-    assert.equal(exported.containsPrivateContent,false);assert.equal(exported.suite,'quick');assert.deepEqual(exported.comparisonProfiles,['compact-v1','fast-json-v1']);assert.equal(exported.profiles['compact-v1'].attempted,4);
+    assert.equal(exported.containsPrivateContent,false);assert.equal(exported.suite,'quick');assert.deepEqual(exported.comparisonProfiles,['compact-v1','bounded-labels-v1']);assert.equal(exported.profiles['compact-v1'].attempted,4);
     const exportedText=JSON.stringify(exported);for(const forbidden of ['sourceText','rawModelOutput','三明治','52000','fieldDifference','PRIVATE INPUT'])assert.equal(exportedText.includes(forbidden),false,'export excludes '+forbidden);
-    assert.deepEqual(exported.cases.map(item=>item.requestedProfile),['compact-v1','fast-json-v1','fast-json-v1','compact-v1','compact-v1','fast-json-v1','fast-json-v1','compact-v1']);
+    assert.deepEqual(exported.cases.map(item=>item.requestedProfile),['compact-v1','bounded-labels-v1','bounded-labels-v1','compact-v1','compact-v1','bounded-labels-v1','bounded-labels-v1','compact-v1']);
     assert.ok((await page.locator('#modelTiming').textContent()).includes('秒'),'uses observed elapsed time instead of a made-up progress percentage');
     // Cancellation retains completed synthetic results but never accepts a late reply.
     await page.evaluate(()=>{__modelFixture.mode='benchmarkDefer';delete __modelFixture.resolve;});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>typeof __modelFixture.resolve==='function');assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'passed');
     await page.locator('#modelCancel').click();await page.evaluate(()=>__modelFixture.resolve());await page.waitForTimeout(25);
     assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'passed');assert.equal(await page.locator('[data-case-state="cancelled"]').count(),1);assert.equal(await page.locator('[data-case-state="notrun"]').count(),2);
-    const cancelled=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(cancelled.complete,false);assert.equal(cancelled.summaries['fast-json-v1'].cancelled,1);assert.equal(cancelled.summaries['fast-json-v1'].attempted,2);assert.equal(cancelled.summaries['fast-json-v1'].assisted.passed,1);
+    const cancelled=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(cancelled.complete,false);assert.equal(cancelled.summaries['bounded-labels-v1'].cancelled,1);assert.equal(cancelled.summaries['bounded-labels-v1'].attempted,2);assert.equal(cancelled.summaries['bounded-labels-v1'].assisted.passed,1);
     assert.equal(await page.locator('#modelRawOutput').textContent(),'');assert.equal(await page.locator('#modelTechnical').evaluate(node=>node.open),false);
     await page.locator('#modelUnload').click();
     assert.equal(await page.locator('#modelInput').inputValue(),'');

@@ -205,19 +205,19 @@ test('worker asks for verbatim source fields and readable labels, then keeps raw
   assert.equal(reply.result.normalization.requiresHumanReview,true);assert.equal(h.calls.resets,2);
 });
 
-test('draft controller defaults to the free post-validated JSON pipeline while other tasks keep their profile',async t=>{
+test('draft controller defaults to bounded classification while other tasks keep their profile',async t=>{
   const h=controller();t.after(()=>h.api.unload());await ready(h);
   const pending=h.api.generate({task:'receipt',input:'昨天午餐120元'});
-  assert.equal(h.workers[0].messages.at(-1).promptProfile,'fast-json-v1');
+  assert.equal(h.workers[0].messages.at(-1).promptProfile,'bounded-labels-v1');
   h.workers[0].emit('result',{result:{text:'{}'}});await pending;
 });
 
-test('fast JSON omits grammar entirely on its first pass and retains original evidence and source checks',async()=>{
+test('archived fast JSON is constrained again and retains original evidence and source checks',async()=>{
   const raw='```json\n'+modelDraft()+'\n```';
   const {h,reply,value}=await extractFixture(raw,undefined,undefined,{promptProfile:'fast-json-v1'});
   assert.equal(reply.type,'result');assert.equal(reply.result.rawModelOutput,raw);assert.equal(value.items[0].amount,120);
-  assert.equal(Object.hasOwn(h.calls.requests[0],'response_format'),false);
-  assert.equal(reply.result.promptProfile,'fast-json-v1');assert.equal(reply.result.timing.passes[0].format,'post-validated-json');
+  assert.equal(Object.hasOwn(h.calls.requests[0],'response_format'),true);
+  assert.equal(reply.result.promptProfile,'fast-json-v1');assert.equal(reply.result.timing.passes[0].format,'json-schema');
   assert.equal(h.calls.requests[0].messages.length,4);
   const example=JSON.parse(h.calls.requests[0].messages[2].content);
   assert.deepEqual(example.items.map(item=>item.amountText),['47','860']);
@@ -225,12 +225,12 @@ test('fast JSON omits grammar entirely on its first pass and retains original ev
   assert.equal(JSON.stringify(example).includes('120'),false,'example never contains regression gold amounts');
 });
 
-test('fast JSON allows only one measured constrained repair without replaying invented content',async()=>{
+test('archived profiles allow only one measured constrained repair without replaying invented content',async()=>{
   for(const bad of ['not JSON',modelDraft([{...modelItem,sourceText:'PRIVATE_FORGED_SOURCE',amountText:'991'}]),modelDraft()+'\n'+modelDraft()]){
     const {h,reply}=await extractFixture([bad,modelDraft()],undefined,undefined,{promptProfile:'fast-json-v1'});
     assert.equal(reply.type,'result');assert.equal(reply.result.attempts,2);
-    assert.equal(Object.hasOwn(h.calls.requests[0],'response_format'),false);assert.equal(h.calls.requests[1].response_format.type,'json_object');
-    assert.deepEqual(Array.from(reply.result.timing.passes,pass=>pass.format),['post-validated-json','json-schema']);
+    assert.equal(Object.hasOwn(h.calls.requests[0],'response_format'),true);assert.equal(h.calls.requests[1].response_format.type,'json_object');
+    assert.deepEqual(Array.from(reply.result.timing.passes,pass=>pass.format),['json-schema','json-schema']);
     assert.equal(JSON.stringify(h.calls.requests[1].messages).includes('PRIVATE_FORGED_SOURCE'),false);
   }
   const empty=await extractFixture(modelDraft([]),'今天沒有支出',undefined,{promptProfile:'fast-json-v1'});
@@ -581,7 +581,7 @@ test('worker strips ledger notes and identities, prunes discarded sources, and b
   const request=h.calls.requests[0],content=JSON.stringify(request.messages);
   assert.ok(!content.includes('PRIVATE'));assert.ok(!content.includes('tx:discarded'));assert.ok(content.includes('Spanish'));
   assert.ok(new TextEncoder().encode(content).length<=3200);assert.equal(request.max_tokens,384);
-  const tooLong=await h.run({type:'generate',task:'draft',input:'餐'.repeat(2000),context:draftContext});assert.equal(tooLong.error?.code,'AI_CONTEXT_TOO_LARGE');
+  const tooLong=await h.run({type:'generate',task:'draft',input:'餐'.repeat(2000),context:draftContext,promptProfile:'compact-v1'});assert.equal(tooLong.error?.code,'AI_CONTEXT_TOO_LARGE');
 });
 
 test('worker never accepts empty, thinking-only, or truncated output as successful inference',async()=>{

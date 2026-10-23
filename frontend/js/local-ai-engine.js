@@ -19,6 +19,18 @@
   AIError.prototype = Object.create(Error.prototype); AIError.prototype.constructor = AIError;
   function error(code, message) { return new AIError(code, message); }
   function now() { return global.performance && typeof global.performance.now === 'function' ? global.performance.now() : Date.now(); }
+  function sourcePreview(value) {
+    if (!value || value.modelTask!=='source-extraction-only' || !value.normalization || value.normalization.sourceExtraction!==true || !value.draft || !Array.isArray(value.draft.items) || value.draft.items.length>10) return null;
+    var keys=['kind','amount','currency','date','category','merchant','note','missingFields'],items=[];
+    for(var item of value.draft.items){
+      if(!item || !['expense','income',null].includes(item.kind) || !(typeof item.amount==='number'&&Number.isFinite(item.amount)&&item.amount>0) || !/^[A-Z]{3}$/.test(item.currency) || !(item.date===null||typeof item.date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(item.date)) || !(item.category===null||typeof item.category==='string') || item.merchant!==null || typeof item.note!=='string' || !Array.isArray(item.missingFields))return null;
+      var copy={};keys.forEach(function(key){copy[key]=key==='note'?item.note.slice(0,1500):key==='category'&&item[key]!==null?item[key].slice(0,100):key==='missingFields'?item[key].filter(function(field){return keys.slice(0,6).includes(field);}).slice(0,6):item[key];});items.push(copy);
+    }
+    var coverage=value.normalization.coverage||{},cleanCoverage={status:['complete','partial','unknown'].includes(coverage.status)?coverage.status:'unknown'};
+    ['sourceCandidateCount','modelRowCount','draftRowCount','uncoveredSourceCount'].forEach(function(key){cleanCoverage[key]=Number.isInteger(coverage[key])&&coverage[key]>=0?coverage[key]:null;});
+    ['missingAmountRows','missingRequiredRows'].forEach(function(key){cleanCoverage[key]=Array.isArray(coverage[key])?coverage[key].filter(function(index){return Number.isInteger(index)&&index>=0&&index<items.length;}).slice(0,10):[];});
+    return {draft:{items:items,warnings:[]},modelTask:'source-extraction-only',inferencePerformed:false,modelDraft:null,normalization:{version:'source-candidates-v1',sourceExtraction:true,classificationOnly:true,sourceRuleAssisted:true,requiresHumanReview:true,sourceEvidenceChecked:true,coverage:cleanCoverage,adjustments:[],rejectedRows:[],rowMappings:items.map(function(_,index){return {draftIndex:index,modelRowIndex:null};}),sourceRecovery:{recoveredRows:[],mergedModelRows:[],omittedSourceCount:cleanCoverage.uncoveredSourceCount}}};
+  }
   function safeTiming(value) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     var clean = {};
@@ -46,7 +58,10 @@
     if (typeof value.model === 'string') clean.model = value.model.slice(0,120);
     if (typeof value.finishReason === 'string') clean.finishReason = value.finishReason.slice(0,40);
     if (typeof value.elapsedMs === 'number' && Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0) clean.elapsedMs = value.elapsedMs;
-    if (['baseline','compact-v1','fast-json-v1'].includes(value.promptProfile)) clean.promptProfile = value.promptProfile;
+    if (['baseline','compact-v1','fast-json-v1','bounded-labels-v1'].includes(value.promptProfile)) clean.promptProfile = value.promptProfile;
+    if (['classify-source-candidates','source-extraction-only'].includes(value.modelTask)) clean.modelTask=value.modelTask;
+    if (typeof value.inferencePerformed==='boolean') clean.inferencePerformed=value.inferencePerformed;
+    var preview=sourcePreview(value.sourcePreview);if(preview)clean.sourcePreview=preview;
     var timing = safeTiming(value.timing); if (timing) clean.timing = timing;
     if (Number.isInteger(value.attempts) && value.attempts > 0) clean.attempts = Math.min(value.attempts,2);
     ['prompt_tokens','completion_tokens','total_tokens','promptTokens','completionTokens','totalTokens'].forEach(function(key) {
@@ -79,7 +94,11 @@
     session++;
     dispose();
     state = {phase:'idle',loaded:false,progress:null,lastError:null};
-    if (active) settle(active, error(typeof code === 'string' ? code : 'AI_CANCELLED', code === 'AI_TIMEOUT' ? 'Local AI timed out. Check the download and device.' : 'Local AI operation was cancelled.'));
+    if (active) {
+      var rejected=error(typeof code === 'string' ? code : 'AI_CANCELLED', code === 'AI_TIMEOUT' ? 'Local AI timed out. Check the download and device.' : 'Local AI operation was cancelled.');
+      if(code==='AI_TIMEOUT')rejected.details={promptProfile:active.promptProfile,model:selected&&selected.model||null,elapsedMs:Math.max(0,Math.round(now()-active.started)),modelTask:active.promptProfile==='bounded-labels-v1'?'classify-source-candidates':undefined,sourcePreview:active.preview||null,timing:{totalMs:Math.max(0,Math.round(now()-active.started)),firstTokenMs:active.firstTokenMs,decodeMs:active.firstTokenMs===null?null:Math.max(0,Math.round(now()-active.started-active.firstTokenMs)),cleanupMs:null,passes:[]}};
+      settle(active,rejected);
+    }
     return status();
   }
   function failWorker(code, message) {
@@ -97,7 +116,8 @@
       var message = event.data || {}, job = active;
       if (message.id !== job.id) return;
       if (message.type === 'progress') { state.progress = message.progress; call(job.onProgress, message.progress); return; }
-      if (message.type === 'token') { call(job.onToken, message.text); return; }
+      if (message.type === 'draft-preview') { var preview=job.task==='draft'&&sourcePreview(message.preview);if(preview){job.preview=preview;call(job.onDraftPreview,preview);}return; }
+      if (message.type === 'token') { if(job.firstTokenMs===null&&typeof message.text==='string'&&message.text)job.firstTokenMs=Math.max(0,Math.round(now()-job.started));call(job.onToken, message.text); return; }
       if (message.type === 'error') {
         var failure = message.error || {};
         if (job.type === 'load') { dispose(); state.loaded = false; }
@@ -125,12 +145,12 @@
     if (active) return Promise.reject(error('AI_BUSY', 'Another local AI operation is running.'));
     if (options.signal && options.signal.aborted) return Promise.reject(error('AI_CANCELLED', 'Local AI operation was cancelled.'));
     return new Promise(function (resolve, reject) {
-      var job = {id:++nextId,type:type,resolve:resolve,reject:reject,signal:options.signal,onProgress:options.onProgress,onToken:options.onToken};
+      var job = {id:++nextId,type:type,task:payload&&payload.task,promptProfile:payload&&payload.promptProfile,started:now(),firstTokenMs:null,preview:null,resolve:resolve,reject:reject,signal:options.signal,onProgress:options.onProgress,onToken:options.onToken,onDraftPreview:options.onDraftPreview};
       active = job;
       job.abort = function () { if (active === job) reset('AI_CANCELLED'); };
       if (job.signal) job.signal.addEventListener('abort', job.abort, {once:true});
       // A failed import/download must not leave the shared engine busy forever.
-      job.timer = global.setTimeout(function () { if (active === job) { reset('AI_TIMEOUT'); state.lastError = {code:'AI_TIMEOUT',message:'Local AI timed out. Check the download and device.'}; } }, type === 'load' ? 15 * 60 * 1000 : 3 * 60 * 1000);
+      job.timer = global.setTimeout(function () { if (active === job) { reset('AI_TIMEOUT'); state.lastError = {code:'AI_TIMEOUT',message:'Local AI timed out. Check the download and device.'}; } }, type === 'load' ? 15 * 60 * 1000 : payload&&payload.task==='draft' ? 45000 : 3 * 60 * 1000);
       try { ensureWorker().postMessage(Object.assign({id:job.id,type:type}, payload || {})); }
       catch (failure) { dispose(); state.loaded = false; state.phase = 'error'; settle(job, failure.code ? failure : error('AI_WORKER_FAILED', 'Could not send the local AI request.')); }
     });
@@ -185,8 +205,8 @@
     if (!task) throw error('AI_INVALID_TASK', 'Unknown local AI task.');
     if (typeof options.input !== 'string' || !options.input.trim()) throw error('AI_INVALID_INPUT', 'Enter text for the local AI request.');
     if (options.input.length > 3000) throw error('AI_INPUT_TOO_LARGE', 'Use a shorter question or receipt text.');
-    var promptProfile = options.promptProfile === undefined ? (task === 'draft' ? 'fast-json-v1' : 'compact-v1') : options.promptProfile;
-    if (!['baseline','compact-v1','fast-json-v1'].includes(promptProfile)) throw error('AI_INVALID_PROFILE', 'Unknown local AI generation profile.');
+    var promptProfile = options.promptProfile === undefined ? (task === 'draft' ? 'bounded-labels-v1' : 'compact-v1') : options.promptProfile;
+    if (!['baseline','compact-v1','fast-json-v1','bounded-labels-v1'].includes(promptProfile)) throw error('AI_INVALID_PROFILE', 'Unknown local AI generation profile.');
     var ownedSession = session, started = now(), loadMs = 0;
     try {
       if (!state.loaded) {

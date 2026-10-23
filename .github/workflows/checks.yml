@@ -51,7 +51,7 @@ jobs:
           JWT_SECRET: 'isolated-ci-test-secret-at-least-thirty-two-bytes'
           APP_ENV: development
       - run: node --test frontend/tests/api-mode.test.cjs frontend/tests/public-resource-api.test.cjs frontend/tests/nlp-lottery.test.cjs
-      - run: node --test frontend/tests/local-ai-engine.test.cjs frontend/tests/local-ai-evaluation.test.cjs frontend/tests/currency-units.test.cjs frontend/tests/page-transitions.test.cjs frontend/tests/receipt-entry.test.cjs frontend/tests/assistant-report-query.test.cjs frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs frontend/tests/ai-draft-replay.test.cjs
+      - run: node --test frontend/tests/local-ai-engine.test.cjs frontend/tests/local-ai-stability.test.cjs frontend/tests/local-ai-evaluation.test.cjs frontend/tests/currency-units.test.cjs frontend/tests/page-transitions.test.cjs frontend/tests/receipt-entry.test.cjs frontend/tests/assistant-report-query.test.cjs frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs frontend/tests/ai-draft-replay.test.cjs frontend/tests/ai-bounded-replay.test.cjs
   browser:
     runs-on: ubuntu-latest
     steps:
@@ -68,5 +68,5 @@ jobs:
       - run: |
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/fambudget-browser/node_modules/playwright"
           node -e 'require(process.env.PLAYWRIGHT_MODULE)'
-          node --test frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs frontend/tests/ai-draft-replay.test.cjs frontend/tests/safety-center-browser.cjs frontend/tests/transaction-archive-browser.cjs frontend/tests/activity-ui-browser.cjs frontend/tests/direct-shortcuts-browser.cjs frontend/tests/receipt-entry.test.cjs frontend/tests/savings-units-browser.test.cjs frontend/tests/voice-accessibility-browser.cjs frontend/tests/assistant-report-query.test.cjs
+          node --test frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs frontend/tests/ai-draft-replay.test.cjs frontend/tests/ai-bounded-replay.test.cjs frontend/tests/safety-center-browser.cjs frontend/tests/transaction-archive-browser.cjs frontend/tests/activity-ui-browser.cjs frontend/tests/direct-shortcuts-browser.cjs frontend/tests/receipt-entry.test.cjs frontend/tests/savings-units-browser.test.cjs frontend/tests/voice-accessibility-browser.cjs frontend/tests/assistant-report-query.test.cjs
           node frontend/tests/lifestyle-modules-browser.cjs

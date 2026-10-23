@@ -223,3 +223,40 @@ test('paired pipeline reports preserve the requested profile even when inference
   assert.equal(report.summary.attempted,3);
   assert.ok(!JSON.stringify(report).includes('PRIVATE_PROFILE'));
 });
+
+test('bounded label results score only kind/category given source candidates and never earn six-field model credit',()=>{
+  const reference=expected([row()]),prediction=row({merchant:'DIFFERENT_SOURCE_MERCHANT',note:'PRIVATE_CLASSIFICATION_NOTE'});
+  const classified=observation({promptProfile:'bounded-labels-v1',modelTask:'classify-source-candidates',inferencePerformed:true,expected:reference,modelItems:[row()],classificationItems:[prediction],classificationSourceItems:[row()],assistedItems:[row()]});
+  const summary=api.summarize([classified]);
+  assert.equal(summary.model,null);assert.equal(summary.classification.passed,1);assert.equal(summary.classification.eligibleCases,1);
+  assert.equal(summary.classification.fieldsExact.matched,2);assert.equal(summary.classification.fieldsExact.total,2);assert.equal(summary.assisted.fieldsExact.matched,6);
+  const wrong=api.scoreClassification(reference,[row({kind:'income',category:'SALARY'})],[row()]);
+  assert.equal(wrong.caseExact,false);assert.equal(wrong.fieldsExact.matched,0);assert.equal(wrong.eligible,true);
+  const missingSource=api.scoreClassification(reference,[row()],[row({amount:999})]);
+  assert.equal(missingSource.eligible,false);assert.equal(missingSource.caseExact,false);assert.equal(missingSource.fieldsExact.total,0);
+  const report=api.exportReport([classified],{suite:'quick'});
+  assert.equal(report.cases[0].model,null);assert.equal(report.profiles['bounded-labels-v1'].model,null);assert.equal(report.cases[0].classification.fieldsExact.total,2);
+  assert.equal(JSON.stringify(report).includes('PRIVATE_CLASSIFICATION_NOTE'),false);assert.equal(JSON.stringify(report).includes('DIFFERENT_SOURCE_MERCHANT'),false);
+});
+
+test('bounded no-inference source results are not model abstention or classification success; failures remain visible',()=>{
+  const classified=observation({promptProfile:'bounded-labels-v1',modelTask:'classify-source-candidates',inferencePerformed:true,classificationItems:[row()],classificationSourceItems:[row()]});
+  const failed={...classified,status:'failed',errorCode:'AI_TIMEOUT',classificationItems:null};
+  const empty={...classified,expected:expected([],'abstain'),inferencePerformed:false,classificationItems:null,classificationSourceItems:[],assistedItems:[]};
+  const summary=api.summarize([classified,failed,empty]);
+  assert.equal(summary.model,null);assert.equal(summary.abstained,0);assert.equal(summary.failed,1);
+  assert.equal(summary.classification.passed,1);assert.equal(summary.classification.eligibleCases,2);assert.equal(summary.classification.passRateAmongEligible,0.5);
+  assert.equal(summary.classification.notRun,1);assert.equal(summary.classification.failed,1);assert.equal(summary.assisted.passed,2);
+  const malformedEmpty=api.summarize([{...empty,status:'failed',errorCode:'AI_NO_DRAFT',emptyDetected:true}]);
+  assert.equal(malformedEmpty.abstained,0);assert.equal(malformedEmpty.assisted.passed,0,'only legacy verified model empty answers can abstain');
+});
+
+test('failed bounded diagnostics retain only preview counts and known metadata, never source values or looping raw text',()=>{
+  const secret='PRIVATE_LOOPING_RESULT_SOURCE',item=row({merchant:secret,note:secret});
+  const sourcePreview={modelTask:'source-extraction-only',draft:{items:[item],warnings:[secret]},normalization:{sourceExtraction:true,coverage:{status:'partial',sourceCandidateCount:2,uncoveredSourceCount:1}}};
+  const report=api.exportTrialDiagnostic({promptProfile:'bounded-labels-v1',modelTask:'classify-source-candidates',rawOutput:secret.repeat(50),sourcePreview,requestMs:74671,finishReason:'length',inferencePerformed:true},{failed:true,errorCode:'AI_TRUNCATED'});
+  assert.equal(report.status,'failed');assert.equal(report.sourcePreviewRetained,true);assert.equal(report.counts.draftRows,1);assert.equal(report.counts.modelRows,null);
+  assert.equal(report.measurement.promptProfile,'bounded-labels-v1');assert.equal(report.measurement.modelTask,'classify-source-candidates');assert.equal(report.measurement.requestMs,74671);
+  assert.equal(JSON.stringify(report).includes(secret),false);assert.equal(Object.hasOwn(report,'sourcePreview'),false);
+  assert.equal(api.safeMeasurement({attempts:0,inferencePerformed:false}).attempts,0);
+});

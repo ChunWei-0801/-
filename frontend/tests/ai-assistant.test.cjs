@@ -347,3 +347,71 @@ test('browser contract fixture: explicit load, reviewed writes, help retrieval, 
     assert.deepEqual(pageErrors,[]);
   } finally { await browser.close(); }
 });
+
+test('bounded classification measurements preserve only known task/profile/format and finite runtime statistics',()=>{
+  const data=tools.evaluation({measurements:[{task:'draft',model:'fixture',modelTask:'classify-source-candidates',inferencePerformed:true,classificationOnly:true,promptProfile:'bounded-labels-v1',usage:{},timing:{passes:[{attempt:1,format:'json-schema',runtime:{grammarInitMs:3,prefillTokensPerSecond:18,decodeTokensPerSecond:Infinity,private:'PRIVATE_CLASSIFICATION_INPUT'}}]}}],failedMeasurements:[{task:'draft',modelTask:'classify-source-candidates',inferencePerformed:true,promptProfile:'bounded-labels-v1',usage:{},errorCode:'AI_TIMEOUT',sourcePreview:{draft:{items:[{note:'PRIVATE_CLASSIFICATION_INPUT'}]}}}]});
+  assert.equal(data.modelRuns[0].modelTask,'classify-source-candidates');assert.equal(data.modelRuns[0].classificationOnly,true);assert.equal(data.modelRuns[0].promptProfile,'bounded-labels-v1');
+  assert.equal(data.modelRuns[0].timing.passes[0].format,'json-schema');assert.equal(data.modelRuns[0].timing.passes[0].runtime.grammarInitMs,3);assert.equal(data.modelRuns[0].timing.passes[0].runtime.decodeTokensPerSecond,null);
+  assert.equal(data.failedRuns[0].modelTask,'classify-source-candidates');assert.equal(JSON.stringify(data).includes('PRIVATE_CLASSIFICATION_INPUT'),false);
+});
+
+test('browser bounded classification: source preview, guarded confirmation, failed AI fallback, provenance and cancellation',{skip:!chromium},async()=>{
+  const executablePath=process.env.CHROMIUM_EXECUTABLE||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined);
+  const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox']});
+  try{
+    const page=await browser.newPage({viewport:{width:320,height:780}}),errors=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.route('http://bounded-assistant.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><main id="view"></main>'}));
+    await page.goto('http://bounded-assistant.test/');await page.addStyleTag({path:path.join(__dirname,'../css/ai-assistant.css')});
+    await page.evaluate(()=>{
+      window.I18n={language:()=> 'en',t:(key,fallback)=>fallback};
+      window.__bounded={loaded:true,writes:[],mode:'pending',generations:0};
+      const items=[65,120].map((amount,index)=>({date:'2026-10-19',amount,currency:'TWD',kind:'expense',category:'1',merchant:null,note:index?'lunch':'breakfast',missingFields:['merchant']}));
+      const normalization={sourceExtraction:true,classificationOnly:true,sourceRuleAssisted:true,coverage:{status:'complete'},adjustments:[{rowIndex:0,field:'kind',reason:'SOURCE_KIND_CUE',action:'set',previous:'income',value:'expense'}],rowMappings:[{draftIndex:0,modelRowIndex:null},{draftIndex:1,modelRowIndex:null}]};
+      const preview={draft:{items,warnings:[]},normalization,modelTask:'source-extraction-only'};
+      window.__bounded.preview=preview;
+      window.LocalAI={getStatus:()=>({loaded:__bounded.loaded}),checkSupport:async()=>({supported:true}),load:async()=>{__bounded.loaded=true;},cancel:()=>{__bounded.loaded=false;},clearSession:()=>{__bounded.loaded=false;},generate:async options=>{
+        __bounded.generations++;__bounded.callbacks=options;
+        if(__bounded.mode==='empty')return {text:'{"items":[],"warnings":[]}',modelTask:'classify-source-candidates',inferencePerformed:false,modelDraft:null,classificationDraft:null,normalization,promptProfile:'bounded-labels-v1',elapsedMs:0,attempts:0};
+        if(__bounded.mode!=='no-callback')options.onDraftPreview(preview);
+        const result={text:JSON.stringify({items,warnings:[]}),model:'CONTRACT FIXTURE — NOT INFERENCE',modelTask:'classify-source-candidates',inferencePerformed:true,promptProfile:'bounded-labels-v1',modelDraft:null,classificationDraft:{classificationOnly:true,items:items.map(item=>({...item,kind:'income',category:'2',amount:999999,date:'1888-01-01',merchant:'PRIVATE_CLASSIFIER_SOURCE'}))},rawModelOutput:'[1,1]',normalization,elapsedMs:25,finishReason:'stop',usage:{completion_tokens:7}};
+        return new Promise((resolve,reject)=>{__bounded.finish=()=>resolve(result);__bounded.fail=()=>{const error=new Error('classification timed out');error.code='AI_TIMEOUT';error.details={modelTask:'classify-source-candidates',inferencePerformed:true,promptProfile:'bounded-labels-v1',elapsedMs:25000,sourcePreview:preview,rawOutput:'[1,'};reject(error);};});
+      }};
+      window.API={mode:'http',categories:async()=>({categories:[{id:'1',name:'Food',kind:'expense'},{id:'2',name:'Salary',kind:'income'}]}),groups:async()=>({groups:[{id:'5',name:'My ledger'}]}),me:async()=>({user:{id:'one'}}),nlpConfirmBatch:async rows=>{__bounded.writes.push(rows);return {created:rows.length};},request:async()=>{throw new Error('Unexpected account write or retrieval');}};
+    });
+    await page.addScriptTag({path:path.join(__dirname,'../js/ai-assistant.js')});
+    await page.evaluate(()=>{AIAssistant.setAccount({id:'one'});window.__boundedState=AIAssistant.renderReceipt(document.querySelector('#view'));});
+    await page.waitForFunction(()=>document.querySelector('[data-ai-action="run"]').disabled===false);
+    await page.locator('textarea').fill('breakfast65, lunch120');await page.locator('[data-ai-action="run"]').click();
+    await page.waitForSelector('[data-ai-source-state="preview"]');
+    assert.equal(await page.locator('[data-ai-row]').count(),2);assert.equal(await page.locator('[data-ai-action="save"]').isDisabled(),true,'pending AI cannot confirm or write');
+    assert.equal(await page.locator('[data-ai-group]').isDisabled(),true);assert.equal(await page.evaluate(()=>__bounded.writes.length),0);
+    assert.match(await page.locator('[data-ai-classification-scope]').textContent(),/does not extract all six fields/);
+    await page.evaluate(()=>__bounded.finish());await page.waitForFunction(()=>!__boundedState.busy);
+    assert.deepEqual(await page.locator('[data-ai-field="amount"]').evaluateAll(nodes=>nodes.map(node=>node.value)),['65','120']);
+    assert.equal(await page.evaluate(()=>__boundedState.originalDrafts.every(item=>item===null)),true,'classification rows never masquerade as six-field model extraction');
+    assert.equal(await page.locator('.ait-review').textContent().then(text=>text.includes('999999')),false);assert.equal(await page.locator('[data-ai-model-output] pre').textContent(),'[1,1]');
+    let report=await page.evaluate(()=>AIAssistant.testing.evaluation(__boundedState));assert.equal(report.modelRuns.length,1);assert.equal(report.modelRuns[0].classificationOnly,true);
+    await page.locator('[data-ai-group]').selectOption('5');await page.locator('[data-ai-approve]').check();await page.locator('[data-ai-action="save"]').click();await page.waitForFunction(()=>__bounded.writes.length===1);
+    const hybrid=await page.evaluate(()=>__bounded.writes[0]);assert.deepEqual(hybrid.map(item=>item.orig.amount),[65,120]);assert.ok(hybrid.every(item=>item.orig.by==='hybrid'));assert.ok(hybrid.every(item=>item.orig.date==='2026-10-19'));
+    for(const mode of ['pending','no-callback']){
+      await page.evaluate(mode=>{__bounded.mode=mode;},mode);await page.locator('textarea').fill('source fallback fixture');await page.locator('[data-ai-action="run"]').click();
+      await page.waitForFunction(()=>__boundedState.busy&&typeof __bounded.fail==='function');await page.evaluate(()=>__bounded.fail());await page.waitForSelector('[data-ai-source-state="fallback"]');
+      await page.waitForFunction(()=>!__boundedState.busy);assert.equal(await page.locator('[data-ai-row]').count(),2);assert.match(await page.locator('.ait-status').textContent(),/not counted as a success/);
+      assert.equal(await page.evaluate(()=>__bounded.writes.length),1,'classification failure preserves review only');
+      report=await page.evaluate(()=>AIAssistant.testing.evaluation(__boundedState));assert.equal(report.modelRuns.length,1);assert.equal(report.failedRuns.length,mode==='pending'?1:2);
+    }
+    await page.locator('[data-ai-group]').selectOption('5');await page.locator('[data-ai-approve]').check();await page.locator('[data-ai-action="save"]').click();await page.waitForFunction(()=>__bounded.writes.length===2);
+    assert.ok((await page.evaluate(()=>__bounded.writes[1])).every(item=>item.orig.by==='rules'),'explicitly confirmed source fallback remains rules, not model or hybrid success');
+    await page.evaluate(()=>{__bounded.mode='pending';});await page.locator('textarea').fill('cancel source preview');await page.locator('[data-ai-action="run"]').click();await page.waitForSelector('[data-ai-source-state="preview"]');
+    await page.locator('[data-ai-action="cancel"]').click();assert.equal(await page.locator('[data-ai-row]').count(),0);assert.equal(await page.evaluate(()=>__boundedState.sourcePreview),null);
+    await page.evaluate(()=>{__bounded.callbacks.onDraftPreview(__bounded.preview);__bounded.finish();});await page.waitForTimeout(20);assert.equal(await page.locator('[data-ai-row]').count(),0,'late callbacks cannot restore cancelled drafts');
+    await page.locator('[data-ai-action="load"]').click();await page.waitForFunction(()=>__bounded.loaded);
+    await page.evaluate(()=>{__bounded.mode='empty';});await page.locator('textarea').fill('no actual transaction');await page.locator('[data-ai-action="run"]').click();await page.waitForSelector('[data-ai-source-state="source-only"]');
+    assert.equal(await page.locator('[data-ai-row]').count(),0);assert.match(await page.locator('.ait-status').textContent(),/Model inference was not run/);
+    report=await page.evaluate(()=>AIAssistant.testing.evaluation(__boundedState));assert.equal(report.modelRuns.length,1,'source-only empty results never inflate completed model runs');
+    assert.equal(await page.locator('[data-ai-model-output]').count(),0,'no inference means no missing-model-output claim');
+    await page.evaluate(()=>{__bounded.mode='pending';});await page.locator('textarea').fill('leave source preview');await page.locator('[data-ai-action="run"]').click();await page.waitForSelector('[data-ai-source-state="preview"]');
+    await page.evaluate(()=>{AIAssistant.cleanup();__bounded.callbacks.onDraftPreview(__bounded.preview);__bounded.finish();});await page.waitForTimeout(20);
+    assert.equal(await page.locator('.ai-trial').count(),0);assert.equal(await page.evaluate(()=>__boundedState.sourcePreview),null);assert.equal(await page.evaluate(()=>__bounded.writes.length),2);assert.deepEqual(errors,[]);
+  }finally{await browser.close();}
+});
