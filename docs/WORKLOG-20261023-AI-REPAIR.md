@@ -37,39 +37,24 @@ PRODUCTION-ACCEPTANCE.md 為準；未記錄 live 前不可稱本版已上線。
 
 實際 XGrammar 0.1.27 WASM 編譯與24項 grammar 檢查全部通過，含新 ISO pattern、舊 baseline registry、單位引用、空值與額外欄位。使用合成 tokenizer，未下載模型權重，不能將本機 grammar 編譯耗時當使用者首次推論速度。六語1571個鍵對齊。完整隔離後端1070項通過；精確CI／上線證據會在最後補記。
 
-## 正式備份準備與剩餘阻擋
+## 正式備份、異地保存與隔離還原驗證
 
-已取得並核對外部主機名稱；使用者提供的字串含密碼，不重複展示或放入 Git。正式設定由先前已授權的服務 API 私下準備，主機與資料庫名稱已核對，維持 TLS verify-full。該憑證後續需協調更換並同步網站設定，不能宣稱已重設或未確認就讓網站失去連線。
+已核對正式外部主機與資料庫；使用者先前貼出的字串含密碼，不重複展示或放入Git。憑證仍需協調更換並同步網站設定，不能宣稱已重設或未確認就讓網站失去連線。
 
-後續展開「進階」的截圖已確認：Tailscale 未設定、TCP destinations None，並明載必須有支援 TCP 的 VPN 才能新增。重新檢查 runtime 1864，VPN 仍 false、TCP grant 仍空。另依平台 VPN 文件，TCP 解析結果僅支援 RFC1918／CGNAT 私人地址；不能再建議只加入公開 Render External 主機或只設定 Tailscale 即可完成。HTTP 網域不授予 PostgreSQL TCP 存取，亦不得繞過平台代理。
+雲端TCP限制已查明：進階設定需要VPN，且支援的TCP目的地只接受私人網路位址；HTTP網域或單獨設定Tailscale不會使公開Render資料庫可達。未繞過代理或改動政策。本次正式快照由使用者Windows正常網路取得，雲端僅處理已授權的私人Drive下載副本，未直接連正式資料庫。
 
-可評估由使用者自有電腦的正常網路執行備份與隔離還原。現有工具依賴 POSIX 權限／os.getuid，不能宣稱原生 Windows 可直接執行；需要先確認 Windows／macOS 及本機必要工具，再準備相應流程。尚無跨平台一鍵包，正式備份仍未完成；未新增 VPN、未接觸正式資料庫、未變更正式網站。
+Windows工具來源 `78f3a4b38b41d45b446209223896cbf2983d8d8f` 已保存。它以本機Docker Linux context、隱藏URL輸入及stdin、獨立私人volume執行唯讀快照與加密；密文與金鑰分開，Windows SID ACL及匯出SHA256核對。官方PG18.6 bookworm映像固定digest；完整本機後端1080項通過，相關備份18項、Linux PowerShell27項通過。GitHub workflow `39961984162` 的checks／browser／windows-backup均成功；真正Windows PowerShell5.1的44項檢查全數通過。下載包7檔與來源／SHA256核對，完整source bundle可讀。
 
-使用者已確認 Windows，已新增 `tools/windows-backup`：PowerShell 本機 Docker Linux context 預檢、隱藏 URL 輸入、stdin 傳送、獨立 Linux 私人 volume、固定來源目的地與 verify-full、唯讀快照加密及全新容器內 loopback TLS 隔離還原。來源網址不進 argv、Docker inspect 環境、Git、檔案或錯誤輸出。Windows 密文／金鑰目錄分開，NTFS SID ACL 僅目前使用者與 SYSTEM，匯出逐檔及金鑰 SHA256 核對；安全錯誤階段保留，不用匯出失敗蓋住真正連線失敗。僅複製三個程式檔到建置暫存，不送整個儲存庫或 .env。
+使用者實機run `20261023T135547Z-68c638aced66` 先回報33表、37列、3個照片資料項，正式快照加密、本機隔離還原及匯出檔案雜湊通過。其後使用者已將密文、manifest與verification.json上傳私人備份資料夾，backup.key另放獨立私人金鑰資料夾。父／子資料夾及四個檔案權限均回讀為使用者owner-only，未公開分享；實際位置僅留私人接續紀錄。
 
-固定官方 PostgreSQL 18.6 bookworm 多架構 digest 的映像實際建置成功；真正合成本機來源→備份加密→另一個全新 TLS 資料庫還原通過：2表、5列、2個有效PNG（138bytes），資料列與照片雜湊一致，來源未改變，明文演練庫與暫存dump已清除。原生 PowerShell 7.4.7 Linux 語法／引數／錯誤報告27項通過，Windows額外17項原生引數／NTFS ACL／路徑防護由新CI執行，不能在結果出現前算通過。原工具與runner18項聚焦測試通過。CI另組合獨立工具下載包，核心備份程式不複製進Git造成版本分歧。
+四個正式產物皆已由Drive原檔下載並核對provider大小；密文、manifest與金鑰的SHA256均與原Windows報告吻合。metadata wrapper沒有回傳provider checksum欄位，因此不宣稱已核對該欄位；verification.json也沒有可比對的原始自我SHA256。manifest HMAC與來源識別吻合。真正用這份異地下載的正式快照，在全新 `--network none`、無公開port的PG18容器還原，所有資料表資料列與照片雜湊一致：**33表、37列、3個照片BLOB、2,983,651bytes**。原來源未被還原寫入，演練明文已清理。source與client major皆18；proof的 `productionConnected:false` 表示雲端未直接連正式來源，並非沒有正式資料備份。
 
-中止時可能留下明文暫存，保留的volume必須保持私人、不可整個分享／上傳。此工具尚不含Drive異地上傳；Windows Docker Desktop真實執行、正式資料連線／備份／隔離還原、異地上下載仍待使用者執行驗收。所有新測試只用合成資料；未接觸正式資料庫，正式網站仍是v178。
+快照時間為2026-10-23 21:57:07（臺灣時間），獨立隔離還原驗證完成於22:15:19。密文SHA256為 `f25037290dd42e85f0b4746a8180b9c62584d49f52c7b5e3d96f6095bd51b9b4`。安全驗收證明亦已上傳私人Drive備份資料夾、權限回讀，並下載回驗SHA256完全一致。這次正式快照的異地保存及復原驗證已完成；先前2表／5列的合成測試未拿來冒充這筆正式證據。
 
-工具來源已提交 `78f3a4b38b41d45b446209223896cbf2983d8d8f`；本機後端1080項通過。GitHub workflow `39961984162` 的 checks／browser／windows-backup 三個job與workflow皆 completed/success；真正Windows PowerShell 5.1.26100.33648 的44項檢查全部通過，沒有Windows項目跳過。下載包artifact `12504733222`（22365bytes）已下載核對7個檔案、所有package SHA256及與來源的換行正規化一致；ZIP SHA256 `2cdf419334aaa89d44db0648da2946b52f1af64f2f57cb3b1a9517155312124b`。完整source bundle已驗證可讀。原故障環境保留；下一步是在使用者Windows Docker Desktop實際操作，不能將CI或合成往返宣稱為正式備份完成。
-
-使用者後續已提供真正 Windows 執行成功畫面，run `20261023T135547Z-68c638aced66`。畫面明載正式來源資料庫已加密備份，隔離還原後資料列／照片雜湊一致，Windows匯出檔案雜湊亦已核對；統計為33表、37列、3個照片資料項目。密文與復原金鑰分別保存在不同Windows目錄，本次private volume保留，畫面已到「Press any key to continue」。網址只有星號，未顯示來源密碼或金鑰內容。
-
-這筆狀態記為「使用者實機畫面回報通過」，不是雲端執行環境已直接連線，也不是已收到產物後的獨立密文／報告核對。截至這筆紀錄，尚未收到本次Windows備份檔、金鑰與verification.json；私人Drive異地上傳、下載回驗及獨立核對仍未完成。不得將先前2表／5列的合成測試當成本次33表正式資料，也不得預填異地保存完成。安全觀察紀錄另存 `checkpoints/20261023-windows-backup/user-device-observation.json`，未複製任何憑證。
-
-沿用既有授權的私人Google Drive備份／金鑰母資料夾，各新增本次run專用子資料夾，父與子資料夾權限回讀均只有使用者owner、shared=false。未變更既有分享或讀取舊金鑰。新資料夾連結只留私人接續紀錄，未放入Git。需由使用者將Windows的密文／manifest／verification.json與獨立backup.key分別上傳，再讀回核對與做正式產物隔離還原；目前未上傳本次任何正式資料。
-
-較早的雲端 runtime1789 的 HTTP 限制已生效，TCP domains／IP ranges 仍空；該雲端執行環境未連線正式資料庫。變更需平台環境設定流程與使用者審核，已詢問面板是否支援 TCP，不能把 HTTP「額外允許的網域」當成 PostgreSQL TCP 權限，也不繞過代理或政策。後續Windows使用者自有電腦的成功回報與這項雲端限制分開記錄。
-
-官方 PostgreSQL 18.6 客戶端與全新、僅 loopback、高位 port、verify-full TLS 的隔離環境已備妥。未改動原故障容器或資料。已用原備份工具做本機合成來源→真正 custom dump→加密→另一個空資料庫還原：2表、5列、2個PNG BLOB（152 bytes），所有列／照片雜湊及 Decimal／日期／Unicode／JSON 等值相同。這是工具演練，不是正式備份，沒有上傳 Drive。
-
-備份工具新增受限的 hostaddr 支援，供**經平台批准**的 loopback TCP 轉送使用：僅127.0.0.1／::1，且唯一 sslmode=verify-full；原主機仍用於 TLS 與來源識別，並映射給 pg_dump 的 PGHOSTADDR。不自行建立轉送或授予網路權限。弱 TLS、任意遠端地址、重複參數均拒絕；相關8項備份測試通過。新增參數另經真實本機 TLS／pg_dump 驗證，原主機名驗證保留，錯誤主機名配相同 loopback 地址確實被憑證驗證拒絕；來源識別不變，預留正式還原資料庫仍空。
-
-原先的雲端路線需在取得正式連線權限後，使用支援的轉送保留原 TLS 主機與來源身份、確認 source major 可由 client 支援，再作正式唯讀一致快照、加密、隔離還原與完整雜湊核對。現在已改由使用者Windows本機執行，畫面回報正式來源備份及隔離還原通過；下一步沿用已授權的私人 Google Drive，備份與金鑰分開、下載回驗並獨立核對產物。異地及獨立驗證完成前，不以 GitHub、歷史 SQLite 或合成本機演練冒充。
-
+這是**該時間點的備份**，沒有排程自動備份；之後新增或修改的帳務、會員及照片，需要再次執行備份並做異地回驗。復原步驟與保護範圍見 [BACKUP-RECOVERY.md](BACKUP-RECOVERY.md)。公開Git只存程式與安全統計，不存實際Drive IDs／URLs、金鑰路徑、金鑰、manifest或資料內容。原故障環境保留，正式網站仍是v178，這一階段沒有更動應用程式或部署。
 
 ## 保存與部署
 
 來源 `f2247353938c3b34ed6a85c0a3113a9fdce5f27c` 的21個變動遠端blob全部驗證，完整歷史bundle已保存並驗證。GitHub workflow [39911481995](https://github.com/ChunWei-0801/-/actions/runs/39911481995) 及 checks／browser 兩job均 completed/success。完整隔離後端1070項、相關前端148項（零跳過）與24項真實WASM格式檢查通過。
 
-Render `dep-dbdftcbrjlhs73d5b3ng` 已於 2026-10-23 14:30:26（臺灣時間）回報live，來源相同，資源版本178，免費方案、自動部署關閉。先開 `https://fambudget-recovery-20261017.onrender.com/ai-test.html?v=178`，啟動後用原本早餐／午餐句子產生草稿，檢查65與120兩筆及來源核對提示。可以回報筆數／金額與耗時，不必再貼原始JSON。新模型實機品質／耗時仍待確認；正式來源備份與隔離還原已有上述使用者Windows成功畫面，產物獨立核對及異地上下載驗證仍待完成，不能預填成功。
+Render `dep-dbdftcbrjlhs73d5b3ng` 已於 2026-10-23 14:30:26（臺灣時間）回報live，來源相同，資源版本178，免費方案、自動部署關閉。先開 `https://fambudget-recovery-20261017.onrender.com/ai-test.html?v=178`，啟動後用原本早餐／午餐句子產生草稿，檢查65與120兩筆及來源核對提示。可以回報筆數／金額與耗時，不必再貼原始JSON。新模型實機品質／耗時仍待確認；上述正式來源快照的私人異地保存、原檔下載核對、HMAC與獨立隔離還原均已完成，後續新增資料需另作新備份。

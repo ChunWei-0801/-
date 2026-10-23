@@ -50,11 +50,37 @@ needed. Source assistance is disclosed. Fresh model quality/latency and new
 production interactions still require the user's device. Do not request another
 copy of the already-transcribed raw failure. Normal site: `/?v=178#/`.
 
-## Backup state after external hostname was supplied
+## Production backup and offsite restore verified (2026-10-23)
+
+The production application-data snapshot created **2026-10-23 21:57:07
+Asia/Taipei** is now independently verified from the private Google Drive
+download: **33 tables, 37 rows, 3 photo BLOBs, 2,983,651 photo bytes**. The user
+uploaded ciphertext/manifest/Windows verification report and the key to separate
+owner-only folders. All four files were downloaded and checked against provider
+sizes; ciphertext, manifest and key SHA256 matched the original Windows report.
+Provider checksum fields were not exposed by the metadata wrapper and are not
+claimed as checked. Manifest HMAC and source
+identity matched. An actual restore into a fresh, network-none PG18 container
+matched every table's row and photo hashes; plaintext was removed. Verification
+completed **2026-10-23 22:15:19 Asia/Taipei**. The safe proof receipt was also
+stored privately and downloaded back with an exact SHA256 match.
+
+Archive SHA256:
+`f25037290dd42e85f0b4746a8180b9c62584d49f52c7b5e3d96f6095bd51b9b4`.
+Both source and restore client/server major are 18. `productionConnected:false`
+in the offsite proof means this cloud executor never connected to the remote
+production database; it does not invalidate the actual production snapshot
+obtained on the user's Windows computer and independently restored here.
+
+This is a verified point-in-time application-data backup, not automatic ongoing
+backup. Entries or photos added afterward require a new backup run. Original
+failed resources are preserved; the deployed app remains v178. Follow
+[BACKUP-RECOVERY.md](BACKUP-RECOVERY.md) for future backup and recovery, keeping
+all actual Drive locations, keys, manifests and private data outside Git.
 
 The external hostname and database name are now verified and prepared privately;
 the credential-bearing user message is not duplicated in source or evidence.
-Runtime 1864 still has no VPN configuration or TCP grants. The user's expanded
+At setup, runtime 1864 had no VPN configuration or TCP grants. The user's expanded
 Advanced panel now shows Tailscale unset and TCP destinations None, with
 "Adding destinations requires a VPN with TCP support". The supported VPN
 reference further restricts resolved TCP endpoints to private RFC1918/CGNAT
@@ -90,22 +116,22 @@ are SHA256-verified before success. Safe failure stage/code is preserved, partia
 encrypted results can be salvaged, and the new local volume is retained. Forced
 termination can leave plaintext temporary files: keep the volume private, never
 share/upload it. Google Drive upload/download is not part of this launcher yet.
-The user has now supplied the actual Windows Docker Desktop success screen for
+The user first supplied the actual Windows Docker Desktop success screen for
 run `20261023T135547Z-68c638aced66`. It reports a formal-source encrypted backup,
 an isolated restore with matching row/photo hashes, and matching exported-file
 hashes: **33 tables, 37 rows, 3 photo BLOBs**. The source URL is masked and no key
 bytes are visible. Ciphertext and key were written to separate Windows folders;
-the run's private volume is retained. Status is **user-device reported pass**,
-not an independent artifact audit by this executor. The current Windows backup
-files and verification report have not yet been received here. Private offsite
-upload, download-back hash checks and independent verification remain pending.
+the run's private volume is retained. That initial screenshot was a
+**user-device reported pass**. The subsequent uploaded artifacts and independent
+offsite restore now provide the completed verification summarized above.
 Do not count the earlier synthetic fixtures as this production-device result.
 Two run-specific subfolders have now been created under the user's previously
 authorized, separate private backup/key folders. Parent and child permission
 readbacks show only the user's owner permission, no sharing. Folder locations
-are kept in private checkpoint evidence, not source. The user must upload the
-Windows ciphertext/manifest/verification files and key to their respective
-folders; no current production artifact has been uploaded or fetched yet.
+are kept in private checkpoint evidence, not source. The Windows
+ciphertext/manifest/verification files and separate key have now been uploaded,
+downloaded and verified. The receipt also passed private permission readback and
+download-back integrity verification.
 
 Official PG18 clients, a separate loopback-only TLS restore server and encrypted
 synthetic roundtrip (2 tables, 5 rows, 2 PNG blobs) are verified. The original
@@ -115,9 +141,9 @@ verify-full; TLS retains the original hostname/source identity. Actual local
 psycopg/pg_dump succeeded, and the wrong TLS hostname was correctly rejected.
 Eight backup checks and full 1070-test backend passed. Those earlier local
 preparations alone did not establish a production backup. The Windows screenshot
-now reports the local formal-source backup and isolated restore pass above;
-independent artifact and private offsite upload/download verification are still
-incomplete. Credential rotation must be coordinated
+reported the local formal-source backup and isolated restore pass; the later
+independent artifact and private offsite upload/download verification are now
+complete for this snapshot. Credential rotation must be coordinated
 with application configuration; it has not been performed. See
 WORKLOG-20261023-AI-REPAIR.md for evidence and continuation.
 
@@ -243,7 +269,7 @@ No real friend was messaged and no production test transactions were created.
 New device/production interaction acceptance remains pending user testing.
 See WORKLOG-20261022.md for the full release record.
 
-## Current changes and evidence limits
+## Earlier feature changes and remaining interaction checks
 
 - AI row isolation keeps source-grounded candidates and excludes fabricated
   candidates with visible reasons, preserving raw model rows and provenance.
@@ -260,10 +286,11 @@ See WORKLOG-20261022.md for the full release record.
   work, but Render logs API returns a Cloudflare HTML attention page (403),
   and public web inspection cannot open the deployed page/feed API. Controlled
   source parsing, cache and failure tests passed; these are not provider proof.
-- No new real verification email was sent in this stage. Full production
-  registration/mail-link/photos/mobile/eight-feature interactions, and current
-  production PostgreSQL private backup plus isolated restore remain pending.
-  The three verified private historical/QA backups remain separate evidence.
+- No new real verification email was sent in that feature stage. Full production
+  registration/mail-link/photos/mobile/eight-feature interactions still require
+  their own evidence. The production snapshot now has independently verified
+  private offsite backup and restore as summarized above; the three older
+  historical/QA backups remain separate evidence.
 - Original failed environment retained; changes committed and pushed in stages.
 
 Public no-write AI test: `/ai-test.html?v=175`. Public fraud page: `/#/fraud`.
@@ -378,17 +405,16 @@ contain QA account details and must remain private. Cross-account ACL checks,
 physical camera behavior, all eight lifestyle online interactions, and a human
 mailbox receipt still require their own evidence.
 
-## Full database backup remains pending
+## Completed production backup and earlier backup handoff
 
-The external PostgreSQL hostname is now verified and prepared privately. The
-complete private production backup still requires permitted TCP access on 5432
-and the supported connection path; PG18 clients and an isolated TLS restore
-environment are already prepared. The internal Render database URL
-and HTTP-only API allowlist are insufficient. After those are available in the
-new task, use the existing `backend/tools/backup_restore.py` with credentials
-bound privately, store the backup outside Git with restrictive permissions, and
-validate restoration into an isolated database. Do not restore into production.
-These acceptance scripts do not create a full database backup.
+The earlier cloud TCP access prerequisite was resolved operationally by using
+the user's Windows computer over its normal network. The production snapshot
+now has separate private offsite ciphertext/key copies, download-back integrity,
+HMAC and actual isolated restore verification. Do not restart the HTTP-domain
+or public-host TCP setup loop for this completed snapshot. Future backups follow
+BACKUP-RECOVERY.md and must be independently verified; these acceptance scripts
+alone do not create a full database backup. Never restore into production as
+part of a verification drill.
 
 The original SQLite snapshot, the lifestyle QA snapshot, and the newer isolated
 AI/API QA snapshot have private Google Drive copies with separately stored
@@ -396,6 +422,8 @@ recovery keys. Each was downloaded and restored in isolation, with full row and
 photo hashes verified; these are historical/test data, not production PostgreSQL.
 The newest QA snapshot verifies 31 tables, 415 rows and 11 photo blobs. Do not
 mark the production backup checkbox complete based on these successful drills.
+
+## Earlier AI trial records (historical)
 
 The repaired trial source is `91892b5f42f1dcd637cb4a3ead88025ac9a765e8`.
 Render deployment `dep-dbbmpobbc2fs73bn8e20` is live, and resource version 168
