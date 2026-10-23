@@ -72,9 +72,17 @@ It never publishes a restore port or changes Codex networking. A real synthetic
 TLS source-to-encryption-to-isolated-restore test passed: 2 tables, 5 rows, 2 PNG
 blobs (138 bytes), matching row/photo hashes, unchanged source and removed
 plaintext. These fixtures are not production data. PowerShell 7.4.7 on Linux
-passed 27 parser/helper cases; 17 Windows-only native argv/ACL/path checks await
-the new Windows PowerShell 5.1 CI job. That job also assembles the standalone
-download with the existing core script, without duplicating it in source.
+passed 27 parser/helper cases. The Windows PowerShell 5.1 CI job passed all
+44 checks, including native argv, NTFS ACL and path guards. Backend 1080 tests
+passed locally. Workflow [39961984162](https://github.com/ChunWei-0801/-/actions/runs/39961984162)
+and all three jobs (checks, browser, windows-backup) completed successfully for
+tool source `78f3a4b38b41d45b446209223896cbf2983d8d8f`. The standalone
+[download](https://github.com/ChunWei-0801/-/actions/runs/39961984162/artifacts/12504733222)
+contains the existing core script without duplicating it in source. Its 7 files
+were downloaded and verified against package hashes and source (accounting for
+Windows checkout newlines); ZIP SHA256 is
+`2cdf419334aaa89d44db0648da2946b52f1af64f2f57cb3b1a9517155312124b`.
+The artifact expires 2026-11-22; source remains saved in the repository.
 
 On Windows, private NTFS output folders keep ciphertext and key separate; copies
 are SHA256-verified before success. Safe failure stage/code is preserved, partial

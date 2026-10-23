@@ -51,6 +51,8 @@ PRODUCTION-ACCEPTANCE.md 為準；未記錄 live 前不可稱本版已上線。
 
 中止時可能留下明文暫存，保留的volume必須保持私人、不可整個分享／上傳。此工具尚不含Drive異地上傳；Windows Docker Desktop真實執行、正式資料連線／備份／隔離還原、異地上下載仍待使用者執行驗收。所有新測試只用合成資料；未接觸正式資料庫，正式網站仍是v178。
 
+工具來源已提交 `78f3a4b38b41d45b446209223896cbf2983d8d8f`；本機後端1080項通過。GitHub workflow `39961984162` 的 checks／browser／windows-backup 三個job與workflow皆 completed/success；真正Windows PowerShell 5.1.26100.33648 的44項檢查全部通過，沒有Windows項目跳過。下載包artifact `12504733222`（22365bytes）已下載核對7個檔案、所有package SHA256及與來源的換行正規化一致；ZIP SHA256 `2cdf419334aaa89d44db0648da2946b52f1af64f2f57cb3b1a9517155312124b`。完整source bundle已驗證可讀。原故障環境保留；下一步是在使用者Windows Docker Desktop實際操作，不能將CI或合成往返宣稱為正式備份完成。
+
 最新 runtime1789 的 HTTP 限制已生效，TCP domains／IP ranges 仍空；正式資料庫尚未連線。變更需平台環境設定流程與使用者審核，已詢問面板是否支援 TCP，不能把 HTTP「額外允許的網域」當成 PostgreSQL TCP 權限，也不繞過代理或政策。
 
 官方 PostgreSQL 18.6 客戶端與全新、僅 loopback、高位 port、verify-full TLS 的隔離環境已備妥。未改動原故障容器或資料。已用原備份工具做本機合成來源→真正 custom dump→加密→另一個空資料庫還原：2表、5列、2個PNG BLOB（152 bytes），所有列／照片雜湊及 Decimal／日期／Unicode／JSON 等值相同。這是工具演練，不是正式備份，沒有上傳 Drive。

@@ -4,6 +4,12 @@
 
 目前提供的是操作工具。**在你的電腦實際執行成功以前，不能視為正式資料庫已備份。** 本工具不會自動上傳 Google Drive，異地備份仍需另外完成上傳、下載與核對。
 
+## 下載
+
+[下載已通過 Windows 檢查的工具 ZIP](https://github.com/ChunWei-0801/-/actions/runs/39961984162/artifacts/12504733222)，需要登入有儲存庫存取權的 GitHub 帳號，下載保留至2026-11-22。解壓縮後，直接使用其中的 `Start-Backup.cmd`。
+
+若下載已到期，可改下載[完整來源 ZIP](https://github.com/ChunWei-0801/-/archive/78f3a4b38b41d45b446209223896cbf2983d8d8f.zip)，解壓縮後開啟 `tools/windows-backup/Start-Backup.cmd`；啟動器也支援完整來源資料夾。
+
 ## 先準備
 
 - Windows 10／11 與 Windows PowerShell 5.1。
