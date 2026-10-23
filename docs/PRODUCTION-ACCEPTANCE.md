@@ -15,6 +15,29 @@ Six languages have1580 aligned keys. The original failed database hash is
 unchanged; voice remains withdrawn. The executor allowlist excludes the public
 app host, so direct deployed-resource hash verification is not claimed.
 
+## v180 user-device observation: ten-row loaded-model flow passed
+
+On2026-10-24, the user supplied a content-free diagnostic for the requested
+10-row synthetic workload. The actual Qwen0.5B classification inference completed
+normally in one attempt: **request4011ms, worker total4010ms, first output1775ms,
+decode2235ms**,216 prompt tokens and31 completion tokens; finishReason=stop.
+There are10 source candidates,10 classification candidates and10 final drafts,
+with0 uncovered, rejected, recovered or required-field-missing rows. The reported
+coverage is complete. This is a successful single user-device flow observation.
+
+The model was already loaded (phase=warm, loadMs0). Initial download/load time,
+other inputs and sustained stability are not established. The diagnostic contains
+no row values, model classification choices or reference comparison. The user
+subsequently explicitly confirmed all10 final drafts' amounts, kind and category
+are correct, including8 expenses and2 incomes. This passes final assisted-row
+review for this specific synthetic workload, not original model-only accuracy.
+Source fields are program-derived and sourceRuleAssisted=true; modelRows=null is
+expected for this classification-only pipeline. Do not compare its4011ms to the earlier
+74669ms as a controlled model-speedup percentage: tasks and runtime conditions
+differ. The safe [observation evidence](evidence/20261024-v180-device-ten-row-flow.json)
+contains the numeric record and explicit acceptance limits. No app changes or
+redeployment were needed for this successful observation.
+
 ## v180: bounded classification and visible source drafts
 
 The user's latest v179 device run failed:390 prompt tokens,640 completion
@@ -62,10 +85,11 @@ XGrammar0.1.27 WASM validates six final N1/N2/N10 x7/43-choice schema variants:
 47 checks pass with a synthetic tokenizer. No Qwen weights are loaded in these
 checks, and none establishes real model accuracy or device latency.
 
-**v180 device acceptance remains pending.** Open
-[`/ai-test.html?v=180`](https://fambudget-recovery-20261017.onrender.com/ai-test.html?v=180)
-for the same breakfast/lunch input. Source parsing and AI classification are
-explicitly separate; use the safe diagnostic download if needed. Normal app:
+**The single loaded-model ten-row flow and user-reviewed final amount/kind/category
+have passed.** Original model-only classification accuracy, cold startup and
+broader stability remain unmeasured. Do not ask the user to repeat this accepted
+workload or retrieve raw JSON. Source
+parsing and model classification remain explicitly separate. Normal app:
 `/?v=180#/`. See [the stability worklog](WORKLOG-20261024-AI-STABILITY.md).
 
 ## v179 post-validated JSON (withdrawn by v180)

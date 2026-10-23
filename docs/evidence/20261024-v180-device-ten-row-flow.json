@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "type": "user-device-ten-row-flow-observation",
+  "reportedReleaseContext": "v180-requested-ten-row-synthetic-test",
+  "sourceDiagnosticSha256": "97c0dcfd00c5dacf0cc4bb892c1d9248f46a3b1330c1a0f852c0e82e417c5e88",
+  "sampleCount": 1,
+  "status": "completed",
+  "errorCode": null,
+  "measurement": {
+    "model": "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+    "elapsedMs": 4010,
+    "firstTokenMs": 1775,
+    "totalMs": 4010,
+    "loadMs": 0,
+    "requestMs": 4011,
+    "timing": {
+      "totalMs": 4010,
+      "firstTokenMs": 1775,
+      "decodeMs": 2235,
+      "cleanupMs": 0,
+      "passes": [
+        {
+          "attempt": 1,
+          "totalMs": 4005,
+          "firstTokenMs": 1770,
+          "decodeMs": 2235,
+          "promptTokens": 216,
+          "completionTokens": 31,
+          "format": "json-schema",
+          "runtime": {
+            "e2eMs": 4003,
+            "firstTokenMs": 1766.5999999046326,
+            "grammarInitMs": 320.7000000476837,
+            "grammarPerTokenMs": 0.11612903302715677,
+            "prefillTokensPerSecond": 122.26876486565179,
+            "decodeTokensPerSecond": 13.475878176329404,
+            "outputTokenMs": 74.2066666762034
+          }
+        }
+      ]
+    },
+    "usage": {
+      "prompt_tokens": 216,
+      "completion_tokens": 31,
+      "total_tokens": 247
+    },
+    "attempts": 1,
+    "finishReason": "stop",
+    "promptProfile": "bounded-labels-v1",
+    "modelTask": "classify-source-candidates",
+    "inferencePerformed": true,
+    "phase": "warm"
+  },
+  "counts": {
+    "modelRows": null,
+    "draftRows": 10,
+    "classificationCandidates": 10,
+    "modelWarnings": null,
+    "recoveredRows": 0,
+    "rejectedRows": 0,
+    "rowsMissingRequiredFields": 0,
+    "sourceCandidates": 10,
+    "uncoveredSource": 0
+  },
+  "coverageStatus": "complete",
+  "sourceRuleAssisted": true,
+  "acceptance": {
+    "loadedModelTenRowFlow": "passed",
+    "candidateCoverage": "passed",
+    "classificationAccuracy": "source-assisted-final-categories-confirmed-original-model-only-not-measured",
+    "coldStartup": "not-measured-loadMs-zero",
+    "generalStability": "not-established-single-observation",
+    "modelIndependentExtraction": "not-applicable-source-extraction-plus-classification",
+    "finalDraftAmountKindCategory": "passed-user-confirmed-ten-rows"
+  },
+  "humanRowReview": {
+    "status": "passed-user-confirmation",
+    "confirmedFields": [
+      "amount",
+      "kind",
+      "category"
+    ],
+    "confirmedRows": 10,
+    "expectedExpenseRows": 8,
+    "expectedIncomeRows": 2,
+    "originalModelOnlyClassificationReviewed": false
+  }
+}
