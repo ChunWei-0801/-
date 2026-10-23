@@ -1,26 +1,76 @@
 # Production acceptance handoff
 
-The current deployed source is `f04d31399326e83fdd652fee6e97648bd0f0a05a`,
-resource version **179**, at `https://fambudget-recovery-20261017.onrender.com`.
-Render `dep-dbdoke2fngtc7382b040` reports live, finished **2026-10-24 00:26:20 Asia/Taipei**.
+The current deployed source is `62db3a375e8e0c213e4019205ec1d6d2f20ccc19`,
+resource version **180**, at `https://fambudget-recovery-20261017.onrender.com`.
+Source tree: `960639d7ba61418ae26255fae16567296053f3a2`.
+Render `dep-dbdqdegae00c73alhm30` reports live, finished **2026-10-24 02:27:34 Asia/Taipei**.
 The existing free plan and auto-deploy-off setting are unchanged. GitHub workflow
-[39986097499](https://github.com/ChunWei-0801/-/actions/runs/39986097499)
-completed successfully for that exact source: checks, browser and Windows backup.
-CI backend: 1080 passed. Local related frontend: 121 passed, zero skips,
-including actual Chromium and recorded-output replay. CI's dedicated browser
-job: 45 passed, zero skips, plus the lifestyle browser script. The non-browser
-CI job intentionally skips browser fixtures, covered by the dedicated browser
-job and local 121-run set. Six languages have 1572 aligned message keys.
-All 17 changed source blobs and the complete source-history bundle were verified.
-Direct public-host HTTP resource comparison was attempted but blocked by the
-executor proxy (403; the app hostname is absent from its current allowlist).
-Render live/commit and GitHub CI are verified; public resource hashes and
-real-device inference are not claimed as verified here.
-Original failed database SHA256 is unchanged. Voice remains withdrawn.
+[40002971390](https://github.com/ChunWei-0801/-/actions/runs/40002971390)
+passed checks, browser and Windows backup for that exact source. Backend1080
+passed; local related frontend141 passed, zero skips; dedicated CI browser48
+passed, zero skips, plus the lifestyle script. Non-browser CI intentionally
+skips nine browser cases, covered by that browser job and the local full set.
+All23 changed blobs and the complete source-history bundle were verified.
+Six languages have1580 aligned keys. The original failed database hash is
+unchanged; voice remains withdrawn. The executor allowlist excludes the public
+app host, so direct deployed-resource hash verification is not claimed.
 
-## v179: post-validated JSON and single-run safe diagnostics
+## v180: bounded classification and visible source drafts
 
-Draft and receipt extraction now default to `fast-json-v1`, using the same free
+The user's latest v179 device run failed:390 prompt tokens,640 completion
+tokens, AI_TRUNCATED/length after74669ms, first output21494ms, decode53175ms.
+The displayed load45.89s is a separate prior stage. The free0.5B model looped
+through repeated keys and nested context/result after format constraints were
+removed. This is a failed observation, not a speed improvement.
+
+Draft/receipt now default to `bounded-labels-v1`. Conservative source parsing
+extracts only safely supported monetary clauses, dates, currencies and notes.
+Unknown intent, approximate/ambiguous values and unsupported clauses remain
+uncovered or unsupported; more than10 candidates are rejected. Source drafts
+appear before classification. The same free Qwen model only chooses kind/category
+indices, returning a top-level integer array. Schema fixes the exact candidate
+count and legal indices; category names do not change the grammar. Unknown0
+remains legal. Duplicate category names do not select the first ID.
+
+The new task permits one inference with16+4*N output tokens, small byte/structure
+budgets, worker45s total/10s decode budgets and a separate45s main-thread draft
+deadline that terminates a stalled worker. These apply to generation, not first
+model download/load. Early stops interrupt and close the iterator, then clear
+private context; truncated prefixes never become successful answers. Even an
+explicit archived fast-json request is constrained again.
+
+`modelDraft=null`: source amount/date/currency/merchant fields never earn model
+extraction credit. `classificationDraft` preserves original model kind/category
+suggestions. Source corrections are visible. New classification metrics are
+conditional on source candidates; six-field model extraction scores are not
+applicable. Assisted pipeline scoring remains separate. Zero candidates yield
+`inferencePerformed=false`, attempts0, no fabricated model refusal or success.
+
+On classifier failure or hard timeout, users retain source drafts for manual
+review. The main app keeps confirmation disabled while busy and requires explicit
+review checks afterward; source-only saves use orig.by=rules, classified saves
+use hybrid. Cancel, navigation and late callbacks cannot revive discarded data.
+Content-free diagnostics retain only known identifiers, finite metrics and counts,
+never source text, amounts, dates, category values, account IDs or raw replies.
+
+Regression coverage includes the real worker/controller/Chromium chain: the
+observed loop shape stops at its first illegal chunk, source65/120 drafts remain
+visible with failure, then the same worker retries a legal array successfully.
+Tests prove interrupt/iterator cleanup, failure timings, stalled-prefill hard
+termination, privacy, no writes, source provenance and390px layout. Actual
+XGrammar0.1.27 WASM validates six final N1/N2/N10 x7/43-choice schema variants:
+47 checks pass with a synthetic tokenizer. No Qwen weights are loaded in these
+checks, and none establishes real model accuracy or device latency.
+
+**v180 device acceptance remains pending.** Open
+[`/ai-test.html?v=180`](https://fambudget-recovery-20261017.onrender.com/ai-test.html?v=180)
+for the same breakfast/lunch input. Source parsing and AI classification are
+explicitly separate; use the safe diagnostic download if needed. Normal app:
+`/?v=180#/`. See [the stability worklog](WORKLOG-20261024-AI-STABILITY.md).
+
+## v179 post-validated JSON (withdrawn by v180)
+
+At v179, draft and receipt extraction defaulted to `fast-json-v1`, using the same free
 Qwen0.5B/WebLLM0.2.86 weights and runtime. The first inference omits
 `response_format` entirely. Even generic constrained JSON initializes grammar;
 simplifying only the schema does not remove that work. One failed format/source
