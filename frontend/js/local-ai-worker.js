@@ -461,8 +461,9 @@ function normalizeClassifications(text, prepared, request) {
   if (labels.length !== prepared.selected.length || labels.some(value => !Number.isInteger(value) || value < 0 || value >= prepared.choices.length)) throw draftFailure('CLASSIFICATION_NOT_ALLOWED','classification',undefined,'The classification count or index does not match the supplied candidates.');
   const original = [], items = [], adjustments = [];
   labels.forEach((label,index) => {
-    const category = prepared.grounding.categories.find(candidate=>categoryLabel(candidate)===prepared.choices[label]);
-    const kind = category ? category.kind : prepared.choices[label]===unclassified.expense ? 'expense' : prepared.choices[label]===unclassified.income ? 'income' : null;
+    const matches = prepared.grounding.categories.filter(candidate=>categoryLabel(candidate)===prepared.choices[label]);
+    const category = matches.length===1 ? matches[0] : null;
+    const kind = matches.length ? matches[0].kind : prepared.choices[label]===unclassified.expense ? 'expense' : prepared.choices[label]===unclassified.income ? 'income' : null;
     const item = {...prepared.preview.draft.items[index],kind,category:category ? category.id : null,missingFields:[]};
     item.missingFields = ['kind','amount','currency','date','category','merchant'].filter(key=>item[key]===null);
     original.push({...item,missingFields:item.missingFields.slice()});

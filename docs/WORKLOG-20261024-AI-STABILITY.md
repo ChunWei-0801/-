@@ -20,6 +20,8 @@
 
 ## 驗證與限制
 
-相關worker/controller、來源安全、評分、主站AI、公開頁、收據、報表及歷史重播：本機140項通過、零略過，包含實際Chromium。新增獨立穩定性測試包含非法JSON／重複欄位、錯索引／筆數、逐chunk失控、iterator finally與interrupt、無chunk硬逾時、遲到回覆、失敗計時、零推論及partial coverage。最終動態schema的N1/N2/N10與7／43選項共6變體，真正XGrammar0.1.27 WASM的47項檢查通過；使用合成tokenizer，沒有載入Qwen權重。
+相關worker/controller、來源安全、評分、主站AI、公開頁、收據、報表及歷史重播：本機141項通過、零略過，包含實際Chromium。新增獨立穩定性測試包含非法JSON／重複欄位、錯索引／筆數、逐chunk失控、iterator finally與interrupt、無chunk硬逾時、遲到回覆、失敗計時、零推論及partial coverage。最終動態schema的N1/N2/N10與7／43選項共6變體，真正XGrammar0.1.27 WASM的47項檢查通過；使用合成tokenizer，沒有載入Qwen權重。
 
 完整新預設worker/controller/Chromium重播已通過：失控object首片段中止、來源草稿仍在、同worker可重試短分類成功、兩次安全下載、無入帳／儲存／網路寫入及390px RWD。CI、來源提交與Render證據會在確認後補記。受控輸出與文法檢查不代表真實Qwen準確率或裝置速度；本版仍需一次實機確認。原始故障環境、正式備份與已取消的語音功能均維持原決定。
+
+最後覆查另修正同名分類對應多個不同ID時，不得選第一筆：保留category=null供核對，不受分類排序影響。此項具正反排序回歸測試；不影響原文金額或收支。

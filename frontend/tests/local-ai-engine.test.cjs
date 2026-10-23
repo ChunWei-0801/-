@@ -225,6 +225,15 @@ test('archived fast JSON is constrained again and retains original evidence and 
   assert.equal(JSON.stringify(example).includes('120'),false,'example never contains regression gold amounts');
 });
 
+test('bounded classification never chooses the first category ID when names collide',async()=>{
+  for(const categories of [[{id:'a',name:'餐飲',kind:'expense'},{id:'b',name:'餐飲',kind:'expense'}],[{id:'b',name:'餐飲',kind:'expense'},{id:'a',name:'餐飲',kind:'expense'}]]){
+    const {h,reply,value}=await extractFixture('[2]','昨天午餐120元',{...draftContext,categories},{promptProfile:'bounded-labels-v1'});
+    assert.equal(JSON.parse(h.calls.requests[0].messages.at(-1).content).options[2][1],'支出｜餐飲');
+    assert.equal(reply.type,'result');assert.equal(value.items[0].kind,'expense');assert.equal(value.items[0].category,null);
+    assert.equal(reply.result.classificationDraft.items[0].category,null);assert.equal(reply.result.modelDraft,null);
+  }
+});
+
 test('archived profiles allow only one measured constrained repair without replaying invented content',async()=>{
   for(const bad of ['not JSON',modelDraft([{...modelItem,sourceText:'PRIVATE_FORGED_SOURCE',amountText:'991'}]),modelDraft()+'\n'+modelDraft()]){
     const {h,reply}=await extractFixture([bad,modelDraft()],undefined,undefined,{promptProfile:'fast-json-v1'});
