@@ -27,6 +27,7 @@
       var result = {};
       ['totalMs','firstTokenMs','decodeMs','promptTokens','completionTokens'].forEach(function(key) { result[key] = pass && typeof pass[key] === 'number' && Number.isFinite(pass[key]) && pass[key] >= 0 ? pass[key] : null; });
       result.attempt = pass && Number.isInteger(pass.attempt) && pass.attempt > 0 && pass.attempt <= 2 ? pass.attempt : null;
+      result.format = pass && ['json-schema','post-validated-json'].includes(pass.format) ? pass.format : null;
       if (pass && pass.runtime && typeof pass.runtime === 'object' && !Array.isArray(pass.runtime)) {
         result.runtime = {};
         ['e2eMs','firstTokenMs','grammarInitMs','grammarPerTokenMs','prefillTokensPerSecond','decodeTokensPerSecond','outputTokenMs'].forEach(function(key) {
@@ -45,7 +46,7 @@
     if (typeof value.model === 'string') clean.model = value.model.slice(0,120);
     if (typeof value.finishReason === 'string') clean.finishReason = value.finishReason.slice(0,40);
     if (typeof value.elapsedMs === 'number' && Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0) clean.elapsedMs = value.elapsedMs;
-    if (['baseline','compact-v1'].includes(value.promptProfile)) clean.promptProfile = value.promptProfile;
+    if (['baseline','compact-v1','fast-json-v1'].includes(value.promptProfile)) clean.promptProfile = value.promptProfile;
     var timing = safeTiming(value.timing); if (timing) clean.timing = timing;
     if (Number.isInteger(value.attempts) && value.attempts > 0) clean.attempts = Math.min(value.attempts,2);
     ['prompt_tokens','completion_tokens','total_tokens','promptTokens','completionTokens','totalTokens'].forEach(function(key) {
@@ -184,8 +185,8 @@
     if (!task) throw error('AI_INVALID_TASK', 'Unknown local AI task.');
     if (typeof options.input !== 'string' || !options.input.trim()) throw error('AI_INVALID_INPUT', 'Enter text for the local AI request.');
     if (options.input.length > 3000) throw error('AI_INPUT_TOO_LARGE', 'Use a shorter question or receipt text.');
-    var promptProfile = options.promptProfile === undefined ? 'compact-v1' : options.promptProfile;
-    if (!['baseline','compact-v1'].includes(promptProfile)) throw error('AI_INVALID_PROFILE', 'Unknown local AI generation profile.');
+    var promptProfile = options.promptProfile === undefined ? (task === 'draft' ? 'fast-json-v1' : 'compact-v1') : options.promptProfile;
+    if (!['baseline','compact-v1','fast-json-v1'].includes(promptProfile)) throw error('AI_INVALID_PROFILE', 'Unknown local AI generation profile.');
     var ownedSession = session, started = now(), loadMs = 0;
     try {
       if (!state.loaded) {

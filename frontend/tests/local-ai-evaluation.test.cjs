@@ -16,6 +16,17 @@ const expected = (items,mode='transactions') => ({mode,items});
 const row = (overrides={}) => Object.assign({amount:87,kind:'expense',category:'FOOD',date:today,currency:'TWD',merchant:null},overrides);
 const observation = (overrides={}) => Object.assign({caseId:'dev-food',split:'dev',status:'completed',expected:expected([row()]),modelItems:[row()],assistedItems:[row()],measurement:{}},overrides);
 
+test('single-trial diagnostics preserve only finite timing, format and counts, never content or benchmark scores',()=>{
+  const secret='PRIVATE_ACCOUNT_SHOP_RAW_INPUT',item=row({note:secret,merchant:secret});
+  const report=api.exportTrialDiagnostic({text:JSON.stringify({items:[item],warnings:[secret]}),rawModelOutput:secret,input:secret,model:'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',promptProfile:'fast-json-v1',modelDraft:{items:[item],warnings:[secret]},normalization:{sourceRuleAssisted:true,coverage:{status:'partial',sourceCandidateCount:2,uncoveredSourceCount:1,raw:secret},sourceRecovery:{recoveredRows:[{note:secret}]},rejectedRows:[]},timing:{firstTokenMs:42,passes:[{attempt:1,format:'post-validated-json',runtime:{grammarInitMs:0,prefillTokensPerSecond:88,decodeTokensPerSecond:Infinity,private:secret}},{attempt:2,format:secret}]} });
+  assert.equal(report.type,'local-ai-trial-diagnostic');assert.equal(report.counts.draftRows,1);assert.equal(report.counts.recoveredRows,1);assert.equal(report.counts.modelWarnings,1);
+  assert.equal(report.measurement.promptProfile,'fast-json-v1');assert.equal(report.measurement.timing.passes[0].format,'post-validated-json');
+  assert.equal(report.measurement.timing.passes[0].runtime.prefillTokensPerSecond,88);assert.equal(report.measurement.timing.passes[0].runtime.decodeTokensPerSecond,null);assert.equal(report.measurement.timing.passes[1].format,null);
+  assert.equal(JSON.stringify(report).includes(secret),false);assert.equal(Object.hasOwn(report,'model'),false);assert.equal(Object.hasOwn(report,'summary'),false);assert.equal(report.accuracyNotInferred,true);
+  const failed=api.exportTrialDiagnostic({rawOutput:secret,promptProfile:'fast-json-v1',requestMs:123},{failed:true,errorCode:'AI_INVALID_DRAFT'});
+  assert.equal(failed.status,'failed');assert.equal(failed.errorCode,'AI_INVALID_DRAFT');assert.equal(failed.measurement.requestMs,123);assert.equal(failed.counts.modelRows,null);assert.equal(failed.counts.draftRows,null);
+});
+
 test('24 fixed synthetic references have disjoint dev8/heldout16 and an explicit quick4 subset',()=>{
   const all=api.cases({today,split:'all'}),dev=api.cases({today,split:'dev'}),heldout=api.cases({today,split:'heldout'}),quick=api.cases({today,split:'quick'});
   assert.equal(all.length,24);assert.equal(dev.length,8);assert.equal(heldout.length,16);assert.equal(quick.length,4);

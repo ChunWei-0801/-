@@ -1339,10 +1339,10 @@
     "aiTest.missingFields": "입력할 항목: {fields}",
     "aiTest.quickRun": "빠른 검사 4개 실행",
     "aiTest.quickNotice": "빠른 검사는 고정된 합성 입력 4개를 사용합니다. 모델의 원래 판단과 원문 확인 후 초안을 따로 평가합니다.",
-    "aiTest.compareTitle": "기존 흐름과 간소화된 흐름 비교",
-    "aiTest.compareNotice": "같은 모델로 고정된 합성 입력 4개를 두 흐름에서 실행합니다. 순서를 번갈아 총 8회 수행합니다. 버튼을 눌러야 시작하며 언제든 취소할 수 있습니다.",
+    "aiTest.compareTitle": "구조화 방식과 빠른 JSON 비교",
+    "aiTest.compareNotice": "같은 무료 모델로 고정 합성 입력 4개를 두 방식으로 실행합니다. 구조화 간소화와 빠른 JSON의 실행 순서를 바꿔 총 8회 측정합니다. 버튼을 누르면 시작하며 언제든 취소할 수 있습니다.",
     "aiTest.compareRun": "합성 비교 8회 시작",
-    "aiTest.exportComparison": "입력 없는 평가 JSON 다운로드",
+    "aiTest.exportComparison": "입력 없는 진단 JSON 다운로드",
     "aiTest.baselineLabel": "기존 흐름",
     "aiTest.compactLabel": "간소화된 흐름",
     "aiTest.caseCancelled": "취소됨",
@@ -1355,7 +1355,7 @@
     "aiTest.suiteComplete": "고정 합성 검사가 끝났습니다. 각 결과와 개별 점수를 확인하세요.",
     "aiTest.suiteNotice": "이 검사는 고정 입력의 항목 비교만 나타내며 일반적인 정확도를 보장하지 않습니다. 사이트, 이메일, 운영 백업은 별도로 검증합니다.",
     "aiTest.caseNotRun": "실행하지 않음",
-    "aiTest.compareMethod": "기존 흐름은 긴 지시와 재시도 정책을 유지합니다. 간결한 흐름은 지시를 줄이고 오류에 맞춰 수정하며 유효한 빈 응답은 재시도하지 않습니다. 빈 응답도 실제 거래를 놓칠 수 있으므로 각 결과를 비교하세요. 출력 시작은 초안 완성을 뜻하지 않습니다. 완료 시간에는 처리와 정리가 포함됩니다.",
+    "aiTest.compareMethod": "빠른 JSON은 생성 후 검증하며 실패하면 구조화 수정을 한 번만 시도합니다. 구조화 간소화는 토큰별 형식 제약을 유지합니다. 원문 규칙 수정은 별도로 표시하며 완료 시간에 재시도와 정리가 포함됩니다. 속도 향상은 기기 측정으로 확인해야 합니다.",
     "receipt.photoFailed": "내역은 저장됐지만 사진은 업로드되지 않았습니다. 사진만 다시 업로드하고 같은 내역을 기록하지 마세요.",
     "assistantOps.manual": "조건으로 보고서 표시",
     "assistantOps.yearAssumed": "요청에 연도가 없어 아래에 표시된 연도를 사용합니다. 직접 바꿀 수 있습니다.",
@@ -1571,7 +1571,8 @@
     "aiTest.rawOutputTitle": "모델 원본 출력 (원문 보조 전)",
     "aiTest.decodeElapsed": "출력 생성: {seconds}초",
     "aiTest.modelOutputUnavailable": "실행 환경에서 모델 원본 출력을 제공하지 않았습니다. 원문 확인 후 초안을 원본 출력으로 볼 수 없습니다.",
-    "aiTest.generationTimeLabel": "생성 처리 시간"
+    "aiTest.generationTimeLabel": "생성 처리 시간",
+    "aiTest.fastLabel": "빠른 JSON 방식"
   },
   "sources": {
     "選擇活動": "activity.ui.select",

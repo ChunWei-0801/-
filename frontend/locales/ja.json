@@ -1339,10 +1339,10 @@
     "aiTest.missingFields": "入力が必要な項目：{fields}",
     "aiTest.quickRun": "4 件の簡易チェックを実行",
     "aiTest.quickNotice": "簡易チェックは固定の合成入力 4 件を使います。モデルの元の判断と原文確認後の下書きを別々に採点します。",
-    "aiTest.compareTitle": "元の処理と簡略化した処理を比較",
-    "aiTest.compareNotice": "同じモデルで固定の合成入力 4 件を両方の処理で実行します。順序を交互に変えて合計 8 回。ボタンを押すまで開始せず、いつでも中止できます。",
+    "aiTest.compareTitle": "構造化方式と高速JSONを比較",
+    "aiTest.compareNotice": "同じ無料モデルで固定の合成入力4件を各方式で実行します。構造化簡略方式と高速JSONを交互の順番で計8回実行します。ボタンで開始し、いつでも中止できます。",
     "aiTest.compareRun": "合成比較を 8 回実行",
-    "aiTest.exportComparison": "入力を含まない評価 JSON を保存",
+    "aiTest.exportComparison": "入力を含まない診断JSONを保存",
     "aiTest.baselineLabel": "元の処理",
     "aiTest.compactLabel": "簡略化した処理",
     "aiTest.caseCancelled": "中止",
@@ -1355,7 +1355,7 @@
     "aiTest.suiteComplete": "固定の合成チェックが終了しました。各結果と個別の採点を確認してください。",
     "aiTest.suiteNotice": "このチェックは固定入力の項目比較だけを表し、一般的な正解率を示しません。サイト、メール、本番バックアップは別に検証します。",
     "aiTest.caseNotRun": "未実行",
-    "aiTest.compareMethod": "従来の処理は長い指示と再試行を維持します。簡略処理は指示を短くし、エラーに応じて修正し、有効な空の返答は再試行しません。空の返答でも取引を見逃す可能性があるため、各結果を比較してください。出力開始は下書きの完成を意味しません。完了時間には処理と後片付けを含みます。",
+    "aiTest.compareMethod": "高速JSONは生成後に検証し、失敗時は構造化修正を1回だけ試みます。構造化簡略方式はトークンごとの形式制約を使います。原文ルールによる修正は別表示です。完了時間は再試行と後処理を含みます。高速化は実機測定での確認が必要です。",
     "receipt.photoFailed": "記帳は成功しましたが、写真は未アップロードです。写真だけを再試行し、重複して記帳しないでください。",
     "assistantOps.manual": "この条件で表示",
     "assistantOps.yearAssumed": "文章に年の指定がないため、下に表示された年を使います。変更できます。",
@@ -1571,7 +1571,8 @@
     "aiTest.rawOutputTitle": "モデルの元の出力（原文補助前）",
     "aiTest.decodeElapsed": "出力生成：{seconds} 秒",
     "aiTest.modelOutputUnavailable": "実行環境からモデルの元の出力が提供されませんでした。原文チェック後の下書きを元の出力として扱うことはできません。",
-    "aiTest.generationTimeLabel": "生成処理時間"
+    "aiTest.generationTimeLabel": "生成処理時間",
+    "aiTest.fastLabel": "高速JSON方式"
   },
   "sources": {
     "選擇活動": "activity.ui.select",

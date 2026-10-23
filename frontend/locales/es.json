@@ -1339,10 +1339,10 @@
     "aiTest.missingFields": "Campos por completar: {fields}",
     "aiTest.quickRun": "Ejecutar 4 pruebas rápidas",
     "aiTest.quickNotice": "Las pruebas usan 4 entradas sintéticas fijas. Se evalúan por separado las decisiones originales y los borradores verificados.",
-    "aiTest.compareTitle": "Comparar flujos original y simplificado",
-    "aiTest.compareNotice": "Ejecuta el mismo modelo con 4 entradas sintéticas en ambos flujos: 8 ejecuciones alternando el orden. Solo comienza al pulsar el botón y se puede cancelar.",
+    "aiTest.compareTitle": "Comparar JSON estructurado y rápido",
+    "aiTest.compareNotice": "El mismo modelo gratuito procesa cuatro entradas sintéticas fijas con ambos flujos: compacto estructurado y JSON rápido. Son ocho ejecuciones con orden alternado. Solo empieza al pulsar y se puede cancelar.",
     "aiTest.compareRun": "Iniciar 8 ejecuciones comparativas",
-    "aiTest.exportComparison": "Descargar JSON de evaluación sin entradas",
+    "aiTest.exportComparison": "Descargar diagnóstico JSON sin contenido",
     "aiTest.baselineLabel": "Flujo original",
     "aiTest.compactLabel": "Flujo simplificado",
     "aiTest.caseCancelled": "Cancelado",
@@ -1355,7 +1355,7 @@
     "aiTest.suiteComplete": "Pruebas sintéticas terminadas. Revisa cada resultado y las puntuaciones separadas.",
     "aiTest.suiteNotice": "Estas pruebas solo comparan campos de entradas fijas; no establecen la precisión general. El sitio, correo y respaldo de producción tienen verificaciones separadas.",
     "aiTest.caseNotRun": "Sin ejecutar",
-    "aiTest.compareMethod": "El flujo original conserva las instrucciones largas y los reintentos. El compacto reduce las instrucciones, corrige errores concretos y no repite respuestas vacías válidas. Una respuesta vacía aún puede omitir operaciones reales; compara cada resultado. Empezar a generar no significa que el borrador esté listo. El tiempo final incluye procesamiento y limpieza.",
+    "aiTest.compareMethod": "JSON rápido genera y luego valida; un fallo permite un único intento de reparación estructurada. El flujo compacto estructurado mantiene las restricciones por token. Las correcciones basadas en el texto se muestran aparte. El tiempo incluye reintentos y limpieza. La mejora de velocidad requiere mediciones en el dispositivo.",
     "receipt.photoFailed": "La operación se guardó, pero la foto no se subió. Reintenta solo la foto, sin volver a registrar la operación.",
     "assistantOps.manual": "Mostrar informe con estos filtros",
     "assistantOps.yearAssumed": "La petición no indica el año. Se usará el que aparece abajo; puedes cambiarlo.",
@@ -1571,7 +1571,8 @@
     "aiTest.rawOutputTitle": "Salida original del modelo (sin ayuda de reglas)",
     "aiTest.decodeElapsed": "Generación de salida: {seconds} s",
     "aiTest.modelOutputUnavailable": "El entorno no proporcionó la salida original del modelo. El borrador revisado con la fuente no puede tratarse como la salida original.",
-    "aiTest.generationTimeLabel": "Tiempo del proceso de generación"
+    "aiTest.generationTimeLabel": "Tiempo del proceso de generación",
+    "aiTest.fastLabel": "Flujo JSON rápido"
   },
   "sources": {
     "選擇活動": "activity.ui.select",

@@ -94,6 +94,11 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     const raw=await page.locator('#modelRawOutput').textContent();
     assert.match(raw,/<img src=x/);assert.equal(await page.locator('#modelDiagnostics img').count(),0,'raw model HTML remains text');
     assert.equal((await page.locator('body').textContent()).includes('PRIVATE INPUT'),false,'raw runtime error is hidden');
+    assert.equal(await page.locator('#modelExport').isEnabled(),true,'failed single runs can export diagnostics');
+    let singleDownload=page.waitForEvent('download');await page.locator('#modelExport').click();
+    let singleFile=await singleDownload,singleDiagnostic=JSON.parse(fs.readFileSync(await singleFile.path(),'utf8'));
+    assert.equal(singleFile.suggestedFilename(),'local-ai-trial-diagnostic.json');assert.equal(singleDiagnostic.status,'failed');
+    assert.equal(JSON.stringify(singleDiagnostic).includes('SECRET'),false);assert.equal(JSON.stringify(singleDiagnostic).includes('今天早餐'),false);
     for(const language of languages){
       await page.locator('[data-language-select]').selectOption(language);
       await page.waitForFunction(language=>document.documentElement.lang===language,language);
@@ -114,6 +119,12 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     assert.equal(normalizedEvidence.rawModelOutput,'CONTRACT RAW MODEL OUTPUT — NOT INFERENCE');
     assert.equal(normalizedEvidence.normalizedDraft.items[0].amount,65);
     assert.equal(normalizedEvidence.normalization.requiresHumanReview,true);
+    assert.equal(await page.locator('#modelExport').isEnabled(),true,'completed single runs can export diagnostics');
+    singleDownload=page.waitForEvent('download');await page.locator('#modelExport').click();singleFile=await singleDownload;
+    singleDiagnostic=JSON.parse(fs.readFileSync(await singleFile.path(),'utf8'));
+    assert.equal(singleDiagnostic.status,'completed');assert.equal(singleDiagnostic.counts.draftRows,1);assert.equal(singleDiagnostic.accuracyNotInferred,true);
+    assert.equal(JSON.stringify(singleDiagnostic).includes('CONTRACT RAW MODEL OUTPUT'),false);assert.equal(Object.hasOwn(singleDiagnostic,'summary'),false);
+
     assert.equal(await page.locator('#modelDiagnostics').isVisible(),true,'original model output stays separate from the mapped draft');
     assert.equal(await page.locator('#modelDiagnostics summary').textContent(),packs.es.messages['aiTest.rawOutputTitle']);
     assert.equal(await page.locator('#modelRawOutput').textContent(),'CONTRACT RAW MODEL OUTPUT — NOT INFERENCE','successful retry replaces the previous failure output with the actual original model output');
@@ -176,7 +187,7 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     await page.locator('[data-language-select]').selectOption('zh-TW');await page.evaluate(()=>{__modelFixture.mode='benchmarkHybrid';});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>document.querySelectorAll('[data-case-state="passed"]').length===4&&!document.querySelector('#modelBenchmark').disabled);
     const hybrid=JSON.parse(await page.locator('#modelMetrics').textContent());
-    assert.equal(hybrid.summaries['compact-v1'].model.passed,0);assert.equal(hybrid.summaries['compact-v1'].assisted.passed,4);assert.equal(hybrid.accuracyNotInferred,true);
+    assert.equal(hybrid.summaries['fast-json-v1'].model.passed,0);assert.equal(hybrid.summaries['fast-json-v1'].assisted.passed,4);assert.equal(hybrid.accuracyNotInferred,true);
     assert.equal(await page.locator('#modelStatus').getAttribute('data-error-code'),null);
     assert.ok((await page.locator('[data-synthetic-case="1"] [data-review-checks]').first().textContent()).includes(packs['zh-TW'].messages['aiTest.reviewChecksTitle']));
     assert.equal((await page.locator('#modelOutput').textContent()).includes('SOURCE_KIND_CUE'),false);
@@ -184,29 +195,29 @@ test('browser contract fixture: readable drafts, honest paired scoring, continue
     await page.evaluate(()=>{__modelFixture.mode='benchmarkPartial';});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>document.querySelector('[data-synthetic-case="4"]').dataset.caseState==='passed'&&!document.querySelector('#modelBenchmark').disabled);
     const partial=JSON.parse(await page.locator('#modelMetrics').textContent());
-    assert.equal(partial.summaries['compact-v1'].failed,1);assert.equal(partial.summaries['compact-v1'].attempted,4);assert.equal(partial.summaries['compact-v1'].assisted.passed,3);
+    assert.equal(partial.summaries['fast-json-v1'].failed,1);assert.equal(partial.summaries['fast-json-v1'].attempted,4);assert.equal(partial.summaries['fast-json-v1'].assisted.passed,3);
     assert.equal(await page.locator('[data-synthetic-case="2"]').getAttribute('data-case-state'),'error');
     // An explicitly verified empty response is a valid abstention, never a blanket error-as-success shortcut.
     await page.evaluate(()=>{__modelFixture.mode='benchmarkEmptyError';});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>document.querySelectorAll('[data-case-state="passed"]').length===4&&!document.querySelector('#modelBenchmark').disabled);
-    const abstained=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(abstained.summaries['compact-v1'].abstained,1);assert.equal(abstained.summaries['compact-v1'].assisted.passed,4);
+    const abstained=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(abstained.summaries['fast-json-v1'].abstained,1);assert.equal(abstained.summaries['fast-json-v1'].assisted.passed,4);
     // A/B runs only after explicit action and counterbalances order for each case.
     await page.locator('#modelComparison summary').click();await page.evaluate(()=>{__modelFixture.mode='benchmarkSuccess';__modelFixture.profiles=[];});
     await page.locator('#modelCompare').click();await page.waitForFunction(()=>document.querySelectorAll('[data-case-state="passed"]').length===8&&!document.querySelector('#modelCompare').disabled);
-    assert.deepEqual(await page.evaluate(()=>__modelFixture.profiles),['baseline','compact-v1','compact-v1','baseline','baseline','compact-v1','compact-v1','baseline']);
-    const paired=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(paired.summaries.baseline.attempted,4);assert.equal(paired.summaries['compact-v1'].attempted,4);
-    assert.equal(paired.summaries.baseline.latency.warm.firstTokenMs.median,4);assert.equal(await page.locator('#modelExport').isEnabled(),true);
+    assert.deepEqual(await page.evaluate(()=>__modelFixture.profiles),['compact-v1','fast-json-v1','fast-json-v1','compact-v1','compact-v1','fast-json-v1','fast-json-v1','compact-v1']);
+    const paired=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(paired.summaries['compact-v1'].attempted,4);assert.equal(paired.summaries['fast-json-v1'].attempted,4);
+    assert.equal(paired.summaries['compact-v1'].latency.warm.firstTokenMs.median,4);assert.equal(await page.locator('#modelExport').isEnabled(),true);
     const downloading=page.waitForEvent('download');await page.locator('#modelExport').click();const download=await downloading,exported=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
-    assert.equal(exported.containsPrivateContent,false);assert.equal(exported.suite,'quick');assert.deepEqual(exported.comparisonProfiles,['baseline','compact-v1']);assert.equal(exported.profiles.baseline.attempted,4);
+    assert.equal(exported.containsPrivateContent,false);assert.equal(exported.suite,'quick');assert.deepEqual(exported.comparisonProfiles,['compact-v1','fast-json-v1']);assert.equal(exported.profiles['compact-v1'].attempted,4);
     const exportedText=JSON.stringify(exported);for(const forbidden of ['sourceText','rawModelOutput','三明治','52000','fieldDifference','PRIVATE INPUT'])assert.equal(exportedText.includes(forbidden),false,'export excludes '+forbidden);
-    assert.deepEqual(exported.cases.map(item=>item.requestedProfile),['baseline','compact-v1','compact-v1','baseline','baseline','compact-v1','compact-v1','baseline']);
+    assert.deepEqual(exported.cases.map(item=>item.requestedProfile),['compact-v1','fast-json-v1','fast-json-v1','compact-v1','compact-v1','fast-json-v1','fast-json-v1','compact-v1']);
     assert.ok((await page.locator('#modelTiming').textContent()).includes('秒'),'uses observed elapsed time instead of a made-up progress percentage');
     // Cancellation retains completed synthetic results but never accepts a late reply.
     await page.evaluate(()=>{__modelFixture.mode='benchmarkDefer';delete __modelFixture.resolve;});await page.locator('#modelBenchmark').click();
     await page.waitForFunction(()=>typeof __modelFixture.resolve==='function');assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'passed');
     await page.locator('#modelCancel').click();await page.evaluate(()=>__modelFixture.resolve());await page.waitForTimeout(25);
     assert.equal(await page.locator('[data-synthetic-case="1"]').getAttribute('data-case-state'),'passed');assert.equal(await page.locator('[data-case-state="cancelled"]').count(),1);assert.equal(await page.locator('[data-case-state="notrun"]').count(),2);
-    const cancelled=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(cancelled.complete,false);assert.equal(cancelled.summaries['compact-v1'].cancelled,1);assert.equal(cancelled.summaries['compact-v1'].attempted,2);assert.equal(cancelled.summaries['compact-v1'].assisted.passed,1);
+    const cancelled=JSON.parse(await page.locator('#modelMetrics').textContent());assert.equal(cancelled.complete,false);assert.equal(cancelled.summaries['fast-json-v1'].cancelled,1);assert.equal(cancelled.summaries['fast-json-v1'].attempted,2);assert.equal(cancelled.summaries['fast-json-v1'].assisted.passed,1);
     assert.equal(await page.locator('#modelRawOutput').textContent(),'');assert.equal(await page.locator('#modelTechnical').evaluate(node=>node.open),false);
     await page.locator('#modelUnload').click();
     assert.equal(await page.locator('#modelInput').inputValue(),'');

@@ -178,7 +178,7 @@ const modelItem={sourceText:'午餐120元',amountText:'120',classification:'支�
 const modelDraft=(items=[modelItem],warnings=[])=>JSON.stringify({items,warnings});
 async function extractFixture(text,input='昨天午餐120元',context=draftContext,options={}){
   const h=runtimeHarness(text,options);await h.load();
-  const reply=await h.run({type:'generate',task:'draft',input,context,language:'zh-TW',promptProfile:options.promptProfile});
+  const reply=await h.run({type:'generate',task:'draft',input,context,language:'zh-TW',promptProfile:options.promptProfile || 'compact-v1'});
   return {h,reply,value:reply.type==='result'?JSON.parse(reply.result.text):null};
 }
 
@@ -203,6 +203,38 @@ test('worker asks for verbatim source fields and readable labels, then keeps raw
   assert.deepEqual(value.items.map(i=>[i.amount,i.kind,i.category,i.date]),[[120,'expense','food','2026-10-18'],[800,'expense','fuel','2026-10-18']]);
   assert.equal(reply.result.normalization.sourceEvidenceChecked,true);assert.equal(reply.result.normalization.classificationMapping,'lookup-and-explicit-source-rules');
   assert.equal(reply.result.normalization.requiresHumanReview,true);assert.equal(h.calls.resets,2);
+});
+
+test('draft controller defaults to the free post-validated JSON pipeline while other tasks keep their profile',async t=>{
+  const h=controller();t.after(()=>h.api.unload());await ready(h);
+  const pending=h.api.generate({task:'receipt',input:'昨天午餐120元'});
+  assert.equal(h.workers[0].messages.at(-1).promptProfile,'fast-json-v1');
+  h.workers[0].emit('result',{result:{text:'{}'}});await pending;
+});
+
+test('fast JSON omits grammar entirely on its first pass and retains original evidence and source checks',async()=>{
+  const raw='```json\n'+modelDraft()+'\n```';
+  const {h,reply,value}=await extractFixture(raw,undefined,undefined,{promptProfile:'fast-json-v1'});
+  assert.equal(reply.type,'result');assert.equal(reply.result.rawModelOutput,raw);assert.equal(value.items[0].amount,120);
+  assert.equal(Object.hasOwn(h.calls.requests[0],'response_format'),false);
+  assert.equal(reply.result.promptProfile,'fast-json-v1');assert.equal(reply.result.timing.passes[0].format,'post-validated-json');
+  assert.equal(h.calls.requests[0].messages.length,4);
+  const example=JSON.parse(h.calls.requests[0].messages[2].content);
+  assert.deepEqual(example.items.map(item=>item.amountText),['47','860']);
+  assert.equal(example.items[0].classification,'支出｜示例車資');assert.equal(example.items[1].classification,'收入｜示例報酬');
+  assert.equal(JSON.stringify(example).includes('120'),false,'example never contains regression gold amounts');
+});
+
+test('fast JSON allows only one measured constrained repair without replaying invented content',async()=>{
+  for(const bad of ['not JSON',modelDraft([{...modelItem,sourceText:'PRIVATE_FORGED_SOURCE',amountText:'991'}]),modelDraft()+'\n'+modelDraft()]){
+    const {h,reply}=await extractFixture([bad,modelDraft()],undefined,undefined,{promptProfile:'fast-json-v1'});
+    assert.equal(reply.type,'result');assert.equal(reply.result.attempts,2);
+    assert.equal(Object.hasOwn(h.calls.requests[0],'response_format'),false);assert.equal(h.calls.requests[1].response_format.type,'json_object');
+    assert.deepEqual(Array.from(reply.result.timing.passes,pass=>pass.format),['post-validated-json','json-schema']);
+    assert.equal(JSON.stringify(h.calls.requests[1].messages).includes('PRIVATE_FORGED_SOURCE'),false);
+  }
+  const empty=await extractFixture(modelDraft([]),'今天沒有支出',undefined,{promptProfile:'fast-json-v1'});
+  assert.equal(empty.reply.error.code,'AI_NO_DRAFT');assert.equal(empty.h.calls.requests.length,1,'do not force an empty refusal into a transaction');
 });
 
 test('baseline keeps the historical empty repair for explicit on-device flow comparisons',async()=>{
@@ -259,7 +291,7 @@ test('worker timing measures stream first output and all passes including final 
     assert.equal(timing.firstTokenMs,12);assert.equal(timing.decodeMs,malformed?22:11);assert.equal(timing.cleanupMs,5);
     assert.equal(timing.totalMs,malformed?51:28);assert.equal(reply.result.elapsedMs,timing.totalMs);
     assert.equal(timing.passes.length,malformed?2:1);
-    for(const [index,pass] of timing.passes.entries())assert.deepEqual({...pass},{attempt:index+1,totalMs:23,firstTokenMs:12,decodeMs:11,promptTokens:20,completionTokens:10});
+    for(const [index,pass] of timing.passes.entries())assert.deepEqual({...pass},{attempt:index+1,totalMs:23,firstTokenMs:12,decodeMs:11,promptTokens:20,completionTokens:10,format:'json-schema'});
   }
   const {reply}=await extractFixture(modelDraft([]),'今天沒有交易',undefined,{clock:{time:0},resetMs:5,prefillMs:7,decodeMs:11});
   assert.equal(reply.error.details.timing.totalMs,28);assert.equal(reply.error.details.elapsedMs,28);
@@ -645,7 +677,7 @@ test('lottery assistance respects local clauses and uniquely named current categ
 test('recorded merged unit-bearing output recovers both source rows without rewriting the model prediction',async()=>{
   const input='今天早餐65元，午餐120元。';
   const raw='{"items":[{"sourceText":"今天早餐65元，午餐120元。","amountText":"65元","classification":"支出（未選分類）","dateText":"","currency":"TWD","merchantText":"今天早餐65元，午餐120元。"}],"warnings":[]}';
-  for(const promptProfile of ['baseline','compact-v1']){
+  for(const promptProfile of ['baseline','compact-v1','fast-json-v1']){
     const {reply,value,h}=await extractFixture(raw,input,draftContext,{promptProfile});
     assert.equal(reply.type,'result');assert.equal(h.calls.requests.length,1);assert.equal(reply.result.rawModelOutput,raw);
     assert.deepEqual(value.items.map(item=>[item.amount,item.date,item.kind,item.category,item.merchant]),[[65,'2026-10-19','expense','food',null],[120,'2026-10-19','expense','food',null]]);
@@ -683,7 +715,7 @@ test('ambiguous or contradictory currency evidence requires review instead of fo
     assert.equal(reply.type,'result',input);assert.equal(value.items[0].currency,null,input);assert.equal(reply.result.normalization.coverage.status,'partial',input);
     assert.equal(reply.result.modelDraft.items[0].currency,'CNY');
   }
-  for(const promptProfile of ['baseline','compact-v1']){
+  for(const promptProfile of ['baseline','compact-v1','fast-json-v1']){
     const {reply}=await extractFixture(modelDraft([{...modelItem,currency:'XYZ'}]),undefined,undefined,{promptProfile});assert.equal(reply.error.code,'AI_INVALID_DRAFT');
   }
 });

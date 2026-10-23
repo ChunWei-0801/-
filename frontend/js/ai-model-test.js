@@ -162,7 +162,7 @@
       var observations=view.cases.filter(function(item){return !!item.observation;}).map(function(item){return item.observation;});
       ui.modelMetricsSummary.style.whiteSpace='pre-line';
       ui.modelMetricsSummary.textContent=named(view.cancelled?'aiTest.cancelledBenchmark':'aiTest.suiteSummary',{completed:completed,total:view.cases.length,passed:passed});
-      var summaries={};['baseline','compact-v1'].forEach(function(profile){var rows=observations.filter(function(item){return item.promptProfile===profile;});if(!rows.length)return;var summary=window.LocalAIEvaluation.summarize(rows);summaries[profile]=summary;ui.modelMetricsSummary.textContent+='\n'+named('aiTest.profileScore',{profile:profileLabel(profile),model:summary.model.passed,assisted:summary.assisted.passed,total:summary.attempted});var group=summary.latency.warm,timing=group.requestMs.samples?group.requestMs:group.totalMs.samples?group.totalMs:group.elapsedMs;ui.modelMetricsSummary.textContent+='\n'+named('aiTest.profileTiming',{profile:profileLabel(profile),median:timing.median===null?named('aiTrial.noMeasurement'):(timing.median/1000).toFixed(2),samples:timing.samples});});
+      var summaries={};['baseline','compact-v1','fast-json-v1'].forEach(function(profile){var rows=observations.filter(function(item){return item.promptProfile===profile;});if(!rows.length)return;var summary=window.LocalAIEvaluation.summarize(rows);summaries[profile]=summary;ui.modelMetricsSummary.textContent+='\n'+named('aiTest.profileScore',{profile:profileLabel(profile),model:summary.model.passed,assisted:summary.assisted.passed,total:summary.attempted});var group=summary.latency.warm,timing=group.requestMs.samples?group.requestMs:group.totalMs.samples?group.totalMs:group.elapsedMs;ui.modelMetricsSummary.textContent+='\n'+named('aiTest.profileTiming',{profile:profileLabel(profile),median:timing.median===null?named('aiTrial.noMeasurement'):(timing.median/1000).toFixed(2),samples:timing.samples});});
       ui.modelMetrics.textContent=JSON.stringify({observedOnly:true,completed:completed,total:view.cases.length,passed:passed,accuracyNotInferred:true,complete:!view.cancelled&&view.cases.every(function(item){return !!item.observation&&!['waiting','running','cancelled','notrun'].includes(item.state);}),summaries:summaries,cases:view.cases},null,2);
     }else if(view&&view.result){
       var assessment=showAssessment(ui.modelOutput,view.value,view.result.normalization);
@@ -181,7 +181,7 @@
     if(revealFailure)diagnostics.open=true;
   }
   function ready(){return api&&api.getStatus().loaded;}
-  function controls(){ui.modelLoad.disabled=!languageReady||running||ready();ui.modelCancel.disabled=!running;ui.modelRun.disabled=!languageReady||running||!ready();ui.modelBenchmark.disabled=ui.modelCompare.disabled=!languageReady||running||!ready()||!window.LocalAIEvaluation;ui.modelExport.disabled=running||!view||view.mode!=='benchmark'||!view.cases.some(function(item){return !!item.observation;});ui.modelCache.disabled=!languageReady||running;ui.modelInput.disabled=running;}
+  function controls(){ui.modelLoad.disabled=!languageReady||running||ready();ui.modelCancel.disabled=!running;ui.modelRun.disabled=!languageReady||running||!ready();ui.modelBenchmark.disabled=ui.modelCompare.disabled=!languageReady||running||!ready()||!window.LocalAIEvaluation;ui.modelExport.disabled=running||!window.LocalAIEvaluation||!(view&&view.mode==='benchmark'?view.cases.some(function(item){return !!item.observation;}):view&&view.result||failureDetails);ui.modelCache.disabled=!languageReady||running;ui.modelInput.disabled=running;}
   function cancel(){generation++;if(controller)controller.abort();controller=null;if(api)api.cancel();running=false;stopClock();ui.modelProgress.hidden=true;controls();}
   function context(){
     var parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(function(part){return [part.type,part.value];}));
@@ -197,7 +197,7 @@
       if(kind==='draft'||kind==='benchmark'){
         var state=api&&api.getStatus?api.getStatus():{};
         var failedMeasurement=measure(details);
-        failureDetails={key:key,rawOutput:typeof details.rawOutput==='string'?details.rawOutput.slice(0,12000):'',measurement:{status:'failed',usableDraft:false,operation:kind,errorCode:code,model:typeof details.model==='string'?details.model.slice(0,120):state.model||null,elapsedMs:Number.isFinite(details.elapsedMs)&&details.elapsedMs>=0?details.elapsedMs:Math.round(performance.now()-started),requestMs:failedMeasurement.requestMs,totalMs:failedMeasurement.totalMs,firstTokenMs:failedMeasurement.firstTokenMs,timing:failedMeasurement.timing,usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason.slice(0,40):null,attempts:Number.isInteger(details.attempts)&&details.attempts>0?details.attempts:null,validation:details.validation||null}};
+        failureDetails={key:key,rawOutput:typeof details.rawOutput==='string'?details.rawOutput.slice(0,12000):'',measurement:{status:'failed',usableDraft:false,operation:kind,errorCode:code,promptProfile:failedMeasurement.promptProfile,loadMs:failedMeasurement.loadMs,model:typeof details.model==='string'?details.model.slice(0,120):state.model||null,elapsedMs:Number.isFinite(details.elapsedMs)&&details.elapsedMs>=0?details.elapsedMs:Math.round(performance.now()-started),requestMs:failedMeasurement.requestMs,totalMs:failedMeasurement.totalMs,firstTokenMs:failedMeasurement.firstTokenMs,timing:failedMeasurement.timing,usage:safeUsage(details.usage),finishReason:typeof details.finishReason==='string'?details.finishReason.slice(0,40):null,attempts:Number.isInteger(details.attempts)&&details.attempts>0?details.attempts:null,validation:details.validation||null}};
         if(view&&view.mode==='benchmark')view.cases[view.current].state='error';
         renderResults();
       }else clearResults();
@@ -208,15 +208,15 @@
     return measured;
   }
   function measurementLine(measured){var lines=[],decode=Number.isFinite(measured.decodeMs)?measured.decodeMs:measured.timing&&measured.timing.decodeMs;var completion=Number.isFinite(measured.requestMs)?measured.requestMs:Number.isFinite(measured.totalMs)?measured.totalMs:measured.elapsedMs;if(Number.isFinite(completion))lines.push(named('aiTest.generationElapsed',{seconds:(completion/1000).toFixed(2)}));if(Number.isFinite(measured.firstTokenMs))lines.push(named('aiTest.firstTokenElapsed',{seconds:(measured.firstTokenMs/1000).toFixed(2)}));if(Number.isFinite(decode))lines.push(named('aiTest.decodeElapsed',{seconds:(decode/1000).toFixed(2)}));return lines.join(' · ');}
-  function profileLabel(profile){return named(profile==='baseline'?'aiTest.baselineLabel':'aiTest.compactLabel');}
-  async function draft(input,signal,profile){return api.generate({task:'draft',input:input,context:context(),language:document.documentElement.lang||'zh-TW',signal:signal,promptProfile:profile||'compact-v1'});}
+  function profileLabel(profile){return named(profile==='baseline'?'aiTest.baselineLabel':profile==='fast-json-v1'?'aiTest.fastLabel':'aiTest.compactLabel');}
+  async function draft(input,signal,profile){return api.generate({task:'draft',input:input,context:context(),language:document.documentElement.lang||'zh-TW',signal:signal,promptProfile:profile||'fast-json-v1'});}
   ui.modelLoad.onclick=function(){operation(async function(mine,signal){
     if(!api)throw new Error('Local model program unavailable');startClock('aiTrial.checking');status('正在檢查並載入模型…');ui.modelProgress.hidden=false;ui.modelProgress.removeAttribute('value');var started=performance.now();
     await api.load({signal:signal,onProgress:function(value){if(mine!==generation)return;setClockStage('aiTrial.loading');var fraction=typeof value==='number'?value:value&&(value.progress!=null?value.progress:value.fraction);if(Number.isFinite(fraction)){ui.modelProgress.value=Math.max(0,Math.min(1,fraction>1?fraction/100:fraction));}else ui.modelProgress.removeAttribute('value');status(value&&value.text||text('正在下載／載入模型…'));}});
     if(mine===generation){lastLoadMs=performance.now()-started;clock=null;status('本機模型已就緒');}
   });};
   ui.modelRun.onclick=function(){operation(async function(mine,signal){clearResults();startClock('aiTrial.running');status('本機 AI 正在整理…');var result=await draft(ui.modelInput.value,signal);if(mine!==generation)return;view={mode:'draft',result:result,value:JSON.parse(result.text)};renderResults();var assessment=assessDraft(view.value,result.normalization);status('',!assessment.requiredFieldsComplete||assessment.coverageStatus==='partial',assessmentKey(assessment));},'draft');};
-  function emptyDetected(error){var details=error&&error.details;if(!details||error.code!=='AI_NO_DRAFT'||!details.validation||details.validation.reason!=='NO_TRANSACTIONS')return false;try{var parsed=JSON.parse(details.rawOutput);return !!parsed&&Array.isArray(parsed.items)&&parsed.items.length===0;}catch(_){return false;}}
+  function emptyDetected(error){var details=error&&error.details;if(!details||error.code!=='AI_NO_DRAFT'||!details.validation||details.validation.reason!=='NO_TRANSACTIONS')return false;try{var raw=details.rawOutput,fenced=typeof raw==='string'&&/^\s*```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(raw);var parsed=JSON.parse(fenced?fenced[1]:raw);return !!parsed&&Array.isArray(parsed.items)&&parsed.items.length===0;}catch(_){return false;}}
   function recordResult(item,result){
     item.output=JSON.parse(result.text);item.rawModelOutput=result.rawModelOutput||null;item.normalization=result.normalization||null;item.modelDraft=result.modelDraft&&Array.isArray(result.modelDraft.items)?result.modelDraft:null;item.measurement=measure(result);
     item.modelOnlyDifferences=item.modelDraft?differences(item.expected,item.modelDraft.items):null;item.modelOnlyPassed=item.modelDraft?LocalAIEvaluation.score(item.expectation,item.modelDraft.items).caseExact:null;item.differences=differences(item.expected,item.output.items);item.passed=LocalAIEvaluation.score(item.expectation,item.output.items).caseExact;item.state=item.passed?'passed':'failed';
@@ -224,7 +224,7 @@
   }
   async function runSuite(compare){operation(async function(mine,signal){
     clearResults();startClock('aiTrial.running');var today=context().today,cases=LocalAIEvaluation.cases({split:'quick',today:today}),planned=[];
-    cases.forEach(function(entry,index){var profiles=compare?(index%2?['compact-v1','baseline']:['baseline','compact-v1']):['compact-v1'];profiles.forEach(function(profile){planned.push({syntheticCase:planned.length+1,caseId:entry.id,split:entry.split,input:entry.input,state:'waiting',expected:entry.expected.items,expectation:entry.expected,promptProfile:profile});});});
+    cases.forEach(function(entry,index){var profiles=compare?(index%2?['fast-json-v1','compact-v1']:['compact-v1','fast-json-v1']):['fast-json-v1'];profiles.forEach(function(profile){planned.push({syntheticCase:planned.length+1,caseId:entry.id,split:entry.split,input:entry.input,state:'waiting',expected:entry.expected.items,expectation:entry.expected,promptProfile:profile});});});
     view={mode:'benchmark',current:0,cases:planned,compare:compare,cancelled:false};status('',false,'aiTest.suiteRunning');renderResults();
     for(var i=0;i<planned.length;i++){
       if(mine!==generation)return;view.current=i;var item=planned[i];item.state='running';renderResults();startClock('aiTrial.running');
@@ -238,7 +238,16 @@
   },'benchmark');}
   ui.modelBenchmark.onclick=function(){runSuite(false);};
   ui.modelCompare.onclick=function(){runSuite(true);};
-  ui.modelExport.onclick=function(){if(!view||view.mode!=='benchmark'||!window.LocalAIEvaluation)return;var rows=view.cases.filter(function(item){return !!item.observation;}).map(function(item){return item.observation;}),report=LocalAIEvaluation.exportReport(rows,{suite:'quick'}),url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),link=node('a');link.href=url;link.download='local-ai-synthetic-evaluation.json';link.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);};
+  ui.modelExport.onclick=function(){
+    if(running||!window.LocalAIEvaluation)return;var report,filename;
+    if(view&&view.mode==='benchmark'){
+      var rows=view.cases.filter(function(item){return !!item.observation;}).map(function(item){return item.observation;});
+      if(!rows.length)return;report=LocalAIEvaluation.exportReport(rows,{suite:'quick'});filename='local-ai-synthetic-evaluation.json';
+    }else if(view&&view.result||failureDetails){
+      report=LocalAIEvaluation.exportTrialDiagnostic(view&&view.result||failureDetails.measurement,{failed:!!failureDetails,errorCode:failureDetails&&failureDetails.measurement.errorCode});filename='local-ai-trial-diagnostic.json';
+    }else return;
+    var url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'})),link=node('a');link.href=url;link.download=filename;link.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  };
   ui.modelCancel.onclick=function(){var partial=view&&view.mode==='benchmark'?view:null;cancel();if(partial){partial.cancelled=true;partial.cases.forEach(function(item){if(item.state==='running'){item.observation={caseId:item.caseId,split:item.split,expected:item.expectation,measurement:{},status:'cancelled',errorCode:'AI_CANCELLED',promptProfile:item.promptProfile};item.state='cancelled';}else if(item.state==='waiting')item.state='notrun';});failureDetails=null;renderResults();controls();status('',false,'aiTest.cancelledBenchmark',{completed:partial.cases.filter(function(item){return item.state==='passed'||item.state==='failed'||item.state==='error';}).length});}else{clearResults();status('已取消；沒有寫入任何資料。');}};
   ui.modelUnload.onclick=function(){cancel();if(api)api.unload();clock=null;lastLoadMs=null;renderClock();ui.modelInput.value='';clearResults();status('模型已卸載，本頁輸入與回覆已清除。');};
   ui.modelCache.onclick=function(){operation(async function(){if(api)await api.clearCache();clock=null;lastLoadMs=null;renderClock();clearResults();status('模型下載快取已清除。');});};

@@ -1,4 +1,5 @@
-/* Synthetic evaluation only. No network, storage, ledger data or model inference.
+/* Synthetic evaluation and content-free trial diagnostics. No network, storage
+ * or model inference. Single trials are never scored against fixed gold cases.
  * Detection (amount + kind) is distinct from exact fields and whole-case success.
  * These fixed cases cannot establish general real-world model accuracy.
  */
@@ -8,7 +9,7 @@
   var FIELDS = ['amount','kind','category','date','currency','merchant'];
   var QUICK = ['dev-mixed','heldout-salary','heldout-prize','heldout-third-party'];
   var SUITES = ['dev','heldout','quick','all'];
-  var PROFILES = ['baseline','compact-v1'];
+  var PROFILES = ['baseline','compact-v1','fast-json-v1'];
   var MODELS = ['Qwen2.5-0.5B-Instruct-q4f16_1-MLC','Qwen2.5-0.5B-Instruct-q4f32_1-MLC'];
   var ERROR_CODES = ['AI_ERROR','AI_CANCELLED','AI_TIMEOUT','AI_BUSY','AI_INVALID_DRAFT','AI_NO_DRAFT','AI_EMPTY_OUTPUT','AI_TRUNCATED','AI_INVALID_INPUT','AI_INPUT_TOO_LARGE','AI_CONTEXT_TOO_LARGE','AI_WEBGPU_UNAVAILABLE','AI_GPU_UNAVAILABLE','AI_GPU_TIMEOUT','AI_WORKER_UNAVAILABLE','AI_INSECURE_CONTEXT','AI_RUNTIME_DOWNLOAD_FAILED','AI_MODEL_LOAD_FAILED','AI_NOT_READY'];
   function validDate(value) {
@@ -134,7 +135,12 @@
     result.passes=Array.isArray(timing.passes) ? timing.passes.slice(0,2).map(function(pass){
       pass=pass && typeof pass==='object' ? pass : {};var entry={attempt:Number.isInteger(pass.attempt) && pass.attempt > 0 && pass.attempt <= 2 ? pass.attempt : null};
       ['totalMs','firstTokenMs','decodeMs'].forEach(function(key){entry[key]=nonnegative(pass[key]);});
-      ['promptTokens','completionTokens'].forEach(function(key){entry[key]=count(pass[key]);});return entry;
+      ['promptTokens','completionTokens'].forEach(function(key){entry[key]=count(pass[key]);});
+      entry.format=['json-schema','post-validated-json'].includes(pass.format) ? pass.format : null;
+      if(pass.runtime && typeof pass.runtime==='object' && !Array.isArray(pass.runtime)){
+        entry.runtime={};['e2eMs','firstTokenMs','grammarInitMs','grammarPerTokenMs','prefillTokensPerSecond','decodeTokensPerSecond','outputTokenMs'].forEach(function(key){entry.runtime[key]=nonnegative(pass.runtime[key]);});
+      }
+      return entry;
     }) : null;
     return result;
   }
@@ -209,5 +215,23 @@
     comparisonProfiles.forEach(function(profile){profiles[profile]=summarize(observations.filter(function(row){return requestedProfile(row)===profile;}));});
     return {schemaVersion:1,type:'local-ai-synthetic-evaluation',suiteVersion:VERSION,suite:SUITES.includes(options.suite) ? options.suite : null,containsPrivateContent:false,accuracyNotInferred:true,comparisonProfiles:comparisonProfiles,metricNotes:{profileComparison:'Use the separate profiles summaries to compare whole pipelines; the combined summary is not a profile comparison.',transactionDetection:'One-to-one amount + kind; correct detection does not imply correct classification or other fields. Failed, cancelled and missing results still contribute reference false negatives.',candidateFalsePositive:'All unmatched candidates, including unbookable review rows. falsePositive counts only unmatched rows with a positive amount and known kind.',fieldsExact:'Six fields per reference in all attempted cases, including explicit nulls; unmatched or unobserved reference rows earn no field matches.',caseSuccess:'Exact cases divided by all attempted cases. Failed, cancelled and unmeasured cases never increase success.',latency:'Only observed timings; missing values remain null. Cold/warm is explicitly supplied by the runner.'},summary:summarize(observations),profiles:profiles,cases:safe};
   }
-  root.LocalAIEvaluation=Object.freeze({version:VERSION,context:context,cases:cases,score:score,summarize:summarize,safeMeasurement:safeMeasurement,exportReport:exportReport});
+  function exportTrialDiagnostic(result, options) {
+    result=result && typeof result==='object' ? result : {};options=options || {};
+    var draft=null;try{draft=JSON.parse(result.text);}catch(_){}
+    var items=draft && Array.isArray(draft.items) ? draft.items : null;
+    var original=result.modelDraft && Array.isArray(result.modelDraft.items) ? result.modelDraft.items : null;
+    var normalization=result.normalization || {},coverage=normalization.coverage || {},recovery=normalization.sourceRecovery || {};
+    return {schemaVersion:1,type:'local-ai-trial-diagnostic',containsPrivateContent:false,accuracyNotInferred:true,requiresHumanReview:true,
+      status:options.failed===true ? 'failed' : 'completed',errorCode:ERROR_CODES.includes(options.errorCode) ? options.errorCode : null,
+      measurement:safeMeasurement(result,{phase:'warm'}),
+      counts:{modelRows:original ? original.length : null,draftRows:items ? items.length : null,
+        modelWarnings:result.modelDraft && Array.isArray(result.modelDraft.warnings) ? result.modelDraft.warnings.length : null,
+        recoveredRows:Array.isArray(recovery.recoveredRows) ? recovery.recoveredRows.length : null,
+        rejectedRows:Array.isArray(normalization.rejectedRows) ? normalization.rejectedRows.length : null,
+        rowsMissingRequiredFields:items ? items.filter(function(item){return !item || !Number.isFinite(item.amount) || item.amount<=0 || !['expense','income'].includes(item.kind) || !validDate(item.date);}).length : null,
+        sourceCandidates:count(coverage.sourceCandidateCount),uncoveredSource:count(coverage.uncoveredSourceCount)},
+      coverageStatus:['complete','partial','unknown'].includes(coverage.status) ? coverage.status : null,
+      sourceRuleAssisted:typeof normalization.sourceRuleAssisted==='boolean' ? normalization.sourceRuleAssisted : null};
+  }
+  root.LocalAIEvaluation=Object.freeze({version:VERSION,context:context,cases:cases,score:score,summarize:summarize,safeMeasurement:safeMeasurement,exportReport:exportReport,exportTrialDiagnostic:exportTrialDiagnostic});
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1339,10 +1339,10 @@
     "aiTest.missingFields": "Fields to complete: {fields}",
     "aiTest.quickRun": "Run 4 quick checks",
     "aiTest.quickNotice": "Quick checks use 4 fixed synthetic inputs. Original model decisions and source-checked drafts are scored separately.",
-    "aiTest.compareTitle": "Compare original and compact workflows",
-    "aiTest.compareNotice": "Run the same model on 4 fixed synthetic inputs using both workflows: 8 runs with alternating order. Starts only when you press the button; cancel at any time.",
+    "aiTest.compareTitle": "Compare structured and fast JSON",
+    "aiTest.compareNotice": "The same free model runs four fixed synthetic inputs with both structured compact and fast JSON pipelines: eight runs, alternating order. Starts only when clicked; cancel anytime.",
     "aiTest.compareRun": "Start 8 synthetic comparison runs",
-    "aiTest.exportComparison": "Download evaluation JSON without inputs",
+    "aiTest.exportComparison": "Download content-free diagnostic JSON",
     "aiTest.baselineLabel": "Original workflow",
     "aiTest.compactLabel": "Compact workflow",
     "aiTest.caseCancelled": "Cancelled",
@@ -1355,7 +1355,7 @@
     "aiTest.suiteComplete": "Fixed synthetic checks finished. Review each result and the separate scores.",
     "aiTest.suiteNotice": "These checks compare fields for these fixed inputs only; they do not establish general accuracy. Website, email, and production backup acceptance have separate records.",
     "aiTest.caseNotRun": "Not run",
-    "aiTest.compareMethod": "The original flow keeps the long prompt and retry policy. The compact flow shortens the prompt, targets repair errors, and skips retries for valid empty replies. Empty replies may still miss real transactions; compare each result. Starting output does not mean a draft is ready. Completion includes processing and cleanup.",
+    "aiTest.compareMethod": "Fast JSON generates first, then validates; failed validation allows one structured repair. Structured compact keeps token-level format constraints. Source-rule repairs remain separate. Completion time includes retries and cleanup. Compare device measurements; a speedup has not been established.",
     "receipt.photoFailed": "The entry was saved, but its photo was not uploaded. Retry only the photo; do not record the entry again.",
     "assistantOps.manual": "Show report with these filters",
     "assistantOps.yearAssumed": "The request did not specify a year. The year shown below is used and can be edited.",
@@ -1571,7 +1571,8 @@
     "aiTest.rawOutputTitle": "Original model output (unassisted)",
     "aiTest.decodeElapsed": "Output generation: {seconds} s",
     "aiTest.modelOutputUnavailable": "The runtime did not provide original model output. The source-checked draft cannot be treated as the original output.",
-    "aiTest.generationTimeLabel": "Generation workflow time"
+    "aiTest.generationTimeLabel": "Generation workflow time",
+    "aiTest.fastLabel": "Fast JSON pipeline"
   },
   "sources": {
     "選擇活動": "activity.ui.select",
