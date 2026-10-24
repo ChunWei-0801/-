@@ -1,0 +1,43 @@
+{
+  "observedDateAsiaTaipei": "2026-10-24",
+  "source": "user-provided Neon branch overview screenshot",
+  "project": "fambudget",
+  "branch": "production",
+  "plan": "Free plan",
+  "region": "AWS US West 2 (Oregon)",
+  "postgresMajor": 18,
+  "branchExpires": "Never",
+  "branchExpiryIsNotPermanentFreeGuarantee": true,
+  "targetCredentialsReceived": false,
+  "actualNeonConnectionVerified": false,
+  "neonRestorePerformed": false,
+  "productionSwitchPerformed": false,
+  "latestSourceBackupUserReport": {
+    "tables": 35,
+    "rows": 41,
+    "photoBlobs": 3,
+    "reportedDateAsiaTaipei": "2026-10-24",
+    "backupCreationTimeNotProvided": true,
+    "independentlyAuthenticatedByAssistant": false,
+    "offsiteCopyVerified": false
+  },
+  "toolChecks": {
+    "backendPassed": 1111,
+    "newRunnerCases": 16,
+    "localPowerShellRestorePassed": 26,
+    "windowsOnlyCasesPendingCI": 8,
+    "oldLauncherLocalPassed": 27,
+    "realPostgresIntegration": {
+      "syntheticFixture": true,
+      "postgresMajor": 18,
+      "targetSuperuser": false,
+      "checks": 6,
+      "tables": 6,
+      "rows": 10,
+      "photoBlobs": 3,
+      "actualRenderOrNeonConnected": false
+    }
+  },
+  "ci": "pending",
+  "createdAtUtc": "2026-10-24T09:38:28.762378+00:00"
+}

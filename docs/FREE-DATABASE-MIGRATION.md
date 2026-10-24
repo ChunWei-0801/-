@@ -39,4 +39,6 @@ Neon Free閒置5分鐘會scale to zero。現在Render健康檢查設定是/ready
 
 ## 目前狀態
 
-來源期限已確認，候選官方方案與版本已核對，等待使用者本人建立Free專案。尚未取得目標連線、建立遷移工具的新正式執行設定、執行搬移、驗證目標資料或切換網站；沒有自動搬家，也沒有承諾第三方永久免費。
+來源期限已確認。使用者已建立Neon fambudget／production，截圖確認Free plan、AWS Oregon、PostgreSQL18；Expires Never僅表示分支未設定到期日。使用者另回報本次來源備份35表、41列、3張照片，尚未提供備份時間，也未由本次執行環境驗證新備份HMAC或異地複本。
+
+已準備Windows安全還原工具，說明見[Neon還原工具](../tools/windows-backup/NEON-RESTORE.md)。它使用本機隱藏輸入，驗證近期備份及空目標後還原；已做獨立的合成PostgreSQL18 TLS／非superuser實際還原測試，沒有連到正式Render或Neon。尚未取得目標連線或執行正式還原、目標驗收與網站切換；沒有自動搬家。

@@ -1,5 +1,5 @@
 ﻿[CmdletBinding()]
-param([switch]$CheckOnly)
+param([switch]$CheckOnly, [switch]$HelpersOnly)
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
@@ -158,6 +158,9 @@ function Assert-PrivateFiles([string]$Path) {
         }
     }
 }
+
+# Internal shared-helper import performs no Docker or database operation.
+if ($HelpersOnly) { return }
 
 try {
     if ($env:OS -ne 'Windows_NT') { Stop-Safely 'WINDOWS_REQUIRED' }
