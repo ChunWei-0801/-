@@ -85,8 +85,8 @@
   },
   "comparisonPreparation": {
     "guide": "tools/windows-backup/NEON-COMPARE.md",
-    "status": "implementation-and-validation-in-progress",
-    "publishedVerifiedDownload": false,
+    "status": "validated-and-packaged-not-deployed",
+    "publishedVerifiedDownload": true,
     "liveComparisonPerformed": false,
     "requiresMaintenanceBeforeAnyDatabaseQuery": true,
     "compares": [
@@ -95,7 +95,21 @@
       "sequence-parameters-and-state"
     ],
     "configurationIdentityHashIsNotConnectivityProof": true,
-    "noProductionMaintenanceOrConnectionChangePerformed": true
+    "noProductionMaintenanceOrConnectionChangePerformed": true,
+    "sourceCommit": "6c14cff082453479c2ffbb846724ca4ef6f2c8b7",
+    "ciRun": 40107628444,
+    "ciConclusion": "success",
+    "backendPassed": 1211,
+    "browserPassed": 57,
+    "windowsComparisonPassed": 57,
+    "windowsOnlySkipped": false,
+    "localPowerShellComparisonPassed": 54,
+    "actualSyntheticPg18TlsCasesPassed": 13,
+    "artifactId": 12564998401,
+    "artifactName": "FamBudget-Windows-Neon-Compare",
+    "artifactUrl": "https://github.com/ChunWei-0801/-/actions/runs/40107628444/artifacts/12564998401",
+    "artifactExpiresDate": "2026-11-23",
+    "maintenanceVersionDeployed": false
   },
   "updatedDateAsiaTaipei": "2026-10-24"
 }

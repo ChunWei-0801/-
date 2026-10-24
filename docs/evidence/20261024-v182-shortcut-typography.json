@@ -1,0 +1,39 @@
+{
+  "sourceCommit": "c86386416fb5e02ec59d4898b0ee1b6984086a8b",
+  "sourceTree": "0acde6ff9de595a32fd9ad3aa834e515b3810030",
+  "shortcutResourceVersion": 182,
+  "otherMainResourceVersion": 181,
+  "llmResourceVersion": 180,
+  "changedSourceFiles": 6,
+  "ci": {
+    "run": 40104750291,
+    "conclusion": "success",
+    "backendPassed": 1111,
+    "browserPassed": 57,
+    "browserSkipped": 0,
+    "nonBrowserFrontendPassed": 149,
+    "backupWindowsPassed": 44,
+    "restoreWindowsPassed": 34
+  },
+  "localFocusedBrowserPassed": 13,
+  "render": {
+    "id": "dep-dbecfjbrjlhs73f8fqv0",
+    "status": "live",
+    "startedAt": "2026-10-24T14:59:25.980674Z",
+    "finishedAt": "2026-10-24T15:01:01.460266Z",
+    "commit": "c86386416fb5e02ec59d4898b0ee1b6984086a8b"
+  },
+  "settings": {
+    "defaultLabelsVisible": true,
+    "storage": "per-account, current-browser display-only boolean",
+    "serverSynced": false,
+    "controlsLocation": "常用功能 → 排列位置 → 顯示文字",
+    "accessibleNamesRetained": true
+  },
+  "productionDatabaseChanged": false,
+  "maintenanceEnabledByThisRelease": false,
+  "directDeployedHttpSmoke": false,
+  "directHttpLimit": "Public application host is outside the executor outbound allowlist.",
+  "userDeviceAcceptance": "pending",
+  "voiceStillWithdrawn": true
+}

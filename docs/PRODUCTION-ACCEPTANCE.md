@@ -1,6 +1,16 @@
 # Production acceptance handoff
 
-The current deployed source is `1f8bdd4ef55bf68cb2c040f1336c8bdc49830126`,
+## Current shortcut typography release
+
+Current deployed source is `c86386416fb5e02ec59d4898b0ee1b6984086a8b`, tree `0acde6ff9de595a32fd9ad3aa834e515b3810030`. Shortcut CSS/JS resources are **182**; other main resources remain181 and LLM resources180. Render `dep-dbecfjbrjlhs73f8fqv0` reports **live**, finished **2026-10-24 23:01:01 Asia/Taipei** at `https://fambudget-recovery-20261017.onrender.com`.
+
+[CI40104750291](https://github.com/ChunWei-0801/-/actions/runs/40104750291) passed all3jobs: backend1111, browser57 with zero skips, non-browser frontend149, Windows backup44 and restore34. Local focused browser13passed. Smaller system sans labels and lighter weight apply only to shortcuts. Arrange icons now contains a Show labels toggle, default on; the display-only boolean is saved per account in the current browser. Icon-only mode retains accessible names and drag/keyboard ordering. Fixture checks cover reload, account isolation, blocked storage, six locales,320px and200%roottext. Actual user-device acceptance remains pending; no direct deployedHTTP/resource-hash check is claimed because the public host is excluded by executor policy. [Usage](SHORTCUT-TYPOGRAPHY.md) and [release evidence](evidence/20261024-v182-shortcut-typography.json).
+
+Migration preparation source `6c14cff082453479c2ffbb846724ca4ef6f2c8b7` is saved separately and **not deployed**. Its maintenance/TLS/runtime configuration does not alter the current website until explicitly deployed. Production still uses Render; no maintenance or connection switch was performed. See [migration preparation](FREE-DATABASE-MIGRATION.md).
+
+## Previous v181 dashboard release
+
+The previous dashboard release source was `1f8bdd4ef55bf68cb2c040f1336c8bdc49830126`,
 main application resource version **181**, at `https://fambudget-recovery-20261017.onrender.com`.
 Source tree: `225e90438646ec649e6922d91cc84db5f1c6d573`.
 Render `dep-dbe2iv7f3r2c73cghe1g` reports **live**, finished **2026-10-24 11:45:27 Asia/Taipei**.
