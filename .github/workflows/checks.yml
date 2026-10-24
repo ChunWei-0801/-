@@ -16,6 +16,9 @@ jobs:
       - name: Check Neon restore launcher and safe failure reports
         shell: powershell
         run: .\tools\windows-backup\tests\Test-Neon-Restore.ps1
+      - name: Check read-only source and Neon comparison launcher
+        shell: powershell
+        run: .\tools\windows-backup\tests\Test-Neon-Compare.ps1
       - name: Assemble standalone Windows backup tool
         shell: powershell
         run: |
@@ -54,6 +57,26 @@ jobs:
         with:
           name: FamBudget-Windows-Neon-Restore
           path: ${{ runner.temp }}/FamBudget-Windows-Neon-Restore
+          if-no-files-found: error
+          retention-days: 30
+      - name: Assemble standalone Windows Neon comparison tool
+        shell: powershell
+        run: |
+          $destination = Join-Path $env:RUNNER_TEMP 'FamBudget-Windows-Neon-Compare'
+          New-Item -ItemType Directory -Path $destination | Out-Null
+          foreach ($name in @('Start-Neon-Compare.cmd', 'Start-Neon-Compare.ps1', 'Start-Backup.ps1', 'windows_backup.py', 'neon_restore.py', 'neon_compare.py', 'Neon-Compare.Dockerfile', 'NEON-COMPARE.md')) {
+            Copy-Item -LiteralPath (Join-Path 'tools/windows-backup' $name) -Destination $destination
+          }
+          Copy-Item -LiteralPath 'backend/tools/backup_restore.py' -Destination $destination
+          $files = Get-ChildItem -LiteralPath $destination -File | ForEach-Object {
+            @{name=$_.Name; sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
+          }
+          @{sourceCommit=$env:GITHUB_SHA; files=@($files)} | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath (Join-Path $destination 'package-integrity.json') -Encoding UTF8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FamBudget-Windows-Neon-Compare
+          path: ${{ runner.temp }}/FamBudget-Windows-Neon-Compare
           if-no-files-found: error
           retention-days: 30
   checks:

@@ -66,10 +66,22 @@ app.add_middleware(APIBodyLimit)
 
 @app.middleware("http")
 async def private_response_headers(request: Request, call_next):
-    response = await call_next(request)
+    path = request.url.path
+    is_api = path == "/api" or path.startswith("/api/")
+    if settings.maintenance_mode and is_api:
+        # GET handlers and authentication guards can update lazy preferences or
+        # session timestamps. Freeze the whole business API before routing,
+        # dependencies, body parsing or any database/mail side effect.
+        response = JSONResponse(
+            status_code=503,
+            content={"detail": "系統正在搬移資料，請稍後再試。", "code": "MAINTENANCE_MODE"},
+            headers={"Retry-After": "60", "X-FamBudget-Maintenance": "1"},
+        )
+    else:
+        response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    if request.url.path.startswith("/api/"):
+    if is_api or path in {"/capabilities", "/readyz"}:
         # Account tokens, ledger entries and private photos must not survive
         # in browser/shared HTTP caches after logout or on a shared device.
         response.headers.setdefault("Cache-Control", "no-store")
@@ -125,6 +137,9 @@ async def healthz() -> dict[str, str]:
 @app.get("/readyz", tags=["系統"])
 def readyz():
     """Readiness（就緒檢查）：驗證資料庫與必要分類已初始化，不呼叫外部模型。"""
+    if settings.maintenance_mode:
+        return JSONResponse(status_code=503, content={"status": "maintenance", "database": "not_checked"},
+                            headers={"Retry-After": "60", "X-FamBudget-Maintenance": "1"})
     try:
         from app.models import Category
         from sqlalchemy import select
@@ -142,6 +157,9 @@ def readyz():
 def capabilities() -> dict:
     """Report optional integrations without exposing credentials or connection URLs."""
     return {
+        "maintenance_mode": settings.maintenance_mode,
+        "database_provider": settings.database_provider,
+        "database_identity_sha256": settings.database_identity_sha256,
         "model_configured": bool(settings.model_base_url),
         "mail_configured": bool(settings.brevo_api_key and settings.mail_from),
         "email_verification_required": settings.email_verification_required,

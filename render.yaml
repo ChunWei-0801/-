@@ -17,7 +17,7 @@ services:
     plan: free
     buildCommand: pip install -r backend/requirements.lock
     startCommand: cd backend && python -m alembic upgrade head && python -m app.cli init-db && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /readyz
+    healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.14"
@@ -25,10 +25,10 @@ services:
         value: production
       - key: REQUIRE_EMAIL_VERIFICATION
         value: "true"
+      # Keep the current private value; external Neon credentials are entered
+      # in Render Environment. Blueprint sync must not reset a verified cutover.
       - key: DATABASE_URL
-        fromDatabase:
-          name: fambudget-recovery-db-20261017
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       # 正式驗證連結自動使用 Render 的 RENDER_EXTERNAL_URL；不需要預先猜網址。

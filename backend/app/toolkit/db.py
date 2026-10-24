@@ -45,12 +45,16 @@ PostgreSQL 與 SQLite
 from __future__ import annotations
 
 import functools
+import ssl
+from pathlib import Path
+
+import certifi
 from collections.abc import Callable, Generator, Iterator
 from contextlib import contextmanager
 from typing import Any, TypeVar
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -66,6 +70,38 @@ T = TypeVar("T")
 
 class Base(DeclarativeBase):
     """所有資料表的共同祖先。app/models/ 底下每一個類別都 `class User(Base):`。"""
+
+
+def _neon_connect_args(url: str) -> dict:
+    """Require bounded, verified TLS for Neon without changing other providers."""
+    try:
+        parsed = make_url(url)
+        is_neon = (parsed.drivername.split("+", 1)[0] in {"postgres", "postgresql"}
+                   and parsed.host is not None and parsed.host.lower().endswith(".neon.tech"))
+    except Exception:
+        # Existing engine/URL validation handles malformed configuration. Never
+        # put an input URL or credential in this helper's error text.
+        return {}
+    if not is_neon:
+        return {}
+
+    candidates = []
+    try:
+        candidates.append(ssl.get_default_verify_paths().cafile)
+    except (OSError, ValueError):
+        pass
+    try:
+        candidates.append(certifi.where())
+    except (OSError, ValueError):
+        pass
+    for candidate in candidates:
+        try:
+            if candidate and Path(candidate).is_file():
+                return {"sslmode": "verify-full", "sslrootcert": str(candidate),
+                        "channel_binding": "require", "connect_timeout": 15}
+        except (OSError, ValueError):
+            continue
+    raise RuntimeError("Neon TLS trust store is unavailable") from None
 
 
 def make_engine(url: str, *, echo: bool | None = None) -> Engine:
@@ -89,8 +125,14 @@ def make_engine(url: str, *, echo: bool | None = None) -> Engine:
             cur.close()
 
         return eng
+    postgres_options = {}
+    neon_args = _neon_connect_args(url)
+    if neon_args:
+        # SQLAlchemy merges these after URL options, so a copied URL cannot
+        # weaken Neon TLS or introduce an unbounded initial connect.
+        postgres_options["connect_args"] = neon_args
     return create_engine(
-        url, echo=echo,
+        url, echo=echo, **postgres_options,
         # 每次借連線前先確認還活著：Render 免費 PostgreSQL 會切斷閒置太久的連線
         pool_pre_ping=True,
         # 連線活超過 5 分鐘就換新的，一樣是避開被切斷的舊連線

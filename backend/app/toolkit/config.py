@@ -34,7 +34,11 @@ pydantic-settings 的做法是：把所有設定寫成一個類別的欄位，
 ⚠️ 前端要連哪個後端，不在這裡：改 `frontend/index.html` 的 `<meta name="api-base">`。
 """
 
+import hashlib
+import json
 import os
+import re
+from urllib.parse import unquote, urlsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -60,6 +64,10 @@ class Settings(BaseSettings):
     app_env: str = Field(
         default="development",
         description="development / production。production 時 db 不印 SQL、錯誤訊息不帶內部細節。",
+    )
+    maintenance_mode: bool = Field(
+        default=False,
+        description="搬移期間暫停所有業務 API（含讀取），不影響程式存活與維護狀態檢查。",
     )
     database_url: str = Field(
         description=(
@@ -188,6 +196,57 @@ class Settings(BaseSettings):
                 'python -c "import secrets;print(secrets.token_urlsafe(48))"'
             )
         return v
+
+    @property
+    def database_provider(self) -> str:
+        """Configuration label only; never probes connectivity or target identity."""
+        value = self.database_url
+        if not isinstance(value, str) or value != value.strip() or any(ord(c) < 32 or ord(c) == 127 for c in value):
+            return "unknown"
+        try:
+            parsed = urlsplit(value)
+            if parsed.scheme in {"sqlite", "sqlite+pysqlite"}:
+                return "sqlite"
+            if parsed.scheme not in {"postgres", "postgresql", "postgresql+psycopg"}:
+                return "unknown"
+            host = parsed.hostname
+            # Access port so malformed port syntax cannot masquerade as a known
+            # provider. Parsing failures never echo any part of the URL.
+            parsed.port
+            if not host:
+                return "unknown"
+            if host.endswith(".neon.tech"):
+                return "neon"
+            if host.endswith(".render.com") or re.fullmatch(r"dpg-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", host):
+                return "render"
+            return "postgresql"
+        except (ValueError, UnicodeError):
+            return "unknown"
+
+    @property
+    def database_identity_sha256(self) -> str | None:
+        """Bind the configured PostgreSQL host/port/database without exposing it.
+
+        This matches the backup tool's identity format, not a connectivity check.
+        Credentials and query options do not change the database identity.
+        """
+        value = self.database_url
+        if (not isinstance(value, str) or value != value.strip()
+                or any(ord(c) < 32 or ord(c) == 127 for c in value)
+                or re.search(r"%(?![0-9a-fA-F]{2})", value)):
+            return None
+        try:
+            parsed = urlsplit(value)
+            if parsed.scheme not in {"postgres", "postgresql", "postgresql+psycopg"}:
+                return None
+            host, port = parsed.hostname, parsed.port
+            if not host or not parsed.path.strip("/") or parsed.fragment or port is not None and port < 1:
+                return None
+            canonical = json.dumps([host, port or 5432, unquote(parsed.path)],
+                                   sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+            return hashlib.sha256(canonical).hexdigest()
+        except (ValueError, UnicodeError):
+            return None
 
     @property
     def allowed_origins_list(self) -> list[str]:

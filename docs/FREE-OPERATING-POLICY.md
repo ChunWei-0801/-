@@ -26,4 +26,4 @@
 
 ## 已知到期與免費搬移準備
 
-建議在2026-11-09前完成免費搬移及驗收，預留緩衝；這是建議期限，不是已設定的排程。已保存[畫面證據摘要](evidence/20261024-render-free-db-expiry.json)。Neon Free列為相容候選，詳見[免費資料庫搬移準備](FREE-DATABASE-MIGRATION.md)；使用者已建立Neon Free／Oregon／PG18專案，Windows還原工具已通過檢查；目前尚未正式還原Neon或切換網站。
+建議在2026-11-09前完成免費搬移及驗收，預留緩衝；這是建議期限，不是已設定的排程。已保存[畫面證據摘要](evidence/20261024-render-free-db-expiry.json)。Neon Free列為相容候選，詳見[免費資料庫搬移準備](FREE-DATABASE-MIGRATION.md)；使用者已建立Neon Free／Oregon／PG18專案，並在自己的Windows完成Neon還原。已接受上傳的安全verification.json：快照時間2026-10-24 13:39:28臺灣時間、35表／41列／3照片，報告中的還原、資料與照片雜湊核對及明文清理均通過。這是使用者工具報告的證據，本執行環境沒有直接查詢正式資料庫；新備份的異地複本仍未獨立核對。Neon分支Expires Never不表示方案永久免費。網站仍使用Render；目前來源與Neon的一致性比對、正式切換及網站驗收尚未完成。維護模式、唯讀比對工具及避免健康檢查持續喚醒Neon的調整仍在準備／驗證，未啟用線上維護或改連線。

@@ -2,43 +2,51 @@
 
 ## 到期與授權範圍
 
-2026-10-24使用者Render Info截圖確認：fambudget-recovery-db-20261017為Free，PostgreSQL18，Available，1GB已用7.12%；2026-11-16到期，未升級將刪除。未顯示精確到期時間與時區。建議2026-11-09前完成切換及驗收以留緩衝；未建立任何自動排程。
+2026-10-24使用者Render Info截圖確認：fambudget-recovery-db-20261017為Free、PostgreSQL18、Available，1GB已用7.12%；**2026-11-16到期，未升級將刪除**。畫面未顯示精確到期時間與時區。建議2026-11-09前完成切換及驗收以留緩衝；這不是已建立的排程。
 
-使用者已選擇保留線上家庭共用、僅用免費額度，到期或改收費搬移；不授權付費升級。目前不變更正式服務連線、不刪資料、不開付費資源。新平台帳號需屬於使用者本人。
+使用者已選擇保留線上家庭共用、僅用免費額度，到期或改收費搬移；不授權付費升級。新平台帳號屬於使用者本人。目前網站仍使用Render資料庫，未啟用維護模式、未切換正式連線、未刪除來源，也未開通付費資源。
 
-## 相容候選：Neon Free
+## 已建立的目標：Neon Free
 
-已讀取Neon官方GitHub網站文件，plans頁updatedOn為2026-10-23：Free $0/month；每專案1GB PostgreSQL storage、每月100 CU-hours、5GB public network transfer。compute與transfer額度會按月重設。運算或傳輸用完會暫停compute到下個週期或升級；Free容量用完會阻擋增加容量的操作。文件說明這些額度限制不會刪除資料。仍須保留獨立備份；此資料不是供應商永久不改價的保證。
+使用者概覽截圖確認Neon專案fambudget、production分支、Free plan、AWS US West 2（Oregon）、PostgreSQL18。**Expires Never只表示該分支未設定到期日，不表示方案永久不收費。**
 
-官方文件確認目前支援PostgreSQL14–18。目標專案應選18，與來源及目前備份工具一致。帳號／建立專案畫面須確認Free；如果畫面要求付費或條件與文件不同，先停在該頁核對，不能直接開付費方案。
+已讀取Neon官方GitHub網站文件，plans頁updatedOn為2026-10-23：Free $0/month；每專案1GB PostgreSQL storage、每月100 CU-hours、5GB public network transfer。運算與傳輸額度按月重設；用完會暫停compute到下個週期或升級，Free容量用完會阻擋增加容量的操作。文件說明這些額度限制不會刪除資料。仍須保留獨立備份，供應商政策可能變更。
+
+官方文件確認支援PostgreSQL14–18；目前來源、目標與工具均採18。若控制台要求付費，先核對，不能直接升級。
 
 參考：
+
 - https://neon.com/docs/introduction/plans
 - https://neon.com/docs/postgresql/postgres-version-support
 - https://neon.com/docs/introduction/scale-to-zero
-- 對應官方原始文件：https://github.com/neondatabase/website/blob/main/content/docs/introduction/plans.md
+- 官方原始文件：https://github.com/neondatabase/website/blob/main/content/docs/introduction/plans.md
 
-## 使用者下一步
+## 已接受的還原證據
 
-1. 到https://neon.com/建立自己的帳號，可使用GitHub登入。
-2. 選Free，進入建立Project頁。建議名稱fambudget、PostgreSQL18、地區AWS Oregon（若可選，接近目前Render Oregon）。保持預設資料庫名稱即可；不需要替現有帳號換密碼。
-3. 在送出前核對方案為Free。完成後只提供專案概覽或方案頁截圖，遮住所有連線網址及金鑰。不能把資料庫密碼或完整連線字串貼到聊天。
+使用者在自己的Windows執行[Neon還原工具](../tools/windows-backup/NEON-RESTORE.md)，回報成功並上傳安全的verification.json。報告已檢查：schemaVersion1、status=verified、code=OK、stage=complete、restoreVerified=true、plaintextRemoved=true，clientMajor與targetMajor均為18。
 
-## 實際搬移前的必要工作
+這份備份時間為**2026-10-24 13:39:28 Asia/Taipei**（UTC 05:39:28.489579），內容為**35張表、41筆資料、3個照片BLOB，共2,983,651照片位元組**。報告表示工具已在使用者電腦完成備份驗證、Neon還原、資料與照片雜湊核對及明文清理。這是接受使用者提供的工具報告；本執行環境沒有取得私人連線網址，也沒有直接查詢正式Render或Neon。
 
-- 做當時最新的正式資料庫一致快照，加密保存。2026-10-23舊快照不涵蓋之後的交易、照片與行事曆；必須另作新備份。
-- 在全新目標資料庫還原並核對每表筆數、資料與照片雜湊；確保UUID、JSONB、時間、唯一鍵、索引及Alembic版本完整。不得覆蓋唯一的正式資料庫。
-- 用目前程式測試登入、收支明細、活動權限、照片及行事曆；驗證後才安排短暫停止寫入、最後增量／完整新快照、切換連線與回退方案。原網站繼續保留，直到新站驗收。
-- 目標還原與應用程式使用符合各自用途的連線方式，保持TLS；密碼用受保護的本機輸入或環境秘密設定，不寫進命令列、聊天或Git。
+它只證明該時間點快照已還原，**尚未證明目前Render資料與Neon完全一致，也不是網站已搬家**。這次新備份的異地複本尚未獨立下載核對。先前已驗證的私人Drive備份是2026-10-23 21:57的33表／37列／3照片，兩者範圍不同，不能混用。
+
+## 切換前的下一階段
+
+1. 先完成並驗證維護模式與[Windows唯讀比對工具](../tools/windows-backup/NEON-COMPARE.md)，目前仍在準備／驗證，尚未宣稱已發布可用的新下載包。
+2. 在確定維護時段後，讓網站所有API操作暫停，等待舊部署及進行中請求結束。部分GET會建立偏好資料，所以只停新增按鈕或只擋POST不足以凍結來源。
+3. 維護期間用本機隱藏輸入取得來源Render External URL與目標Neon直接URL，唯讀比較目前資料列、照片、資料表欄位、限制、索引與流水號狀態。工具不會執行還原、刪除、更新或網站切換；單看35／41／3的總數不能判定一致。
+4. 若不一致，維持維護並做最後的新來源備份，還原到**另一個全新空Neon資料庫**，再比對。保留目前已驗證的Neon副本；不要刪表、清空或重複還原到非空目標。
+5. 比對通過後，才把正式服務的私人DATABASE_URL設為同一個已比對的Neon直接端點及資料庫，保持JWT、郵件與網站網域設定。密碼只在本機隱藏欄位或供應商秘密設定內處理，不貼聊天、截圖、命令列或Git。
+6. 維護仍開啟時核對部署成功、資料庫遷移／啟動成功、資料庫提供者及目標識別，再解除維護，驗收登入、收支明細、活動權限、照片與行事曆。
+7. 保留來源及備份直到新站驗收。新目標開始接收寫入後，不能直接切回舊來源，否則會遺失新資料；需先作新備份及處理兩邊差異。
+
+準備中的/capabilities.database_identity_sha256只將設定中的端點、port與資料庫路徑作雜湊，用於比對報告的targetIdentitySHA256；它**不會連資料庫，也不證明憑證有效、實際連線成功或資料一致**。須與部署／啟動及實際操作驗收一起判讀。比對及切換都使用同一個直接端點；pooler主機名稱不同，識別值也會不同。
 
 ## 免費額度的整合檢查
 
-Neon Free閒置5分鐘會scale to zero。現在Render健康檢查設定是/readyz，該路由每次都查資料庫；若直接沿用，可能讓目標資料庫持續活動，消耗月運算額度。SQLAlchemy連線池也需配合目標閒置連線／重啟行為檢查。行事曆提醒另有每分鐘查詢，網頁長時間保持開啟也會累積運算時間；切換前需一起評估通知查詢、分頁可見性及實際額度，不能僅改健康檢查就宣稱沒有閒置消耗。
+Neon Free閒置5分鐘會scale to zero。先前部署的Render健康檢查為/readyz，該路由每次查資料庫，可能讓資料庫持續活動而消耗月運算額度。切換前將常態存活檢查改為不查DB的/healthz，保留人工／部署前的/readyz就緒確認；目前尚未宣稱已修改線上Render健康檢查。
 
-切換前需評估改用不查DB的/healthz作常態存活檢查，並保留部署前或人工/readyz就緒確認；不要用定時ping或外部保活去規避免費方案休眠。這是待實作／驗證事項，目前未修改Render健康檢查或正式連線。
+待驗證的部署準備也包含Neon應用連線的TLS主機驗證及channel binding；不能將程式碼準備等同正式連線已驗收。SQLAlchemy連線池須配合閒置重啟行為檢查。行事曆提醒另有每分鐘查詢，頁面長時間開啟仍會累積運算時間，不能只改健康檢查就宣稱沒有閒置消耗。不要用定時ping或外部保活規避免費方案休眠。
 
-## 目前狀態
+## 尚未完成
 
-來源期限已確認。使用者已建立Neon fambudget／production，截圖確認Free plan、AWS Oregon、PostgreSQL18；Expires Never僅表示分支未設定到期日。使用者另回報本次來源備份35表、41列、3張照片，尚未提供備份時間，也未由本次執行環境驗證新備份HMAC或異地複本。
-
-已準備Windows安全還原工具，說明見[Neon還原工具](../tools/windows-backup/NEON-RESTORE.md)。它使用本機隱藏輸入，驗證近期備份及空目標後還原；已做獨立的合成PostgreSQL18 TLS／非superuser實際還原測試，沒有連到正式Render或Neon。尚未取得目標連線或執行正式還原、目標驗收與網站切換；沒有自動搬家。
+目前Render最新狀態與Neon唯讀比對、最後一致快照（若有差異）、正式連線切換、實際網站驗收，以及新備份異地核對均未完成。沒有自動搬家、額度監控或自動備份排程。

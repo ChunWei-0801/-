@@ -1,6 +1,6 @@
 {
   "observedDateAsiaTaipei": "2026-10-24",
-  "source": "user-provided Neon branch overview screenshot",
+  "source": "user-provided Neon overview screenshot, Windows restore result, and uploaded safe verification.json",
   "project": "fambudget",
   "branch": "production",
   "plan": "Free plan",
@@ -10,16 +10,20 @@
   "branchExpiryIsNotPermanentFreeGuarantee": true,
   "targetCredentialsReceived": false,
   "actualNeonConnectionVerified": false,
-  "neonRestorePerformed": false,
+  "neonRestorePerformed": true,
   "productionSwitchPerformed": false,
   "latestSourceBackupUserReport": {
     "tables": 35,
     "rows": 41,
     "photoBlobs": 3,
     "reportedDateAsiaTaipei": "2026-10-24",
-    "backupCreationTimeNotProvided": true,
+    "backupCreationTimeNotProvided": false,
     "independentlyAuthenticatedByAssistant": false,
-    "offsiteCopyVerified": false
+    "offsiteCopyVerified": false,
+    "backupCreatedAtUtc": "2026-10-24T05:39:28.489579+00:00",
+    "backupCreatedAtAsiaTaipei": "2026-10-24T13:39:28.489579+08:00",
+    "safeVerificationReportReceived": true,
+    "safeVerificationReportContractChecked": true
   },
   "toolChecks": {
     "backendPassed": 1111,
@@ -56,5 +60,42 @@
     "artifactUrl": "https://github.com/ChunWei-0801/-/actions/runs/40083147653/artifacts/12555843339",
     "artifactExpiresDate": "2026-11-23"
   },
-  "createdAtUtc": "2026-10-24T09:38:28.762378+00:00"
+  "createdAtUtc": "2026-10-24T09:38:28.762378+00:00",
+  "restoreEvidenceScope": "User-executed Windows restore and supplied safe report accepted; executor did not connect directly to production Render or Neon.",
+  "actualNeonConnectionVerifiedByExecutor": false,
+  "currentSourceCompared": false,
+  "maintenanceEnabled": false,
+  "productionWebsiteAcceptanceCompleted": false,
+  "acceptedRestoreReport": {
+    "schemaVersion": 1,
+    "status": "verified",
+    "code": "OK",
+    "stage": "complete",
+    "restoreVerified": true,
+    "plaintextRemoved": true,
+    "clientMajor": 18,
+    "backupCreatedAt": "2026-10-24T05:39:28.489579+00:00",
+    "archiveSHA256": "43df6871e1f15437691b1ea1f15bb8bf7a314a7562407d4dfd09ade2b0bde2c3",
+    "tables": 35,
+    "rows": 41,
+    "photoBlobs": 3,
+    "photoBytes": 2983651,
+    "targetMajor": 18,
+    "evidenceOrigin": "User-uploaded verification.json; not independently signed or backed by an executor production query."
+  },
+  "comparisonPreparation": {
+    "guide": "tools/windows-backup/NEON-COMPARE.md",
+    "status": "implementation-and-validation-in-progress",
+    "publishedVerifiedDownload": false,
+    "liveComparisonPerformed": false,
+    "requiresMaintenanceBeforeAnyDatabaseQuery": true,
+    "compares": [
+      "public-row-and-photo-hashes",
+      "columns-and-constraints-and-indexes",
+      "sequence-parameters-and-state"
+    ],
+    "configurationIdentityHashIsNotConnectivityProof": true,
+    "noProductionMaintenanceOrConnectionChangePerformed": true
+  },
+  "updatedDateAsiaTaipei": "2026-10-24"
 }
