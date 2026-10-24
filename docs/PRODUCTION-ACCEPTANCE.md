@@ -33,7 +33,12 @@ See [release evidence](evidence/20261024-v181-dashboard-release.json) and
 The user requires free-tier-only online family sharing and migration if a provider
 expires or starts charging; no paid upgrade is authorized. See
 [free operating policy](FREE-OPERATING-POLICY.md). Web plan is verified free;
-actual database plan/expiry and account billing remain unverified (API403).
+user-provided Render Info screenshots now verify database plan Free, PostgreSQL18,
+Available, storage7.12% of1GB and expiry2026-11-16. The banner states deletion
+unless upgraded; expiry time/timezone are not shown. Account billing is still
+unverified. See [expiry evidence](evidence/20261024-render-free-db-expiry.json)
+and [free migration preparation](FREE-DATABASE-MIGRATION.md). No migration or
+production database switch has been performed.
 
 ## Previous v180 deployment (historical)
 

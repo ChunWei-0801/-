@@ -1,0 +1,19 @@
+{
+  "observedDate": "2026-10-24",
+  "source": "user-provided Render PostgreSQL Info screenshots",
+  "databaseName": "fambudget-recovery-db-20261017",
+  "plan": "Free",
+  "status": "Available",
+  "expirationDate": "2026-11-16",
+  "expirationTimeAndTimezone": "not displayed",
+  "providerBanner": "Your database will expire on November 16, 2026. The database will be deleted unless you upgrade to a paid compute plan.",
+  "postgresMajor": 18,
+  "storageUsedPercent": 7.12,
+  "storageLimitGB": 1,
+  "storageAutoscaling": "Disabled",
+  "accountBillingVerified": false,
+  "targetMigrationCompletionDate": "2026-11-09",
+  "targetDateIsRecommendationNotScheduledTask": true,
+  "migrationExecuted": false,
+  "paidUpgradeAuthorized": false
+}
