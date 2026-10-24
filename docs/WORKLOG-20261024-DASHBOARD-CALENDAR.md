@@ -32,3 +32,11 @@
 - 農曆套件原始碼／授權，https://github.com/6tail/lunar-javascript （本地固定1.7.7，保留MIT授權）
 
 正式部署與CI結果另記於PRODUCTION-ACCEPTANCE.md；裝置通知、安裝及真正手指拖曳仍需使用者手機確認。
+
+
+## 部署結果
+
+程式`1f8bdd4ef55bf68cb2c040f1336c8bdc49830126`已通過[CI40059355641](https://github.com/ChunWei-0801/-/actions/runs/40059355641)，checks、browser、windows-backup均成功。瀏覽器52通過、0略過，另有生活工具整套腳本通過；本機前端158通過。Render部署`dep-dbe2iv7f3r2c73cghe1g`於2026-10-24 11:45:27臺灣時間live，對應完全相同程式。完整程式歷史bundle、52個變更blob及原故障資料庫雜湊已核對。原資料與先前備份證據未改動。執行環境不允許直接連正式網站網域，因此不宣稱已直接核對正式站資源雜湊；手機實機安裝與裝置通知仍待使用者確認。
+
+
+使用者另指定長期免費，並選擇「保留線上家庭共用，使用免費額度；若服務到期或改收費就搬家」。本次未搬動正式資料，也未開通付費資源；費用與資料搬移限制另存FREE-OPERATING-POLICY.md。

@@ -1,5 +1,42 @@
 # Production acceptance handoff
 
+The current deployed source is `1f8bdd4ef55bf68cb2c040f1336c8bdc49830126`,
+main application resource version **181**, at `https://fambudget-recovery-20261017.onrender.com`.
+Source tree: `225e90438646ec649e6922d91cc84db5f1c6d573`.
+Render `dep-dbe2iv7f3r2c73cghe1g` reports **live**, finished **2026-10-24 11:45:27 Asia/Taipei**.
+[CI40059355641](https://github.com/ChunWei-0801/-/actions/runs/40059355641)
+passed checks, browser and Windows backup for that exact source. Backend1095
+passed; local related frontend158 passed; dedicated browser52 passed with zero
+skips, plus the lifestyle script. CI's two non-browser steps passed17 and132,
+with nine browser-only cases covered by the dedicated browser job. Windows44
+launcher checks passed without connecting to production. All52 changed blobs
+and a complete history bundle were verified. The existing free plan and
+manual deployment setting remain unchanged. Additive migration0009 creates
+private calendar events and markers; no old transactions/photos are moved.
+
+This release adds staged shortcut visibility, simple responsive cards, a default
+cross-page floating clock with five styles and resizing, a compact date/month
+summary, stable breathing/coughing lungs, private calendar events, one-tap shift
+markers, optional lunar display, foreground reminders, alarm-bearing ICS export,
+and online PWA installation. Lunar exports are isolated from application I18n.
+Actual full-HTML/SQLite browser previews had no page errors or horizontal overflow.
+The public app host is excluded by the executor allowlist; a direct deployed
+resource hash smoke check is not claimed. Actual phone installation, touch use
+and device notifications remain user acceptance items. Closed-site server push,
+offline accounting and app-store publication are not provided. New calendar/clock
+strings are Traditional-Chinese-first. Voice stays withdrawn. LLM trial resources
+remain v180, including the accepted ten-row device observation below.
+
+See [release evidence](evidence/20261024-v181-dashboard-release.json) and
+[usage and limits](WORKLOG-20261024-DASHBOARD-CALENDAR.md).
+
+The user requires free-tier-only online family sharing and migration if a provider
+expires or starts charging; no paid upgrade is authorized. See
+[free operating policy](FREE-OPERATING-POLICY.md). Web plan is verified free;
+actual database plan/expiry and account billing remain unverified (API403).
+
+## Previous v180 deployment (historical)
+
 The current deployed source is `62db3a375e8e0c213e4019205ec1d6d2f20ccc19`,
 resource version **180**, at `https://fambudget-recovery-20261017.onrender.com`.
 Source tree: `960639d7ba61418ae26255fae16567296053f3a2`.

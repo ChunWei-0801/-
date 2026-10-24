@@ -1,0 +1,49 @@
+{
+  "resourceVersion": 181,
+  "sourceCommit": "1f8bdd4ef55bf68cb2c040f1336c8bdc49830126",
+  "sourceTree": "225e90438646ec649e6922d91cc84db5f1c6d573",
+  "verifiedChangedBlobs": 52,
+  "ci": {
+    "id": 40059355641,
+    "conclusion": "success",
+    "jobs": {
+      "checks": "success",
+      "browser": "success",
+      "windows-backup": "success"
+    },
+    "backendPassed": 1095,
+    "nodeNonBrowserPassed": 149,
+    "nodeBrowserCasesCoveredInBrowserJob": 9,
+    "browserPassed": 52,
+    "browserSkipped": 0,
+    "lifestyleBrowserScript": "passed",
+    "windowsBackupLauncherPassed": 44,
+    "productionBackupRunByCI": false
+  },
+  "local": {
+    "backendPassed": 1095,
+    "frontendPassed": 158,
+    "browserPassed": 52,
+    "browserSkipped": 0,
+    "lifestyleBrowserScript": "passed",
+    "realHtmlWithIsolatedDatabase": {
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "productionDataWritten": false
+    }
+  },
+  "render": {
+    "id": "dep-dbe2iv7f3r2c73cghe1g",
+    "status": "live",
+    "startedAt": "2026-10-24T03:43:56.720059Z",
+    "finishedAt": "2026-10-24T03:45:27.737974Z",
+    "commit": "1f8bdd4ef55bf68cb2c040f1336c8bdc49830126"
+  },
+  "originalFailedDatabaseUnchanged": true,
+  "voiceStillWithdrawn": true,
+  "llmFilesUnchangedFrom180": true,
+  "deviceUiAcceptance": "pending",
+  "directDeployedResourceHashCheck": "not performed: app host excluded by executor allowlist",
+  "reminders": "foreground web delivery and .ics system-calendar export; no server background push",
+  "mobileApp": "installable online PWA; no store publication or offline accounting"
+}
