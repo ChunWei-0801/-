@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 125 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 136 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>125 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>136 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">125 ROUTES · 4 MODULES</div>
+    <div class="mono">136 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -552,7 +552,18 @@
       d: '健康檢查（Render 用）' },
     { n: 67, o: 'sys', m: 'GET', p: '/docs', a: '公開',
       d: 'FastAPI 自動產生的 OpenAPI 文件',
-      note: '後端上線後<b>這支才是真正能送出請求的地方</b>。' }
+      note: '後端上線後<b>這支才是真正能送出請求的地方</b>。' },
+    { n: 132, o: 'm1', m: 'GET', p: '/api/lifestyle/calendar/markers', a: '本人', d: "讀取自己的班別標記", note: "登入本人專用；回傳三個預設班別及本人自訂標記。" },
+    { n: 133, o: 'm1', m: 'POST', p: '/api/lifestyle/calendar/markers', a: '本人', d: "新增自己的班別標記", note: "登入本人專用；接受名稱、圖案及色碼，回傳新標記。" },
+    { n: 134, o: 'm1', m: 'PUT', p: '/api/lifestyle/calendar/markers/{marker_key}', a: '本人', d: "修改自己的班別標記", note: "登入本人專用；依預設鍵或自訂編號修改名稱、圖案與色碼。" },
+    { n: 135, o: 'm1', m: 'DELETE', p: '/api/lifestyle/calendar/markers/{marker_key}', a: '本人', d: "移除自己的班別標記", note: "登入本人專用；預設標記恢復原設定，自訂標記刪除；舊班表快照保留。" },
+    { n: 136, o: 'm1', m: 'GET', p: '/api/lifestyle/calendar/events', a: '本人', d: "查詢自己的行事曆", note: "登入本人專用；start及end限93日內，最多回傳500筆並標示截斷。" },
+    { n: 137, o: 'm1', m: 'POST', p: '/api/lifestyle/calendar/events', a: '本人', d: "新增自己的行程", note: "登入本人專用；接受日期、標題、時間及提醒，依本人時區計算UTC提醒時間。" },
+    { n: 138, o: 'm1', m: 'PATCH', p: '/api/lifestyle/calendar/events/{event_id}', a: '本人', d: "修改自己的行程", note: "登入本人專用；僅更新提交欄位，不可存取其他人的行程。" },
+    { n: 139, o: 'm1', m: 'DELETE', p: '/api/lifestyle/calendar/events/{event_id}', a: '本人', d: "刪除自己的行程", note: "登入本人專用；依本人行程編號刪除，其他帳號回傳404。" },
+    { n: 140, o: 'm1', m: 'PUT', p: '/api/lifestyle/calendar/shifts/{day}', a: '本人', d: "設定自己的當日班別", note: "登入本人專用；日期配合markerKey即可換班，同日只有一個班別，保留未提交的備註與提醒。" },
+    { n: 141, o: 'm1', m: 'GET', p: '/api/lifestyle/calendar/reminders', a: '本人', d: "查詢自己的到期提醒", note: "登入本人專用；僅回傳過去24小時尚未確認的到期提醒，每次最多20筆。" },
+    { n: 142, o: 'm1', m: 'POST', p: '/api/lifestyle/calendar/reminders/ack', a: '本人', d: "確認自己的提醒已送達", note: "登入本人專用；接受最多50個行程編號，只確認本人項目且不修改其他帳號。" }
   ];
 
   var VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];

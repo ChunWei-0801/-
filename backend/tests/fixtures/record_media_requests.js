@@ -129,6 +129,17 @@ async function image(url, bridge = media.imageURL) {
   await record('GET /api/lifestyle/jars/{jar_id}/image', () => image('/api/lifestyle/jars/901/image', life.imageURL));
   await record('GET /api/ai-local/report', () => API.request('/api/ai-local/report?year=2026&month=7&q='+encodeURIComponent('全聯/台北店')+'&kind=expense&scope=me&limit=100&offset=0'));
   await record('GET /api/ai-local/report/export', () => API.fetchMedia('/api/ai-local/report/export?year=2026&month=7&kind=expense&scope=me&format=xlsx'));
+  await record('GET /api/lifestyle/calendar/markers', () => life.request('GET', '/calendar/markers'));
+  await record('POST /api/lifestyle/calendar/markers', () => life.request('POST', '/calendar/markers', {name:'早班',icon:'☀️',color:'#a47321'}));
+  await record('PUT /api/lifestyle/calendar/markers/{marker_key}', () => life.request('PUT', '/calendar/markers/early', {name:'早班',icon:'☀️',color:'#a47321'}));
+  await record('DELETE /api/lifestyle/calendar/markers/{marker_key}', () => life.request('DELETE', '/calendar/markers/early'));
+  await record('GET /api/lifestyle/calendar/events', () => life.request('GET', '/calendar/events?start=2026-10-01&end=2026-10-31'));
+  await record('POST /api/lifestyle/calendar/events', () => life.request('POST', '/calendar/events', {date:'2026-10-24',title:'記帳提醒',time:'09:00',reminderMinutes:15}));
+  await record('PATCH /api/lifestyle/calendar/events/{event_id}', () => life.request('PATCH', '/calendar/events/501', {memo:'攜帶資料'}));
+  await record('DELETE /api/lifestyle/calendar/events/{event_id}', () => life.request('DELETE', '/calendar/events/501'));
+  await record('PUT /api/lifestyle/calendar/shifts/{day}', () => life.request('PUT', '/calendar/shifts/2026-10-24', {markerKey:'early'}));
+  await record('GET /api/lifestyle/calendar/reminders', () => life.request('GET', '/calendar/reminders'));
+  await record('POST /api/lifestyle/calendar/reminders/ack', () => life.request('POST', '/calendar/reminders/ack', {ids:[501]}));
   assert.deepEqual(Object.keys(out).sort(), Object.values(API.mediaRoutes).map(entry => entry[0]).sort(),
     'Every supplemental route needs an explicit request scenario');
   process.stdout.write(JSON.stringify({sent:out, auth}));

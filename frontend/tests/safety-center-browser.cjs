@@ -65,7 +65,7 @@ const server = http.createServer((req,res) => {
     }
     assert.equal(calls.length,0,'Language switches on banner/settings never fetch');
     await page.evaluate(async()=>{await LifeFeatures.setAccount({id:'fixture-user'});});
-    assert.deepEqual(await page.evaluate(()=>LifeFeatures.orderTiles([{nav:'stats',label:'統計'},{nav:'entry',label:'明細'}]).map(t=>t.nav)),['fraud','entry','savings-game','health']);
+    assert.deepEqual(await page.evaluate(()=>LifeFeatures.orderTiles([{nav:'stats',label:'統計'},{nav:'entry',label:'明細'}]).map(t=>t.nav)),['fraud','entry','savings-game','health','calendar']);
     await page.evaluate(()=>LifeFeatures.openShortcuts());
     const fraud=page.locator('.life-shortcut-row').filter({hasText:'防詐提醒'});
     await fraud.locator('input[type=checkbox]').uncheck();

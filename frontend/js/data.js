@@ -242,6 +242,8 @@ window.DATA = {
 
   /* ---------- 資料庫架構 ---------- */
   schema: [
+    { t: 'calendar_markers', "label": "私人班別標記", "note": "本人自訂或預設班別覆寫；舊班表保留標記快照", "cols": [["preset_key", "TEXT", "UNIQUE (user_id, preset_key)"], ["id", "BIGSERIAL", "PK"], ["user_id", "BIGINT", "FK → users"], ["name", "TEXT", "標記名稱"], ["icon", "TEXT", "圖案"], ["color", "TEXT", "十六進位色碼"]]},
+    { t: 'calendar_events', "label": "私人行程與班表", "note": "登入本人專用；時區轉UTC提醒，同日班別唯一", "cols": [["id", "BIGSERIAL", "PK"], ["user_id", "BIGINT", "FK → users。UNIQUE (user_id, day, shift_slot)"], ["day", "DATE", "行程日期"], ["title", "TEXT", "標題"], ["memo", "TEXT", "備註"], ["clock_time", "TEXT", "當地時間HH:MM，可留空"], ["shift_slot", "INT", "1為班別；NULL為一般行程"], ["marker", "JSONB", "班別快照"], ["timezone", "TEXT", "IANA時區"], ["starts_at", "TIMESTAMPTZ", "開始時間UTC"], ["reminder_minutes", "INT", "提前分鐘，可留空"], ["remind_at", "TIMESTAMPTZ", "提醒時間UTC"], ["acknowledged_at", "TIMESTAMPTZ", "提醒已送達時間"], ["updated_at", "TIMESTAMPTZ", "更新時間"]]},
     { t: 'users', label: '使用者帳號', note: '登入身分，與家庭角色分開',
       cols: [['id', 'BIGSERIAL', 'PK'], ['email', 'TEXT', 'UNIQUE'],
              ['email_verified_at', 'TIMESTAMPTZ', 'NULL = 尚未驗證信箱。成功使用驗證連結後填入時間'],

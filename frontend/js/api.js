@@ -3320,6 +3320,17 @@
      Keep these real transports in the same route catalog without inventing
      mock photo storage or extra callable facade methods. */
   var MEDIA_ROUTES = {
+    calendarMarkers: ['GET /api/lifestyle/calendar/markers', '認證'],
+    calendarAddMarker: ['POST /api/lifestyle/calendar/markers', '認證'],
+    calendarChangeMarker: ['PUT /api/lifestyle/calendar/markers/{marker_key}', '認證'],
+    calendarDeleteMarker: ['DELETE /api/lifestyle/calendar/markers/{marker_key}', '認證'],
+    calendarEvents: ['GET /api/lifestyle/calendar/events', '認證'],
+    calendarAddEvent: ['POST /api/lifestyle/calendar/events', '認證'],
+    calendarChangeEvent: ['PATCH /api/lifestyle/calendar/events/{event_id}', '認證'],
+    calendarDeleteEvent: ['DELETE /api/lifestyle/calendar/events/{event_id}', '認證'],
+    calendarPutShift: ['PUT /api/lifestyle/calendar/shifts/{day}', '認證'],
+    calendarReminders: ['GET /api/lifestyle/calendar/reminders', '認證'],
+    calendarAcknowledge: ['POST /api/lifestyle/calendar/reminders/ack', '認證'],
     accountBackground: ['GET /api/auth/me/appearance-image', '認證'],
     saveAccountBackground: ['POST /api/auth/me/appearance-image', '認證'],
     deleteAccountBackground: ['DELETE /api/auth/me/appearance-image', '認證'],

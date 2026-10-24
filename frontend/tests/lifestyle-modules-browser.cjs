@@ -163,7 +163,7 @@ const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQ
     assert.equal(await page.locator('[data-smoking-total="smoked"]').textContent(), '0');
     await page.locator('[data-smoking-action="smoked-plus"]').click(); await saved('[data-smoking-action="smoked-plus"]');
     assert.equal(await page.locator('[data-smoking-lungs]').evaluate(node => node.style.getPropertyValue('--smoking-darkness')), '0.2500');
-    await page.locator('[data-smoking-lungs].is-pulsing').waitFor();
+    await page.locator('[data-smoking-lungs].is-coughing').waitFor();
     await page.locator('[data-smoking-metric]').selectOption('boughtPacks');
     await page.locator('[data-smoking-chart-type]').selectOption('bar');
     await page.locator('[name="monthlyLimit"]').fill('2');

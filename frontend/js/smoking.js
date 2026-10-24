@@ -129,12 +129,12 @@
   function pulse(ctx) {
     var node = ctx.root.querySelector('[data-smoking-lungs]');
     if (!node) return;
-    node.classList.remove('is-pulsing');
+    node.classList.remove('is-coughing');
     global.requestAnimationFrame(function () {
       if (!current(ctx) || !node.isConnected) return;
-      node.classList.add('is-pulsing');
+      node.classList.add('is-coughing');
       global.clearTimeout(ctx.pulseTimer);
-      ctx.pulseTimer = global.setTimeout(function () { if (node.isConnected) node.classList.remove('is-pulsing'); }, 700);
+      ctx.pulseTimer = global.setTimeout(function () { if (node.isConnected) node.classList.remove('is-coughing'); }, 1600);
     });
   }
   async function loadMonth(ctx, month) {
@@ -159,6 +159,18 @@
     ctx.root.setAttribute('aria-busy', 'false');
     ctx.root.innerHTML = '<section class="card smoking-disabled"><h1>' + esc(t('unavailableTitle', '暫時無法開啟吸菸紀錄')) + '</h1><p role="alert">' + esc(message(error)) + '</p><button type="button" class="btn" data-smoking-action="retry">' + esc(t('retry', '重新讀取')) + '</button></section>';
   }
+  function patchCounters(ctx,action){
+    var data=ctx.data,percent=Math.round(ratio(data)*100),node=ctx.root.querySelector('[data-smoking-lungs]');
+    if(node){node.style.setProperty('--smoking-darkness',Math.min(1,Math.max(0,ratio(data))).toFixed(4));node.setAttribute('aria-label',t('monthlyRatio','本月吸菸紀錄比例')+' '+number(percent)+'%');}
+    ctx.root.querySelectorAll('[data-smoking-total]').forEach(function(output){var value=output.dataset.smokingTotal==='bought'?data.totalBought:data.totalSmoked;if(output.tagName==='STRONG')output.firstChild.textContent=number(value)+(output.querySelector('small')?' ':'');});
+    var day=data.days.find(function(row){return row.date===ctx.today;})||{boughtPacks:0,smokedPacks:0};
+    ctx.root.querySelectorAll('.smoking-stepper').forEach(function(stepper){var button=stepper.querySelector('[data-smoking-action]'),out=stepper.querySelector('output'),kind=button&&button.dataset.smokingAction;var value=kind&&kind.indexOf('bought')>=0?day.boughtPacks:day.smokedPacks;if(out&&out.firstChild)out.firstChild.textContent=number(value);var minus=stepper.querySelector('[data-step="-1"]')||stepper.querySelector('button');if(minus)minus.dataset.smokingZero=value===0?'true':'false';});
+    var progress=ctx.root.querySelector('.smoking-progress');if(progress)progress.value=Math.min(1,ratio(data));
+    var historyNode=ctx.root.querySelector('.smoking-history');if(historyNode)historyNode.outerHTML=history(ctx);
+    var limitNode=ctx.root.querySelector('[data-smoking-limit]');if(limitNode)limitNode.textContent=number(data.monthlyLimit);
+    var percentNode=ctx.root.querySelector('.smoking-limit-meta>strong');if(percentNode)percentNode.textContent=data.monthlyLimit>0?number(percent)+'%':t('noLimit','尚未設定');
+    notice(ctx,ctx.notice,false);paintChart(ctx);setBusy(ctx);
+  }
   async function changeCount(ctx, kind, step, action) {
     if (!current(ctx) || ctx.saving || ctx.loading || ctx.data.month !== ctx.today.slice(0, 7)) return;
     var liveToday = today();
@@ -179,7 +191,7 @@
       ctx.data.days = ctx.data.days.filter(function (entry) { return entry.date !== ctx.today; });
       ctx.data.days.unshift(updated);
       ctx.saving = false; ctx.notice = t('saved', '今天的紀錄已儲存。'); ctx.error = false;
-      paint(ctx, action);
+      patchCounters(ctx, action);
       if (kind === 'smoked' && step > 0 && updated.smokedPacks > day.smokedPacks) pulse(ctx);
     } catch (error) { notice(ctx, message(error), true); }
     finally { if (current(ctx)) { ctx.saving = false; setBusy(ctx); } }
@@ -194,7 +206,7 @@
       if (!current(ctx)) return;
       ctx.data.monthlyLimit = result && result.monthlyLimit != null ? count(result.monthlyLimit) : value;
       ctx.saving = false; ctx.notice = t('limitSaved', '每月上限已儲存。'); ctx.error = false;
-      paint(ctx, 'save-limit');
+      patchCounters(ctx, 'save-limit');
     } catch (error) { notice(ctx, message(error), true); }
     finally { if (current(ctx)) { ctx.saving = false; setBusy(ctx); } }
   }

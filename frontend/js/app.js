@@ -446,6 +446,7 @@
      ⚠️ 趨勢圖在「統計」、完整明細與篩選在「收支明細」，這裡不重複放。
      ============================================================ */
   var TILE_IC = {
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 11h18M8 15h2M14 15h2"/>',
     add: '<path d="M12 5v14M5 12h14"/>',
     entry: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4"/><path d="M9 13h6M9 16.5h4"/>',
     groups: '<path d="M4 5h11a3 3 0 0 1 3 3v12H7a3 3 0 0 1-3-3z"/><path d="M18 8h2v12"/><path d="M8 9h6M8 13h4"/>',
@@ -493,7 +494,7 @@
       { id: 'logout', label: '登出', icon: 'out', tone: 'out' }
     ];
     if (global.LifeFeatures) tiles = global.LifeFeatures.orderTiles(tiles);
-    return '<section class="qk"><div class="qk__h"><h2 class="qk__t">常用功能</h2><button class="btn btn--sm" type="button" data-life-shortcuts>調整常用</button></div>' +
+    return '<section class="qk"><div class="qk__h"><h2 class="qk__t">常用功能</h2></div>' +
       '<nav class="dgrid" aria-label="功能">' + tiles.filter(Boolean).map(tile).join('') + '</nav></section>';
   }
 
@@ -609,6 +610,7 @@
             '<div class="wal__meta"><span>已用 <b>' + used + '%</b></span>' +
               '<span>可花上限 <b>' + num(sv.allowance) + '</b></span>' +
               '<span>每月想存 <b>' + num(sv.goal) + '</b></span></div>' +
+            '<div class="dashboard-moments" data-dashboard-moments data-count="' + Number(d.count || 0) + '"></div>' +
             '<div class="wal__foot">' +
               '<div class="wal__f"><span>結餘</span><b>' + amt(d.net) + '</b></div>' +
               '<div class="wal__f"><span>存下</span><b>' + pct(d.rate) + '</b></div>' +
@@ -3899,7 +3901,7 @@
                  login: vLogin, register: vRegister, profile: vProfile,
                  member: vMember, groups: vGroups, admin: vAdmin,
                  setup: vSetup, forgot: vForgot, reset: vReset, 'verify-email': vVerifyEmail, exchange: vExchange, appearance: vAppearance, settings: vSettings, tutorial: vTutorial, memories: vMemories,
-                 'savings-game': function(){vLifePage('SavingsGame','我的存錢筒');}, health:function(){vLifePage('Wellness','身體紀錄與 BMI');}, smoking:function(){vLifePage('SmokingTracker','抽菸紀錄');}, reports:function(){vLifePage('FinancialReports','我的日／月／年報表');} };
+                 'savings-game': function(){vLifePage('SavingsGame','我的存錢筒');}, calendar:function(){vLifePage('FamilyCalendar','行事曆與班表');}, health:function(){vLifePage('Wellness','身體紀錄與 BMI');}, smoking:function(){vLifePage('SmokingTracker','抽菸紀錄');}, reports:function(){vLifePage('FinancialReports','我的日／月／年報表');} };
 
   var OPEN = ['login', 'register', 'forgot'];      // 沒登入也能看的頁（登入了就送回總覽）
   /* 登入與否都能開：信裡的重設連結可能在「還登入著」的瀏覽器上點開，不能把人送走 */

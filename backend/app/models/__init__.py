@@ -33,3 +33,7 @@ __all__ += ["GroupInvite"]
 TABLES["group_invites"] = GroupInvite
 __all__ += ["AdditionalSavingsJar"]
 TABLES["additional_savings_jars"] = AdditionalSavingsJar
+
+from app.models.calendar import CalendarEvent, CalendarMarker
+__all__ += ['CalendarEvent', 'CalendarMarker']
+TABLES.update({'calendar_events': CalendarEvent, 'calendar_markers': CalendarMarker})

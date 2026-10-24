@@ -37,13 +37,13 @@
 
 | 用 React 的好處 | 對本專案的實際影響 |
 |---|---|
-| 元件化、狀態管理 | 目前二十六個畫面已經寫完，重寫是純成本 |
+| 元件化、狀態管理 | 目前二十七個畫面已經寫完，重寫是純成本 |
 | 生態系豐富 | 我們沒有要用第三方 UI 套件 |
 | 履歷加分 | 冠文已有 React 經驗，其他三人沒有 |
 
 | 用原生的代價 | 實際狀況 |
 |---|---|
-| 沒有元件複用 | 二十六個畫面規模還撐得住，函式化就夠 |
+| 沒有元件複用 | 二十七個畫面規模還撐得住，函式化就夠 |
 | 手寫 DOM 操作 | 已經封裝在 `app.js` 的 render 函式裡 |
 | 沒有型別檢查 | 用 `js/api.js` 這一層集中管住資料形狀 |
 
@@ -62,7 +62,7 @@
 | **Pydantic** | v2 | 請求／回應驗證 | **強制結構化輸出的關鍵**，LLM 回傳也用它驗 |
 | **pydantic-settings** | 2.6+ | 環境變數管理 | 設定集中，不散落在各處 |
 | **SQLAlchemy** | 2.0 | ORM | 2.0 的型別標註對新手比較友善 |
-| **Alembic** | 1.14+ | 資料庫遷移 | 32 張表一定會改，沒有遷移工具會很痛苦 |
+| **Alembic** | 1.14+ | 資料庫遷移 | 34 張表一定會改，沒有遷移工具會很痛苦 |
 | **psycopg** | 3.2+ | PostgreSQL 驅動 | `[binary]` 版有預編譯輪檔，不用編譯 |
 | **PyJWT** | 2.10+ | JWT 簽發驗證 | 比 python-jose 維護更活躍 |
 | **passlib[bcrypt]** | 1.7+ | 密碼雜湊 | **絕不自己實作密碼雜湊** |
@@ -151,9 +151,9 @@ final_project/
 │   │   ├── ownership.py         分工的單一事實來源（誰負責哪支路由、哪些檔案）
 │   │   ├── catalog.py           固定清單（角色、權限表、理財選項、系統分類…），正本是 data.js
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
-│   │   ├── models/              32 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
+│   │   ├── models/              34 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             125 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             136 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **125 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **136 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -453,7 +453,7 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 
 | 領域 | 資料夾 | 路由 |
 |---|---|---|
-| **認證** | `backend/app/routers/auth/` | 44 支 |
+| **認證** | `backend/app/routers/auth/` | 55 支 |
 | **記帳** | `backend/app/routers/ledger/` | 41 支 |
 | **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 19 支 |
 | **家庭** | `backend/app/routers/access/` | 21 支 |
@@ -573,3 +573,20 @@ python -m http.server 5174 --directory frontend
 | 129 | GET | `/api/lifestyle/jars/{jar_id}/image` | 認證 | 本人 | 讀取指定存錢筒的私人照片。僅本人可讀，private, no-store；其他帳號一律404。 |
 | 130 | GET | `/api/ai-local/report` | 數字 | 登入 | 完整授權篩選的精確報表。year必填；month、q、kind、scope、limit、offset可選。完整Decimal合計與分頁明細分開；排除僅摘要監管對象。 |
 | 131 | GET | `/api/ai-local/report/export` | 數字 | 登入 | 下載真正Excel或Word報表。沿用year、month、q、kind、scope，format=xlsx或docx；完整同一快照匯出，上限10000筆超過拒絕，不悄悄截斷。 |
+
+
+## 4-14　私人行事曆與一鍵班表
+
+| # | 方法 | 路徑 | 領域 | 權限 | 用途 |
+|---|---|---|---|---|---|
+| 132 | GET | `/api/lifestyle/calendar/markers` | 認證 | 本人 | 讀取自己的班別標記。登入本人專用；回傳三個預設班別及本人自訂標記。 |
+| 133 | POST | `/api/lifestyle/calendar/markers` | 認證 | 本人 | 新增自己的班別標記。登入本人專用；接受名稱、圖案及色碼，回傳新標記。 |
+| 134 | PUT | `/api/lifestyle/calendar/markers/{marker_key}` | 認證 | 本人 | 修改自己的班別標記。登入本人專用；依預設鍵或自訂編號修改名稱、圖案與色碼。 |
+| 135 | DELETE | `/api/lifestyle/calendar/markers/{marker_key}` | 認證 | 本人 | 移除自己的班別標記。登入本人專用；預設標記恢復原設定，自訂標記刪除；舊班表快照保留。 |
+| 136 | GET | `/api/lifestyle/calendar/events` | 認證 | 本人 | 查詢自己的行事曆。登入本人專用；start及end限93日內，最多回傳500筆並標示截斷。 |
+| 137 | POST | `/api/lifestyle/calendar/events` | 認證 | 本人 | 新增自己的行程。登入本人專用；接受日期、標題、時間及提醒，依本人時區計算UTC提醒時間。 |
+| 138 | PATCH | `/api/lifestyle/calendar/events/{event_id}` | 認證 | 本人 | 修改自己的行程。登入本人專用；僅更新提交欄位，不可存取其他人的行程。 |
+| 139 | DELETE | `/api/lifestyle/calendar/events/{event_id}` | 認證 | 本人 | 刪除自己的行程。登入本人專用；依本人行程編號刪除，其他帳號回傳404。 |
+| 140 | PUT | `/api/lifestyle/calendar/shifts/{day}` | 認證 | 本人 | 設定自己的當日班別。登入本人專用；日期配合markerKey即可換班，同日只有一個班別，保留未提交的備註與提醒。 |
+| 141 | GET | `/api/lifestyle/calendar/reminders` | 認證 | 本人 | 查詢自己的到期提醒。登入本人專用；僅回傳過去24小時尚未確認的到期提醒，每次最多20筆。 |
+| 142 | POST | `/api/lifestyle/calendar/reminders/ack` | 認證 | 本人 | 確認自己的提醒已送達。登入本人專用；接受最多50個行程編號，只確認本人項目且不修改其他帳號。 |
