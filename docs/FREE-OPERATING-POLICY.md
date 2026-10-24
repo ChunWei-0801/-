@@ -26,4 +26,4 @@
 
 ## 已知到期與免費搬移準備
 
-建議在2026-11-09前完成免費搬移及驗收，預留緩衝；這是建議期限，不是已設定的排程。已保存[畫面證據摘要](evidence/20261024-render-free-db-expiry.json)。Neon Free列為相容候選，詳見[免費資料庫搬移準備](FREE-DATABASE-MIGRATION.md)；目前尚未建立目標帳號、搬移或切換正式站。
+建議在2026-11-09前完成免費搬移及驗收，預留緩衝；這是建議期限，不是已設定的排程。已保存[畫面證據摘要](evidence/20261024-render-free-db-expiry.json)。Neon Free列為相容候選，詳見[免費資料庫搬移準備](FREE-DATABASE-MIGRATION.md)；使用者已建立Neon Free／Oregon／PG18專案，Windows還原工具已通過檢查；目前尚未正式還原Neon或切換網站。

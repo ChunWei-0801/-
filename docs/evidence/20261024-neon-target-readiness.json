@@ -25,7 +25,7 @@
     "backendPassed": 1111,
     "newRunnerCases": 16,
     "localPowerShellRestorePassed": 26,
-    "windowsOnlyCasesPendingCI": 8,
+    "windowsOnlyCasesPendingCI": 0,
     "oldLauncherLocalPassed": 27,
     "realPostgresIntegration": {
       "syntheticFixture": true,
@@ -36,8 +36,25 @@
       "rows": 10,
       "photoBlobs": 3,
       "actualRenderOrNeonConnected": false
-    }
+    },
+    "windowsRestorePassed": 34
   },
-  "ci": "pending",
+  "ci": {
+    "id": 40083147653,
+    "conclusion": "success",
+    "sourceCommit": "ec388cbf0f6368d7b39bab37041de84f92b4c712",
+    "jobs": {
+      "checks": "success",
+      "browser": "success",
+      "windows-backup": "success"
+    },
+    "windowsRestorePassed": 34,
+    "windowsOnlySkipped": false,
+    "originalWindowsBackupPassed": 44,
+    "artifactId": 12555843339,
+    "artifactName": "FamBudget-Windows-Neon-Restore",
+    "artifactUrl": "https://github.com/ChunWei-0801/-/actions/runs/40083147653/artifacts/12555843339",
+    "artifactExpiresDate": "2026-11-23"
+  },
   "createdAtUtc": "2026-10-24T09:38:28.762378+00:00"
 }

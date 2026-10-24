@@ -4,7 +4,7 @@
 
 ## 下載及準備
 
-從此儲存庫最新通過的Application checks工作流程，下載Artifacts中的 **FamBudget-Windows-Neon-Restore** ZIP並解壓縮。這個包包含Start-Neon-Restore.cmd、PowerShell啟動器、共用helper、Python runner、備份核心及Dockerfile；保留同一資料夾所有檔案。也可使用完整儲存庫的tools/windows-backup資料夾。
+[下載已通過Windows檢查的Neon還原工具ZIP](https://github.com/ChunWei-0801/-/actions/runs/40083147653/artifacts/12555843339)，需登入有儲存庫存取權的GitHub帳號，下載保留至2026-11-23。來源commit為`ec388cbf0f6368d7b39bab37041de84f92b4c712`，CI40083147653的checks、browser、windows-backup均成功。完整解壓縮到新資料夾，使用其中的Start-Neon-Restore.cmd；不要只抽出一個啟動檔與舊版helper混用。這個包包含Start-Neon-Restore.cmd、PowerShell啟動器、共用helper、Python runner、備份核心及Dockerfile；保留同一資料夾所有檔案。也可使用完整儲存庫的tools/windows-backup資料夾。
 
 需要Windows10/11、Windows PowerShell5.1及本機Docker Desktop Linux containers，沿用既有備份工具的環境。來源備份和獨立金鑰使用先前工具建立的私人ACL資料夾；不要移動到公開分享資料夾。工具不要求管理員、不改Windows執行原則、不切換Docker context、不建立主機port、不掛載整個個人資料夾。
 

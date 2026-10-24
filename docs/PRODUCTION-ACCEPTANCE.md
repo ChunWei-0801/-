@@ -619,3 +619,8 @@ above. The checks and real-browser CI jobs both passed in run 39516042343.
 The user was directed to the auto-expanded raw-output box on a failed draft.
 Actual raw model JSON is still missing; diagnosis and correct-draft acceptance
 remain pending. Preserve the earlier real runtime metrics and failed results.
+
+
+## Free database migration tool (website unchanged)
+
+User screenshots confirm a new Neon Free/Oregon/PostgreSQL18 project. The latest source backup user report is35 tables,41 rows,3 photos; the new backup has not been independently authenticated by this executor. Windows restore source`ec388cbf0f6368d7b39bab37041de84f92b4c712` passes[CI40083147653](https://github.com/ChunWei-0801/-/actions/runs/40083147653): Windows5.1 restore34 and original launcher44 cases passed. A synthetic TLS PG18 non-superuser fixture restored6 tables,10 rows,3 photos and validated six checks; no actual Render or Neon connection occurred in this test. The[Windows download](https://github.com/ChunWei-0801/-/actions/runs/40083147653/artifacts/12555843339) is ready. Actual Neon restore, current-source consistency and production cutover are pending.

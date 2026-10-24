@@ -11,3 +11,8 @@ Windows結果只接受白名單JSON。修復並測試helper匯入會重設CheckO
 完整後端1111通過（新增runner16例）；本機PowerShell還原26通過，8個Windows專用案例待CI；原啟動器本機27通過。以真正PG18.6、TLS和非superuser目標跑合成6表10列3張照片：實際還原、所有資料列與照片雜湊及sequence一致、非空目標拒絕且不修改、實際密文毀損在目標連線前拒絕、來源不變及報告清理通過。合成備份使用明確標記的來源識別fixture，沒有連Render或Neon，不冒充使用者35／41／3。
 
 CI會在Windows5.1跑兩個啟動器檢查，並提供獨立FamBudget-Windows-Neon-Restore下載包及檔案雜湊清單。這一階段不部署網站，主站v181維持原資料庫。正式Neon還原、最新來源一致性、健康檢查省額度調整、停止寫入及切換仍是後續步驟；不能將此工具測試當成搬家完成。
+
+
+## 下載包驗證
+
+工具來源`ec388cbf0f6368d7b39bab37041de84f92b4c712`、14個變更blob已核對。[CI40083147653](https://github.com/ChunWei-0801/-/actions/runs/40083147653)的checks／browser／windows-backup均成功；Windows PowerShell5.1原備份啟動器44通過、新Neon還原34通過，Windows專用8例均有執行。獨立下載包[12555843339](https://github.com/ChunWei-0801/-/actions/runs/40083147653/artifacts/12555843339)已產生，含sourceCommit與檔案SHA256清單，保存至2026-11-23。這些是工具驗證，使用者的Neon尚未由工具還原，正式網站未切換。
