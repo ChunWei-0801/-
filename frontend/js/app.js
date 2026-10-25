@@ -15,6 +15,7 @@
   var CAPABILITIES = null;
   var AUTH_LOGGED_IN = false;
   var appearanceOriginalTheme = null;
+  var appearanceOriginalMode = null;
   var appearanceTheme = null;
   var appearanceReturn = '#/login';
   var appearanceSyncUser = '';
@@ -139,6 +140,7 @@
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta && t.band) meta.setAttribute('content', t.band);
     if (persist !== false) try { localStorage.setItem(THEME_KEY, t.id); } catch (e) {}
+    if (global.SystemAppearance) global.SystemAppearance.refresh();
   }
   applyTheme(currentTheme());
 
@@ -3796,11 +3798,12 @@
   function vAppearance() {
     head('主題與背景', '先瀏覽預覽，滿意後再套用。登入前後使用同一個風格。');
     appearanceOriginalTheme = currentTheme(); appearanceTheme = appearanceOriginalTheme;
+    appearanceOriginalMode = global.SystemAppearance ? global.SystemAppearance.mode() : 'system';
     appearanceReturn = AUTH_LOGGED_IN ? (ME && ME.user && !ME.user.onboardedAt ? '#/setup' : '#/settings') : '#/login';
     $view.innerHTML = '<div class="page appearance-page">' +
       '<div class="settings-intro"><a class="btn btn--sm" href="' + appearanceReturn + '">← 返回</a><h1>找到喜歡的生活風格</h1><p>點選配色與背景，畫面會立即呈現預覽；尚未按套用前，可隨時取消。</p></div>' +
       '<div class="appearance-layout"><section class="appearance-editor"><div id="appearanceBackground"></div>' +
-      '<section class="card appearance-colors"><div class="sec"><h2>介面配色</h2><div class="thm__nav"><button type="button" data-thm-go="-1" aria-label="往左瀏覽配色">←</button><button type="button" data-thm-go="1" aria-label="往右瀏覽配色">→</button></div></div><p>背景與按鈕配色可以自由搭配。</p><div class="thm__row" id="thmRow">' +
+      '<section class="card appearance-colors"><div class="sec"><h2>介面配色</h2><div class="thm__nav"><button type="button" data-thm-go="-1" aria-label="往左瀏覽配色">←</button><button type="button" data-thm-go="1" aria-label="往右瀏覽配色">→</button></div></div><p>背景與按鈕配色可以自由搭配。</p><label class="system-appearance-option"><input type="checkbox" data-system-appearance ' + (appearanceOriginalMode === 'system' ? 'checked' : '') + '><span><b>跟隨裝置的淺色／深色模式</b><small>保留所選主題風格，隨手機設定切換明暗；關閉後固定使用原主題配色。</small></span></label><div class="thm__row" id="thmRow">' +
       themeCards(appearanceTheme).replace(/data-theme-pick=/g, 'data-appearance-theme=').replace(/使用中/g, '預覽中').replace(/套用/g, '預覽') + '</div></section></section>' +
       '<aside class="appearance-preview card"><div class="preview-label">即時預覽 · Preview</div><h2>你的家庭記帳</h2><p>登入頁、總覽與記帳畫面會延續你選擇的背景。</p>' +
       '<div class="appearance-preview__balance"><small>本月可再支出</small><strong>NT$ 12,800</strong><span>範例畫面，不影響你的帳目</span></div>' +
@@ -3811,13 +3814,20 @@
       if (/^#\/appearance(?:\/|$)/.test(location.hash)) global.LoginBackground.mount('#appearanceBackground', { preview: true });
     });
   }
+  document.addEventListener('change', function (event) {
+    if (event.target.matches('[data-system-appearance]') && appearanceOriginalTheme && global.SystemAppearance) {
+      global.SystemAppearance.setMode(event.target.checked ? 'system' : 'theme', false);
+    }
+  });
   function saveAppearance() {
     var button = document.querySelector('[data-appearance-apply]');
     var status = document.getElementById('appearanceStatus');
     if (!button || button.disabled) return;
     button.disabled = true;
     status.textContent = '正在套用主題…';
-    applyTheme(appearanceTheme); setPendingAppearance(true);
+    applyTheme(appearanceTheme);
+    if (global.SystemAppearance) global.SystemAppearance.setMode(global.SystemAppearance.mode());
+    setPendingAppearance(true);
     Promise.resolve(global.LoginBackground ? global.LoginBackground.commit() : null).then(function () {
       appearanceOriginalTheme = null;
       return AUTH_LOGGED_IN ? syncLocalAppearanceToAccount() : Promise.resolve();
@@ -3966,7 +3976,7 @@
         if (requestedHash !== location.hash) return;
         if (global.LifeFeatures) global.LifeFeatures.beforeRoute(a.loggedIn);
         document.body.classList.add('login-background-on');
-        if (appearanceOriginalTheme && page !== 'appearance') { applyTheme(appearanceOriginalTheme); appearanceOriginalTheme = null; }
+        if (appearanceOriginalTheme && page !== 'appearance') { applyTheme(appearanceOriginalTheme); if (global.SystemAppearance && appearanceOriginalMode) global.SystemAppearance.setMode(appearanceOriginalMode, false); appearanceOriginalTheme = null; appearanceOriginalMode = null; }
         if (global.LoginBackground) { global.LoginBackground.unmount(); global.LoginBackground.sync(); global.LoginBackground.ready(); }
         document.body.classList.toggle('is-out', !a.loggedIn);
         document.body.classList.toggle('public-settings', !a.loggedIn && (page === 'appearance' || page === 'tutorial' || page === 'fraud'));

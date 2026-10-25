@@ -1,0 +1,383 @@
+/* Device color preference adapts the selected theme; theme IDs and shapes stay intact.
+   Root-only overrides keep the miniature theme previews in their own original palettes. */
+html[data-color-mode="system"][data-color-scheme="light"] {
+  color-scheme: light;
+}
+
+html[data-color-mode="system"][data-color-scheme="dark"] {
+  color-scheme: dark;
+  --paper: #151B20;
+  --paper-2: #1A232A;
+  --card: #202A32;
+  --card-2: #26313A;
+  --card-3: #2C3943;
+  --sunk: #182229;
+  --line: #394A55;
+  --line-2: #4B606D;
+  --line-3: #78909E;
+  --ink: #F0F3F2;
+  --ink-soft: #CBD4D6;
+  --ink-faint: #AEBFC3;
+  --ink-dim: #95A9AE;
+  --accent: #99D8BF;
+  --accent-hi: #C4EEDB;
+  --accent-soft: #84B9A3;
+  --accent-wash: #203B33;
+  --accent-line: #638F7E;
+  --accent-2: #F4B18A;
+  --accent-2-wash: #3C2D25;
+  --on-accent: #101A1E;
+  --up: #90D8AD;
+  --down: #FFA2A6;
+  --warn: #F3CD83;
+  --warn-ink: #F3CD83;
+  --info: #A0C9FF;
+  --up-wash: #1A382A;
+  --down-wash: #3C242B;
+  --warn-wash: #3C321F;
+  --info-wash: #20344D;
+  --stack-1: #172B30;
+  --stack-2: #24423C;
+  --stack-3: var(--card-2);
+  --stack-ink: #F0F3F2;
+  --band: #23332E;
+  --badge: #BC3D4C;
+  --badge-ink: #FFFFFF;
+  --knob: #101A1E;
+  --shade: #000000;
+  --shade-deep: #000000;
+  --cat-food: #F4B18A;
+  --cat-transit: #A0C9FF;
+  --cat-home: #C2AEF2;
+  --cat-daily: #90D8AD;
+  --cat-fun: #FFA2A6;
+  --cat-study: #F3CD83;
+  --cat-health: #8ED5DF;
+  --cat-other: #AEBFC3;
+  --cat-bonus: var(--accent);
+  --book-indigo: #A9BFF1;
+  --book-violet: #C6B0ED;
+  --book-teal: #8CD3D1;
+  --book-moss: #A3D29B;
+  --book-umber: #DFB58C;
+  --book-wine: #E9A5B5;
+  --primary: var(--accent);
+  --surface: var(--card);
+  --text: var(--ink);
+  --text-muted: var(--ink-soft);
+  --soft: var(--accent-wash);
+  --danger: var(--down);
+  --success: var(--up);
+  --band-bg: linear-gradient(180deg, var(--band), transparent);
+}
+
+/* Warm paper and jade ink. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="paper"] {
+  --paper: #191D19;
+  --paper-2: #212820;
+  --card: #252D26;
+  --card-2: #2B342D;
+  --card-3: #323D34;
+  --sunk: #1F271F;
+  --band: #2B3D30;
+  --accent: #99D8BF;
+  --accent-hi: #C4EEDB;
+  --accent-soft: #84B9A3;
+  --accent-wash: #203B33;
+  --accent-line: #638F7E;
+  --accent-2: #F4B18A;
+  --accent-2-wash: #3C2D25;
+  --bg-art:
+    linear-gradient(color-mix(in srgb, var(--line) 35%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 35%, transparent) 1px, transparent 1px),
+    radial-gradient(900px 600px at 12% -6%, color-mix(in srgb, var(--accent-2) 5%, transparent), transparent 62%),
+    radial-gradient(760px 520px at 92% 4%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 60%);
+}
+
+/* Sky remains blue after sunset. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="sky"] {
+  --paper: #141C29;
+  --paper-2: #1B2737;
+  --card: #202F42;
+  --card-2: #26374B;
+  --card-3: #2D4055;
+  --sunk: #192637;
+  --band: #253D58;
+  --accent: #A0C9FF;
+  --accent-hi: #C7E0FF;
+  --accent-soft: #86ACDF;
+  --accent-wash: #203955;
+  --accent-line: #658BB9;
+  --accent-2: #F3BF87;
+  --accent-2-wash: #3E2E21;
+  --bg-art:
+    radial-gradient(1000px 520px at 85% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--band) 0%, var(--paper) 520px);
+  --stack-1: #142C47;
+  --stack-2: #25466B;
+}
+
+/* Technology keeps its teal and magenta accents and existing square geometry. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="tech"] {
+  --paper: #0A1218;
+  --paper-2: #0F1B23;
+  --card: #152630;
+  --card-2: #1A303A;
+  --card-3: #213944;
+  --sunk: #0E1E26;
+  --band: #15373C;
+  --accent: #57E5D6;
+  --accent-hi: #9CF5EB;
+  --accent-soft: #50BFB5;
+  --accent-wash: #123C3B;
+  --accent-line: #478B87;
+  --accent-2: #F5A1DD;
+  --accent-2-wash: #39233B;
+  --stack-1: #103037;
+  --stack-2: #164A4C;
+}
+
+/* Linen, olive and terracotta. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="literary"] {
+  --paper: #211F18;
+  --paper-2: #2B291F;
+  --card: #302E23;
+  --card-2: #373528;
+  --card-3: #3E3C2E;
+  --sunk: #27251C;
+  --band: #353B29;
+  --accent: #CCDCA0;
+  --accent-hi: #E5EDC6;
+  --accent-soft: #AEBC8A;
+  --accent-wash: #343D25;
+  --accent-line: #889567;
+  --accent-2: #E8B591;
+  --accent-2-wash: #413025;
+  --stack-1: #302A21;
+  --stack-2: #3D482D;
+}
+
+/* Pop retains violet, pink and a muted yellow band. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="pop"] {
+  --paper: #1D1928;
+  --paper-2: #282135;
+  --card: #2E263D;
+  --card-2: #352C45;
+  --card-3: #3D3250;
+  --sunk: #241D31;
+  --band: #423622;
+  --accent: #BDB5FF;
+  --accent-hi: #DBD6FF;
+  --accent-soft: #A49BD9;
+  --accent-wash: #372B58;
+  --accent-line: #8B7EBD;
+  --accent-2: #FFABD0;
+  --accent-2-wash: #47273A;
+  --stack-1: #241C31;
+  --stack-2: #3C2E68;
+}
+
+/* Rose and lavender. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="girly"] {
+  --paper: #241A22;
+  --paper-2: #30232E;
+  --card: #382A35;
+  --card-2: #40313D;
+  --card-3: #493846;
+  --sunk: #2C202A;
+  --band: #422B3A;
+  --accent: #F5B1CF;
+  --accent-hi: #FFD5E6;
+  --accent-soft: #D59BB5;
+  --accent-wash: #49283B;
+  --accent-line: #AD7690;
+  --accent-2: #D3B5F4;
+  --accent-2-wash: #3B2A4E;
+  --stack-1: #392339;
+  --stack-2: #542B42;
+}
+
+/* Cream, warm orange and mint. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="cute"] {
+  --paper: #241F17;
+  --paper-2: #30291E;
+  --card: #382F22;
+  --card-2: #403629;
+  --card-3: #493E2F;
+  --sunk: #2C251B;
+  --band: #463A24;
+  --accent: #F6C28E;
+  --accent-hi: #FFDBB4;
+  --accent-soft: #D4A77B;
+  --accent-wash: #483322;
+  --accent-line: #AB8660;
+  --accent-2: #9EDCC8;
+  --accent-2-wash: #244237;
+  --stack-1: #43301F;
+  --stack-2: #234438;
+}
+
+/* Cobalt blue and vermilion, with the existing geometric details. */
+html[data-color-mode="system"][data-color-scheme="dark"][data-theme="art"] {
+  --paper: #171B26;
+  --paper-2: #202736;
+  --card: #273044;
+  --card-2: #2D374E;
+  --card-3: #343F59;
+  --sunk: #1D2636;
+  --band: #283750;
+  --accent: #A9C1FF;
+  --accent-hi: #D0DDFF;
+  --accent-soft: #91A8DF;
+  --accent-wash: #263C67;
+  --accent-line: #7A93C4;
+  --accent-2: #FFAD9C;
+  --accent-2-wash: #4A2D2A;
+  --stack-1: #202431;
+  --stack-2: #263D69;
+}
+
+/* The original technology theme is dark; its daylight companion stays teal. */
+html[data-color-mode="system"][data-color-scheme="light"][data-theme="tech"] {
+  --paper: #E9F4F3;
+  --paper-2: #E0EEED;
+  --card: #FFFFFF;
+  --card-2: #F3FAF9;
+  --card-3: #EAF4F3;
+  --sunk: #E3EFEE;
+  --line: #BFD7D5;
+  --line-2: #A2C4C1;
+  --line-3: #77A6A2;
+  --ink: #102C30;
+  --ink-soft: #35585E;
+  --ink-faint: #46686E;
+  --ink-dim: #657E83;
+  --accent: #006F68;
+  --accent-hi: #00574F;
+  --accent-soft: #427F7A;
+  --accent-wash: #DDF2EE;
+  --accent-line: #91C1B8;
+  --accent-2: #AC2D88;
+  --accent-2-wash: #F8E4F1;
+  --on-accent: #FFFFFF;
+  --up: #147449;
+  --down: #B83940;
+  --warn: #9F650B;
+  --warn-ink: #7C4A05;
+  --info: #225EA6;
+  --up-wash: #E2F1E7;
+  --down-wash: #F9E6E7;
+  --warn-wash: #F7EDD7;
+  --info-wash: #E4EDF9;
+  --stack-1: #123D40;
+  --stack-2: #006F68;
+  --stack-3: #FFFFFF;
+  --stack-ink: #FFFFFF;
+  --band: #D2EAE6;
+  --badge: #BC3D4C;
+  --badge-ink: #FFFFFF;
+  --knob: #FFFFFF;
+  --shade: #183E43;
+  --shade-deep: #0C2226;
+  --cat-food: #B8571F;
+  --cat-transit: #225EA6;
+  --cat-home: #7450AA;
+  --cat-daily: #147449;
+  --cat-fun: #B83940;
+  --cat-study: #946204;
+  --cat-health: #1C7B8C;
+  --cat-other: #62777F;
+  --cat-bonus: #006F68;
+  --book-indigo: #315A87;
+  --book-violet: #6C4D94;
+  --book-teal: #246B74;
+  --book-moss: #466D3F;
+  --book-umber: #88542D;
+  --book-wine: #963B5D;
+  --band-bg: linear-gradient(180deg, var(--band), transparent);
+}
+
+/* Dim the display only; original photos and their saved brightness remain unchanged. */
+html[data-color-mode="system"][data-color-scheme="dark"] body.login-background-on[data-loginbackground]::before {
+  filter: brightness(calc(var(--login-bg-brightness, 1) * .72)) blur(var(--login-bg-blur, 0px));
+}
+html[data-color-mode="system"][data-color-scheme="dark"] body.login-background-on[data-loginbackground]::after {
+  opacity: clamp(.68, var(--login-bg-overlay, .25), .85);
+}
+
+/* Earlier modules used their own light surfaces; keep those readable at night too. */
+html[data-color-mode="system"][data-color-scheme="dark"] .safety-banner {
+  background: var(--accent-wash);
+  color: var(--ink);
+  border-color: var(--accent-line);
+}
+html[data-color-mode="system"][data-color-scheme="dark"] .safety-close {
+  background: var(--card-2);
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+html[data-color-mode="system"][data-color-scheme="dark"] .safety-warning {
+  background: var(--warn-wash);
+  color: var(--warn-ink);
+  border-color: var(--warn);
+}
+html[data-color-mode="system"][data-color-scheme="dark"] .safety-education {
+  background: var(--accent-wash);
+  color: var(--ink-soft);
+}
+html[data-color-mode="system"][data-color-scheme="dark"] .safety-toggle input {
+  accent-color: var(--accent);
+}
+html[data-color-mode="system"][data-color-scheme="dark"] :is(.safety-close, .safety-center button, .safety-center a):focus-visible {
+  outline-color: var(--accent);
+}
+html[data-color-mode="system"][data-color-scheme="dark"] .transaction-archive__badge {
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+html[data-color-mode="system"][data-color-scheme="dark"] .transaction-archive__badge.is-closed {
+  background: var(--sunk);
+  color: var(--ink-soft);
+}
+
+/* Action text follows the action surface, rather than assuming every card is white. */
+html[data-color-mode="system"] :is(.btn--go, .btn--go:hover, .appbar__add, .chip.on, .acc[open] .acc__code, .smoking-stepper button:last-child) {
+  color: var(--on-accent);
+}
+
+.system-appearance-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-input);
+  background: var(--card-2);
+  color: var(--ink);
+  font-size: .875rem;
+  line-height: 1.6;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.system-appearance-option input[type="checkbox"] {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.system-appearance-option small,
+.system-appearance-help {
+  display: block;
+  color: var(--ink-soft);
+  font-size: .8125rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.system-appearance-option:has(input:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
