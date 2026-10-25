@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "c578b6a588410b6c00b9c386395a76ba6df517c3",
+  "sourceTree": "89f61a9f012807adbac2dfa7480a9ce2ae8d074f",
+  "releaseBranch": "recovery/system-appearance-20261025",
+  "integrationCommit": "1e2e8de8e1ca55ebe0627266877fdb6233da2a69",
+  "appAndSystemAppearanceResourceVersion": 183,
+  "shortcutResourceVersion": 182,
+  "llmResourceVersion": 180,
+  "changedSourceBlobs": 7,
+  "ci": {
+    "id": 40175932346,
+    "conclusion": "success",
+    "backendPassed": 1111,
+    "browserPassed": 63,
+    "browserSkipped": 0,
+    "nonBrowserFrontendPassed": 149,
+    "backupWindowsPassed": 44,
+    "restoreWindowsPassed": 34
+  },
+  "local": {
+    "focusedBackendPassed": 129,
+    "existingRelatedBrowserPassed": 15,
+    "newSystemAppearanceBrowserPassed": 6,
+    "themeSchemeCombinations": 16,
+    "fullHtmlMockAccountFlow": true,
+    "actualDeviceAcceptance": false
+  },
+  "render": {
+    "id": "dep-dberoq0m7kps73esc9h0",
+    "status": "live",
+    "startedAt": "2026-10-25T08:23:04.513381Z",
+    "finishedAt": "2026-10-25T08:24:36.867404Z",
+    "commit": "c578b6a588410b6c00b9c386395a76ba6df517c3"
+  },
+  "behavior": {
+    "defaultMode": "system",
+    "selectedThemeIdPreserved": true,
+    "perThemeLightAndDark": true,
+    "devicePreferenceLiveChanges": true,
+    "modeStorage": "current browser only",
+    "previewApplyCancel": true,
+    "automaticAccountWrites": false,
+    "photoSettingsPreserved": true
+  },
+  "directPublicHttpSmoke": false,
+  "publicHttpLimit": "Public application host is outside the executor outbound allowlist.",
+  "migrationPreparationDeployed": false,
+  "productionDatabaseChanged": false,
+  "maintenanceEnabled": false,
+  "voiceStillWithdrawn": true
+}

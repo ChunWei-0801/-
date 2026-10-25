@@ -1,8 +1,17 @@
 # Production acceptance handoff
 
-## Current shortcut typography release
+## Current system appearance release
 
-Current deployed source is `c86386416fb5e02ec59d4898b0ee1b6984086a8b`, tree `0acde6ff9de595a32fd9ad3aa834e515b3810030`. Shortcut CSS/JS resources are **182**; other main resources remain181 and LLM resources180. Render `dep-dbecfjbrjlhs73f8fqv0` reports **live**, finished **2026-10-24 23:01:01 Asia/Taipei** at `https://fambudget-recovery-20261017.onrender.com`.
+Current deployed source is `c578b6a588410b6c00b9c386395a76ba6df517c3`, tree `89f61a9f012807adbac2dfa7480a9ce2ae8d074f`, on release branch `recovery/system-appearance-20261025`. Main app and system appearance resources are183; shortcuts remain182 and LLM180. Render `dep-dberoq0m7kps73esc9h0` reports **live**, finished **2026-10-25 16:24:36 Asia/Taipei** at `https://fambudget-recovery-20261017.onrender.com`.
+
+[CI40175932346](https://github.com/ChunWei-0801/-/actions/runs/40175932346) passed all3jobs: backend1111, browser63 with zero skips, non-browser frontend149, Windows backup44 and restore34. Local focused backend129, existing related browser15 and new system appearance browser6 passed. All8themes retain their selected IDs, hue and geometry as system light/dark changes; manual original-theme mode remains available. The browser-local switch is staged in appearance preview, applied explicitly, and restored by cancel. OS changes do not send profile writes or alter saved photos. Sixteen theme/scheme combinations, native forms, metadata, blocked storage, legacy media events and fullHTML mock-account flows passed. [Usage](SYSTEM-APPEARANCE.md) and [evidence](evidence/20261025-v183-system-appearance.json).
+
+This release is built from the previous deployed backend, so pending database-maintenance preparation remains **not deployed**. Recovery integration `1e2e8de8e1ca55ebe0627266877fdb6233da2a69` preserves both the same frontend blobs and the earlier migration work; its source is separate from the pinned live release. No database switch, maintenance, paid resource, original-photo rewrite or new model inference occurred. Direct deployedHTTP checks remain excluded by executor policy; physical-device acceptance is pending.
+
+
+## Previous shortcut typography release
+
+Previous shortcut release source was `c86386416fb5e02ec59d4898b0ee1b6984086a8b`, tree `0acde6ff9de595a32fd9ad3aa834e515b3810030`. Shortcut CSS/JS resources are **182**; other main resources remain181 and LLM resources180. Render `dep-dbecfjbrjlhs73f8fqv0` reports **live**, finished **2026-10-24 23:01:01 Asia/Taipei** at `https://fambudget-recovery-20261017.onrender.com`.
 
 [CI40104750291](https://github.com/ChunWei-0801/-/actions/runs/40104750291) passed all3jobs: backend1111, browser57 with zero skips, non-browser frontend149, Windows backup44 and restore34. Local focused browser13passed. Smaller system sans labels and lighter weight apply only to shortcuts. Arrange icons now contains a Show labels toggle, default on; the display-only boolean is saved per account in the current browser. Icon-only mode retains accessible names and drag/keyboard ordering. Fixture checks cover reload, account isolation, blocked storage, six locales,320px and200%roottext. Actual user-device acceptance remains pending; no direct deployedHTTP/resource-hash check is claimed because the public host is excluded by executor policy. [Usage](SHORTCUT-TYPOGRAPHY.md) and [release evidence](evidence/20261024-v182-shortcut-typography.json).
 
