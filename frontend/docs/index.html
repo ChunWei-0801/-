@@ -645,8 +645,8 @@
             <tr><td class="tight">DELETE</td><td class="rt">/api/lifestyle/health/{entry_date}</td><td class="tight">本人</td><td>移除自己的當日測量；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>
             <tr><td class="tight">GET</td><td class="rt">/api/lifestyle/smoking/settings</td><td class="tight">本人</td><td>我的每月吸菸上限；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>
             <tr><td class="tight">PUT</td><td class="rt">/api/lifestyle/smoking/settings</td><td class="tight">本人</td><td>設定每月吸菸上限；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>
-            <tr><td class="tight">GET</td><td class="rt">/api/lifestyle/smoking</td><td class="tight">本人</td><td>我的每月買菸與吸菸紀錄；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>
-            <tr><td class="tight">PUT</td><td class="rt">/api/lifestyle/smoking/{entry_date}</td><td class="tight">本人</td><td>保存當日買菸與吸菸包數；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>
+            <tr><td class="tight">GET</td><td class="rt">/api/lifestyle/smoking</td><td class="tight">本人</td><td>本人每月購買與實抽合計；inventory含月初、月底結餘及全歷史不足狀態，結餘保留負值供修正，不自動更改歷史。</td></tr>
+            <tr><td class="tight">PUT</td><td class="rt">/api/lifestyle/smoking/{entry_date}</td><td class="tight">本人</td><td>本人當日整數包數；依全歷史日期累計檢查庫存，允許跨月結餘。造成新不足或加重既有不足回409，不寫入；舊異常可逐步改善。成功附同月inventory與權威month/days/totalBought/totalSmoked，維持單次PUT同步跨裝置資料。</td></tr>
             <tr><td class="tight">GET</td><td class="rt">/api/lifestyle/jar</td><td class="tight">本人</td><td>我的存錢筒；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>
             <tr><td class="tight">PUT</td><td class="rt">/api/lifestyle/jar</td><td class="tight">本人</td><td>更新存錢筒名稱外型與金額；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>
             <tr><td class="tight">PUT</td><td class="rt">/api/lifestyle/jar/image</td><td class="tight">本人</td><td>儲存私人存錢筒照片；生活資料限本人，生日提醒限同家庭有效成員的姓名與月日。</td></tr>

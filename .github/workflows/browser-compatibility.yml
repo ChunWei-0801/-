@@ -9,6 +9,7 @@ jobs:
   browsers:
     name: ${{ matrix.engine }} desktop and mobile
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -31,7 +32,7 @@ jobs:
         run: |
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/fambudget-browser/node_modules/playwright"
           for profile in desktop mobile; do
-            FAMBUDGET_TEST_DEVICE="$profile" node --test frontend/tests/payment-report-app-browser.cjs || exit 1
+            FAMBUDGET_TEST_DEVICE="$profile" node --test frontend/tests/payment-report-app-browser.cjs frontend/tests/smoking-inventory-browser.cjs || exit 1
           done
 
       - name: Save isolated layout screenshots

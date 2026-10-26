@@ -18,13 +18,19 @@
     parts.forEach(function (part) { values[part.type] = part.value; });
     return values.year + '-' + values.month + '-' + values.day;
   }
-  function current(ctx) { return active === ctx && ctx.root.isConnected; }
+  function actor() { var user = global.LifeFeatures && typeof global.LifeFeatures.user === 'function' ? global.LifeFeatures.user() : undefined; return user === undefined ? undefined : user && user.id != null ? String(user.id) : null; }
+  function current(ctx) { return active === ctx && ctx.root.isConnected && (ctx.owner === undefined || ctx.owner === actor()); }
+  function signed(value) { return Number.isSafeInteger(value) ? value : null; }
+  function inventory(value) {
+    if (!value || signed(value.openingPacks) === null || signed(value.closingPacks) === null || signed(value.minimumPacks) === null || signed(value.shortfallPacks) === null || typeof value.consistent !== 'boolean') return null;
+    return {openingPacks:value.openingPacks, closingPacks:value.closingPacks, minimumPacks:value.minimumPacks, shortfallPacks:value.shortfallPacks, consistent:value.consistent, firstShortfallDate:typeof value.firstShortfallDate === 'string' ? value.firstShortfallDate : null};
+  }
   function message(error) { return error && error.message ? error.message : t('failed', '操作未完成，請稍後再試。'); }
   function count(value) { var result = Number(value); return Number.isSafeInteger(result) && result >= 0 ? result : 0; }
   function monthLabel(month) { return month.replace('-', ' / '); }
   function dateLabel(value) {
-    var date = new Date(value + 'T12:00:00+08:00');
-    return global.I18n && global.I18n.date ? global.I18n.date(date, {month:'short', day:'numeric', weekday:'short', timeZone:zone}) : value.slice(5).replace('-', ' / ');
+    var date = new Date(value + 'T12:00:00Z');
+    return global.I18n && global.I18n.date ? global.I18n.date(date, {month:'short', day:'numeric', weekday:'short', timeZone:'UTC'}) : value.slice(5).replace('-', ' / ');
   }
   function normalized(data, month) {
     var seen = {};
@@ -34,7 +40,7 @@
       }
     });
     var days = Object.keys(seen).sort().reverse().map(function (date) { return seen[date]; });
-    return {month:month, days:days, totalBought:count(data.totalBought), totalSmoked:count(data.totalSmoked), monthlyLimit:count(data.monthlyLimit)};
+    return {month:month, days:days, totalBought:count(data.totalBought), totalSmoked:count(data.totalSmoked), monthlyLimit:count(data.monthlyLimit), inventory:inventory(data.inventory)};
   }
   function ratio(data) { return data.monthlyLimit > 0 ? data.totalSmoked / data.monthlyLimit : 0; }
   function notice(ctx, text, error) {
@@ -56,6 +62,37 @@
       '<g class="smoking-lungs__airways"><path d="M160 25V116M160 107L124 139M160 107L196 139M124 139L103 178M124 139L137 179M103 178L77 207M103 178L111 221M137 179L128 225M196 139L217 178M196 139L183 179M217 178L243 207M217 178L209 221M183 179L192 225"/></g>' +
       '<path class="smoking-lungs__trachea" d="M155 25V104M165 25V104"/></svg></div>';
   }
+  function stockMarkup(ctx) {
+    var stock = ctx.data.inventory;
+    return '<div class="smoking-inventory" data-smoking-inventory><dl><div><dt>' + esc(t('openingStock', '月初結餘')) + '</dt><dd><span data-smoking-opening>' + (stock ? esc(number(stock.openingPacks)) : '—') + '</span> ' + esc(t('packs', '包')) + '</dd></div><div><dt>' + esc(t('remainingStock', '剩餘包數')) + '</dt><dd><strong data-smoking-stock>' + (stock ? esc(number(stock.closingPacks)) : '—') + '</strong> ' + esc(t('packs', '包')) + '</dd></div></dl><p class="smoking-muted">' + esc(stock ? t('stockHelp', '月初結餘＋本月購買－本月實抽；剩餘包數會帶到下個月。') : t('stockUnknown', '剩餘包數暫時無法取得，儲存時仍會由系統核對。')) + '</p>' +
+      '<p class="smoking-inventory-warning" data-smoking-inventory-warning' + (!stock || stock.consistent ? ' hidden' : '') + '>' + (stock && !stock.consistent ? esc(t('stockDeficit', '既有紀錄有不足包數，請先修正每日紀錄：')) + ' ' + esc(number(stock.shortfallPacks)) + ' ' + esc(t('packs', '包')) + (stock.firstShortfallDate ? ' · ' + esc(stock.firstShortfallDate) : '') : '') + '</p>' + (ctx.needsReload ? '<button type="button" class="btn btn--sm" data-smoking-action="retry-month">' + esc(t('retry','重新讀取')) + '</button>' : '') + '</div>';
+  }
+  function editorMarkup(ctx) {
+    if (!ctx.editingDate) return '';
+    var row = ctx.data.days.find(function (day) { return day.date === ctx.editingDate; });
+    if (!row) return '';
+    var draft = ctx.editingDraft || row;
+    return '<form class="smoking-edit" data-smoking-edit-form><h3>' + esc(t('editDay', '修正當日紀錄')) + ' · ' + esc(ctx.editingDate) + '</h3><div class="smoking-edit__fields"><label>' + esc(t('bought', '購買')) + '<input name="boughtPacks" type="number" inputmode="numeric" min="0" max="10000" step="1" required value="' + esc(draft.boughtPacks) + '"></label><label>' + esc(t('smoked', '吸菸')) + '<input name="smokedPacks" type="number" inputmode="numeric" min="0" max="10000" step="1" required value="' + esc(draft.smokedPacks) + '"></label></div><p class="smoking-muted">' + esc(t('editStockHelp', '請依實際情況修正；系統會連同前後日期的剩餘包數一起核對。')) + '</p><div class="smoking-edit__actions"><button type="submit" class="btn btn--go" data-smoking-edit-save>' + esc(t('save', '儲存')) + '</button><button type="button" class="btn" data-smoking-action="cancel-edit">' + esc(t('cancelEdit', '取消修正')) + '</button></div></form>';
+  }
+  function counterLocks(ctx) {
+    if (!ctx.data) return;
+    var day = ctx.data.days.find(function (row) { return row.date === ctx.today; }) || {boughtPacks:0,smokedPacks:0}, stock = ctx.data.inventory;
+    ['bought','smoked'].forEach(function (kind) {
+      var value = day[kind === 'bought' ? 'boughtPacks' : 'smokedPacks'];
+      ['minus','plus'].forEach(function (step) {
+        var button = ctx.root.querySelector('[data-smoking-action="' + kind + '-' + step + '"]');
+        if (!button) return;
+        var noStock = !!(stock && stock.closingPacks <= 0 && (kind === 'smoked' && step === 'plus' || kind === 'bought' && step === 'minus'));
+        button.dataset.smokingZero = ctx.needsReload || (step === 'minus' ? value === 0 : value >= 10000) || noStock ? 'true' : 'false';
+        button.title = noStock ? t('stockUnavailable', '剩餘包數不足，請先核對購買與實抽紀錄。') : '';
+      });
+    });
+  }
+  function replaceHistory(ctx) {
+    if (ctx.chartCleanup) { ctx.chartCleanup(); ctx.chartCleanup = null; }
+    var node = ctx.root.querySelector('.smoking-history'); if (node) node.outerHTML = history(ctx);
+    paintChart(ctx); counterLocks(ctx); setBusy(ctx);
+  }
   function controls(ctx) {
     var date = ctx.today, data = ctx.data, day = data.days.find(function (item) { return item.date === date; }) || {boughtPacks:0, smokedPacks:0};
     if (data.month !== date.slice(0, 7)) {
@@ -63,7 +100,7 @@
     }
     return '<section class="card smoking-today" aria-labelledby="smokingTodayTitle"><div class="smoking-section-title"><div><p class="smoking-eyebrow">' + esc(date) + '</p><h2 id="smokingTodayTitle">' + esc(t('today', '今天的紀錄')) + '</h2></div><span class="smoking-private">' + esc(t('private', '僅自己可見')) + '</span></div>' +
       '<div class="smoking-counters">' + counter('bought', day.boughtPacks, t('boughtToday', '今天買了'), t('boughtHelp', '購買的包數')) + counter('smoked', day.smokedPacks, t('smokedToday', '今天抽了'), t('smokedHelp', '實際抽的包數')) + '</div>' +
-      '<p class="smoking-muted smoking-today__help">' + esc(t('separateCounts', '購買與吸菸分開記錄；每按一次增加或減少 1 包。')) + '</p></section>';
+      '<p class="smoking-muted smoking-today__help">' + esc(t('stockRule', '每次增減 1 包；實抽不可超過剩餘包數，已抽掉的購買包數不能直接扣除。')) + '</p></section>';
   }
   function counter(kind, value, title, help) {
     return '<div class="smoking-counter smoking-counter--' + kind + '"><h3>' + esc(title) + '</h3><p>' + esc(help) + '</p><div class="smoking-stepper">' +
@@ -74,10 +111,10 @@
   function history(ctx) {
     var data = ctx.data;
     var rows = data.days.filter(function (day) { return day.boughtPacks || day.smokedPacks; });
-    return '<section class="card smoking-history" aria-labelledby="smokingHistoryTitle"><div class="smoking-section-title"><div><p class="smoking-eyebrow">' + esc(monthLabel(data.month)) + '</p><h2 id="smokingHistoryTitle">' + esc(t('dailyHistory', '每日紀錄')) + '</h2></div></div>' +
+    return '<section class="card smoking-history" aria-labelledby="smokingHistoryTitle"><div class="smoking-section-title"><div><p class="smoking-eyebrow">' + esc(monthLabel(data.month)) + '</p><h2 id="smokingHistoryTitle">' + esc(t('dailyHistory', '每日紀錄')) + '</h2></div></div>' + editorMarkup(ctx) +
       '<div class="smoking-report-controls"><label><span>' + esc(t('reportMetric', '觀察項目')) + '</span><select data-smoking-metric><option value="smokedPacks"' + (ctx.metric === 'smokedPacks' ? ' selected' : '') + '>' + esc(t('smoked', '吸菸')) + '</option><option value="boughtPacks"' + (ctx.metric === 'boughtPacks' ? ' selected' : '') + '>' + esc(t('bought', '購買')) + '</option></select></label><label><span>' + esc(t('chartStyle', '呈現方式')) + '</span><select data-smoking-chart-type>' + ['line','bar','table'].map(function (type) { return '<option value="' + type + '"' + (ctx.chartType === type ? ' selected' : '') + '>' + esc(t(type, {line:'折線圖',bar:'長條圖',table:'資料表'}[type])) + '</option>'; }).join('') + '</select></label></div><div class="smoking-chart" data-smoking-chart></div>' +
       (rows.length ? '<div class="smoking-history__table" role="table" aria-label="' + esc(t('dailyHistory', '每日紀錄')) + '"><div class="smoking-history__row smoking-history__row--head" role="row"><span role="columnheader">' + esc(t('date', '日期')) + '</span><span role="columnheader">' + esc(t('bought', '購買')) + '</span><span role="columnheader">' + esc(t('smoked', '吸菸')) + '</span></div>' +
-        rows.map(function (day) { return '<div class="smoking-history__row" role="row" data-smoking-day="' + esc(day.date) + '"><time role="cell" datetime="' + esc(day.date) + '">' + esc(dateLabel(day.date)) + '</time><span role="cell">' + esc(number(day.boughtPacks)) + '<small>' + esc(t('packs', '包')) + '</small></span><span role="cell">' + esc(number(day.smokedPacks)) + '<small>' + esc(t('packs', '包')) + '</small></span></div>'; }).join('') + '</div>' : '<p class="smoking-empty">' + esc(t('empty', '這個月份還沒有紀錄。')) + '</p>') + '</section>';
+        rows.map(function (day) { return '<div class="smoking-history__row" role="row" data-smoking-day="' + esc(day.date) + '"><span role="cell" class="smoking-history__date"><time datetime="' + esc(day.date) + '">' + esc(dateLabel(day.date)) + '</time><button type="button" class="btn btn--sm" data-smoking-edit-date="' + esc(day.date) + '">' + esc(t('editDayShort', '修正')) + '</button></span><span role="cell">' + esc(number(day.boughtPacks)) + '<small>' + esc(t('packs', '包')) + '</small></span><span role="cell">' + esc(number(day.smokedPacks)) + '<small>' + esc(t('packs', '包')) + '</small></span></div>'; }).join('') + '</div>' : '<p class="smoking-empty">' + esc(t('empty', '這個月份還沒有紀錄。')) + '</p>') + '</section>';
   }
   function setBusy(ctx) {
     if (!current(ctx)) return;
@@ -85,7 +122,7 @@
     ctx.root.setAttribute('aria-busy', blocked ? 'true' : 'false');
     ctx.root.querySelectorAll('button,input,select').forEach(function (node) {
       if (node.hasAttribute('data-smoking-month') && !ctx.saving) { node.disabled = false; return; }
-      node.disabled = blocked || node.dataset.smokingZero === 'true';
+      node.disabled = blocked || node.dataset.smokingZero === 'true' || !!(ctx.needsReload && (node.hasAttribute('data-smoking-edit-date') || node.closest('[data-smoking-edit-form]')));
     });
   }
   function paint(ctx, focusedAction) {
@@ -98,9 +135,9 @@
       '<p class="smoking-overview__label">' + esc(t('smokedThisMonth', '本月已抽')) + '</p><div class="smoking-overview__amount"><strong data-smoking-total="smoked">' + esc(number(data.totalSmoked)) + '</strong><span>' + esc(t('packs', '包')) + '</span></div>' +
       '<div class="smoking-limit-meta"><span>' + esc(t('monthlyLimit', '每月自訂上限')) + ' <b data-smoking-limit>' + esc(number(data.monthlyLimit)) + '</b> ' + esc(t('packs', '包')) + '</span><strong>' + (data.monthlyLimit > 0 ? esc(number(percent)) + '%' : esc(t('noLimit', '尚未設定'))) + '</strong></div><progress class="smoking-progress" value="' + Math.min(1, actualRatio) + '" max="1" aria-label="' + esc(t('monthlyRatio', '本月吸菸紀錄比例')) + '">' + percent + '%</progress>' +
       '<div class="smoking-bought-total"><span>' + esc(t('boughtThisMonth', '本月已買')) + '</span><strong data-smoking-total="bought">' + esc(number(data.totalBought)) + ' <small>' + esc(t('packs', '包')) + '</small></strong></div>' +
-      '<form data-smoking-settings><label for="smokingMonthlyLimit">' + esc(t('setMonthlyLimit', '調整每月上限')) + '</label><div class="smoking-limit-input"><input id="smokingMonthlyLimit" name="monthlyLimit" type="number" inputmode="numeric" min="0" max="1000000" step="1" value="' + esc(data.monthlyLimit) + '" required><span>' + esc(t('packsPerMonth', '包／月')) + '</span><button type="submit" class="btn btn--sm" data-smoking-action="save-limit">' + esc(t('save', '儲存')) + '</button></div><p class="smoking-limit-help">' + esc(t('limitHelp', '設為 0 表示尚未設定上限。每月依該月紀錄重新呈現顏色，舊紀錄會保留。')) + '</p></form></div></section>' +
+      stockMarkup(ctx) + '<form data-smoking-settings><label for="smokingMonthlyLimit">' + esc(t('setMonthlyLimit', '調整每月上限')) + '</label><div class="smoking-limit-input"><input id="smokingMonthlyLimit" name="monthlyLimit" type="number" inputmode="numeric" min="0" max="1000000" step="1" value="' + esc(data.monthlyLimit) + '" required><span>' + esc(t('packsPerMonth', '包／月')) + '</span><button type="submit" class="btn btn--sm" data-smoking-action="save-limit">' + esc(t('save', '儲存')) + '</button></div><p class="smoking-limit-help">' + esc(t('limitHelp', '設為 0 表示尚未設定上限。每月依該月紀錄重新呈現顏色，舊紀錄會保留。')) + '</p></form></div></section>' +
       controls(ctx) + history(ctx) + '</div>';
-    ctx.root.querySelectorAll('button:disabled').forEach(function (button) { button.dataset.smokingZero = 'true'; });
+    counterLocks(ctx);
     setBusy(ctx);
     paintChart(ctx);
     if (focusedAction) {
@@ -139,13 +176,13 @@
   }
   async function loadMonth(ctx, month) {
     if (!current(ctx) || ctx.saving || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || month > ctx.today.slice(0, 7)) return;
-    var revision = ++ctx.loadRevision;
+    var revision = ++ctx.loadRevision; ctx.editingDate=null; ctx.editingDraft=null;
     ctx.loading = true; ctx.pendingMonth = month;
     if (ctx.data) { notice(ctx, t('loading', '正在讀取紀錄…')); setBusy(ctx); }
     try {
       var result = await request('GET', '/smoking?month=' + encodeURIComponent(month));
       if (!current(ctx) || revision !== ctx.loadRevision) return;
-      ctx.data = normalized(result, month); ctx.pendingMonth = null; ctx.loading = false; ctx.notice = ''; ctx.error = false;
+      ctx.data = normalized(result, month); ctx.needsReload = false; ctx.pendingMonth = null; ctx.loading = false; ctx.notice = ''; ctx.error = false;
       paint(ctx);
     } catch (error) {
       if (!current(ctx) || revision !== ctx.loadRevision) return;
@@ -166,13 +203,59 @@
     var day=data.days.find(function(row){return row.date===ctx.today;})||{boughtPacks:0,smokedPacks:0};
     ctx.root.querySelectorAll('.smoking-stepper').forEach(function(stepper){var button=stepper.querySelector('[data-smoking-action]'),out=stepper.querySelector('output'),kind=button&&button.dataset.smokingAction;var value=kind&&kind.indexOf('bought')>=0?day.boughtPacks:day.smokedPacks;if(out&&out.firstChild)out.firstChild.textContent=number(value);var minus=stepper.querySelector('[data-step="-1"]')||stepper.querySelector('button');if(minus)minus.dataset.smokingZero=value===0?'true':'false';});
     var progress=ctx.root.querySelector('.smoking-progress');if(progress)progress.value=Math.min(1,ratio(data));
-    var historyNode=ctx.root.querySelector('.smoking-history');if(historyNode)historyNode.outerHTML=history(ctx);
+    var stockNode=ctx.root.querySelector('[data-smoking-inventory]');if(stockNode)stockNode.outerHTML=stockMarkup(ctx);
+    var historyNode=ctx.root.querySelector('.smoking-history');if(historyNode){if(ctx.chartCleanup){ctx.chartCleanup();ctx.chartCleanup=null;}historyNode.outerHTML=history(ctx);}
     var limitNode=ctx.root.querySelector('[data-smoking-limit]');if(limitNode)limitNode.textContent=number(data.monthlyLimit);
     var percentNode=ctx.root.querySelector('.smoking-limit-meta>strong');if(percentNode)percentNode.textContent=data.monthlyLimit>0?number(percent)+'%':t('noLimit','尚未設定');
-    notice(ctx,ctx.notice,false);paintChart(ctx);setBusy(ctx);
+    notice(ctx,ctx.notice,ctx.error);paintChart(ctx);counterLocks(ctx);setBusy(ctx);
+  }
+  function applySaved(ctx, result, previous) {
+    if (!result || result.date !== previous.date || !Number.isInteger(result.boughtPacks) || !Number.isInteger(result.smokedPacks) || result.boughtPacks < 0 || result.smokedPacks < 0) throw new Error(t('unconfirmedSave', '儲存結果無法確認，請重新讀取後再核對。'));
+    if (Object.prototype.hasOwnProperty.call(result,'days')) {
+      if (result.month !== ctx.data.month || !Array.isArray(result.days) || !Number.isSafeInteger(result.totalBought) || !Number.isSafeInteger(result.totalSmoked)) throw new Error(t('unconfirmedSave','儲存結果無法確認，請重新讀取後再核對。'));
+      var seen = {}, bought = 0, smoked = 0;
+      result.days.forEach(function(row){
+        if (!row || typeof row.date !== 'string' || row.date.slice(0,7) !== result.month || seen[row.date] || !Number.isInteger(row.boughtPacks) || !Number.isInteger(row.smokedPacks) || row.boughtPacks < 0 || row.smokedPacks < 0) throw new Error(t('unconfirmedSave','儲存結果無法確認，請重新讀取後再核對。'));
+        seen[row.date] = true; bought += row.boughtPacks; smoked += row.smokedPacks;
+      });
+      if (bought !== result.totalBought || smoked !== result.totalSmoked) throw new Error(t('unconfirmedSave','儲存結果無法確認，請重新讀取後再核對。'));
+      ctx.data.days = result.days.map(function(row){return {date:row.date,boughtPacks:row.boughtPacks,smokedPacks:row.smokedPacks};});
+      ctx.data.totalBought = bought; ctx.data.totalSmoked = smoked;
+    } else {
+      ctx.data.totalBought += result.boughtPacks - previous.boughtPacks;
+      ctx.data.totalSmoked += result.smokedPacks - previous.smokedPacks;
+      ctx.data.days = ctx.data.days.filter(function (entry) { return entry.date !== previous.date; });
+      ctx.data.days.push({date:result.date,boughtPacks:result.boughtPacks,smokedPacks:result.smokedPacks});
+    }
+    ctx.data.days.sort(function (a,b) { return b.date.localeCompare(a.date); });
+    ctx.data.inventory = inventory(result.inventory);
+  }
+  async function recoverFailure(ctx, error) {
+    if (!current(ctx)) return;
+    var text = message(error), month = ctx.data.month; ctx.needsReload = true;
+    try {
+      var latest = await request('GET', '/smoking?month=' + encodeURIComponent(month));
+      if (!current(ctx) || ctx.data.month !== month) return;
+      ctx.data = normalized(latest, month); ctx.needsReload = false;
+    } catch (_) { if (current(ctx)) text += ' ' + t('reloadStock', '剩餘包數未能重新核對，請重新讀取頁面後再操作。'); }
+    if (current(ctx)) { ctx.notice = text; ctx.error = true; patchCounters(ctx); }
+  }
+  async function saveEdit(ctx, form) {
+    if (!current(ctx) || ctx.saving || ctx.loading || ctx.needsReload || !ctx.editingDate || !form.reportValidity()) return;
+    var date = ctx.editingDate, previous = ctx.data.days.find(function (row) { return row.date === date; });
+    if (!previous) return;
+    var payload = {boughtPacks:Number(form.elements.boughtPacks.value),smokedPacks:Number(form.elements.smokedPacks.value)};
+    if (Object.keys(payload).some(function (key) { return !Number.isInteger(payload[key]) || payload[key] < 0 || payload[key] > 10000; })) { notice(ctx,t('wholePacks','包數請填入 0–10000 的整數。'),true);return; }
+    ctx.editingDraft = payload; ctx.saving = true;setBusy(ctx);notice(ctx,t('editSaving','正在儲存修正…'));
+    try {
+      var result = await request('PUT','/smoking/' + date,payload);
+      if (!current(ctx)) return;
+      applySaved(ctx,result,previous);ctx.editingDate=null;ctx.editingDraft=null;ctx.notice=t('editSaved','當日紀錄已修正。');ctx.error=false;patchCounters(ctx);
+    } catch(error) { await recoverFailure(ctx,error); }
+    finally { if(current(ctx)){ctx.saving=false;counterLocks(ctx);setBusy(ctx);} }
   }
   async function changeCount(ctx, kind, step, action) {
-    if (!current(ctx) || ctx.saving || ctx.loading || ctx.data.month !== ctx.today.slice(0, 7)) return;
+    if (!current(ctx) || ctx.saving || ctx.loading || ctx.needsReload || ctx.data.month !== ctx.today.slice(0, 7)) return;
     var liveToday = today();
     if (liveToday !== ctx.today) { ctx.today = liveToday; await loadMonth(ctx, liveToday.slice(0, 7)); return; }
     var day = ctx.data.days.find(function (entry) { return entry.date === ctx.today; }) || {date:ctx.today, boughtPacks:0, smokedPacks:0};
@@ -180,21 +263,19 @@
     var payload = {boughtPacks:day.boughtPacks, smokedPacks:day.smokedPacks};
     payload[field] = Math.min(10000, Math.max(0, payload[field] + step));
     if (payload[field] === day[field]) return;
+    var stock = ctx.data.inventory, delta = (payload.boughtPacks - day.boughtPacks) - (payload.smokedPacks - day.smokedPacks);
+    if (stock && delta < 0 && stock.closingPacks + delta < 0) { notice(ctx, t('stockUnavailable', '剩餘包數不足，請先核對購買與實抽紀錄。'), true); return; }
     ctx.saving = true; setBusy(ctx); notice(ctx, t('saving', '正在儲存今天的紀錄…'));
     try {
       var result = await request('PUT', '/smoking/' + ctx.today, payload);
       if (!current(ctx)) return;
-      var saved = result && result.date === ctx.today ? result : payload;
-      var updated = {date:ctx.today, boughtPacks:count(saved.boughtPacks), smokedPacks:count(saved.smokedPacks)};
-      ctx.data.totalBought += updated.boughtPacks - day.boughtPacks;
-      ctx.data.totalSmoked += updated.smokedPacks - day.smokedPacks;
-      ctx.data.days = ctx.data.days.filter(function (entry) { return entry.date !== ctx.today; });
-      ctx.data.days.unshift(updated);
+      applySaved(ctx, result, day);
+      var updated = result;
       ctx.saving = false; ctx.notice = t('saved', '今天的紀錄已儲存。'); ctx.error = false;
       patchCounters(ctx, action);
       if (kind === 'smoked' && step > 0 && updated.smokedPacks > day.smokedPacks) pulse(ctx);
-    } catch (error) { notice(ctx, message(error), true); }
-    finally { if (current(ctx)) { ctx.saving = false; setBusy(ctx); } }
+    } catch (error) { await recoverFailure(ctx,error); }
+    finally { if (current(ctx)) { ctx.saving = false; counterLocks(ctx); setBusy(ctx); } }
   }
   async function saveLimit(ctx, form) {
     if (ctx.saving || ctx.loading || !form.reportValidity()) return;
@@ -212,9 +293,13 @@
   }
   function bind(ctx) {
     ctx.root.addEventListener('click', function (event) {
+      var edit = event.target.closest('[data-smoking-edit-date]');
+      if (edit && current(ctx) && !ctx.saving && !ctx.loading && !ctx.needsReload) { ctx.editingDate = edit.dataset.smokingEditDate; ctx.editingDraft = null; replaceHistory(ctx); var field = ctx.root.querySelector('[data-smoking-edit-form] input'); if(field)field.focus({preventScroll:true}); return; }
       var button = event.target.closest('[data-smoking-action]');
       if (!button || !current(ctx) || button.disabled) return;
       var action = button.dataset.smokingAction;
+      if (action === 'retry-month') { loadMonth(ctx,ctx.data.month); return; }
+      if (action === 'cancel-edit') { ctx.editingDate=null;ctx.editingDraft=null;replaceHistory(ctx);return; }
       if (action === 'retry') { mount(ctx.root); return; }
       if (action === 'today') { ctx.today = today(); loadMonth(ctx, ctx.today.slice(0, 7)); return; }
       var change = /^(bought|smoked)-(plus|minus)$/.exec(action);
@@ -225,8 +310,11 @@
       if (current(ctx) && event.target.hasAttribute('data-smoking-metric')) { ctx.metric = event.target.value === 'boughtPacks' ? 'boughtPacks' : 'smokedPacks'; paintChart(ctx); }
       if (current(ctx) && event.target.hasAttribute('data-smoking-chart-type')) { ctx.chartType = ['line','bar','table'].indexOf(event.target.value) >= 0 ? event.target.value : 'line'; paintChart(ctx); }
     }, {signal:ctx.abort.signal});
+    ctx.root.addEventListener('input',function(event){if(current(ctx)&&ctx.editingDate&&event.target.closest('[data-smoking-edit-form]')){var form=event.target.closest('form');ctx.editingDraft={boughtPacks:form.elements.boughtPacks.value,smokedPacks:form.elements.smokedPacks.value};}},{signal:ctx.abort.signal});
     ctx.root.addEventListener('submit', function (event) {
-      if (!current(ctx) || !event.target.hasAttribute('data-smoking-settings')) return;
+      if (!current(ctx)) return;
+      if (event.target.hasAttribute('data-smoking-edit-form')) { event.preventDefault(); saveEdit(ctx,event.target); return; }
+      if (!event.target.hasAttribute('data-smoking-settings')) return;
       event.preventDefault(); saveLimit(ctx, event.target);
     }, {signal:ctx.abort.signal});
   }
@@ -238,7 +326,7 @@
   }
   async function mount(root) {
     cleanup();
-    var ctx = {root:root, today:today(), data:null, pendingMonth:null, loadRevision:0, loading:true, saving:false, notice:'', error:false, metric:'smokedPacks',chartType:'line',chartCleanup:null,pulseTimer:null,dayTimer:null,abort:new AbortController()};
+    var ctx = {root:root, owner:actor(), needsReload:false, editingDate:null, editingDraft:null, today:today(), data:null, pendingMonth:null, loadRevision:0, loading:true, saving:false, notice:'', error:false, metric:'smokedPacks',chartType:'line',chartCleanup:null,pulseTimer:null,dayTimer:null,abort:new AbortController()};
     active = ctx; bind(ctx);
     root.setAttribute('aria-busy', 'true');
     root.innerHTML = '<p class="smoking-empty" role="status">' + esc(t('loading', '正在讀取紀錄…')) + '</p>';

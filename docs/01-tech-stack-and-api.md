@@ -516,8 +516,8 @@ python -m http.server 5174 --directory frontend
 | 101 | DELETE | `/api/lifestyle/health/{entry_date}` | 認證 | 本人 | 移除自己的當日測量。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
 | 102 | GET | `/api/lifestyle/smoking/settings` | 認證 | 本人 | 我的每月吸菸上限。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
 | 103 | PUT | `/api/lifestyle/smoking/settings` | 認證 | 本人 | 設定每月吸菸上限。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
-| 104 | GET | `/api/lifestyle/smoking` | 認證 | 本人 | 我的每月買菸與吸菸紀錄。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
-| 105 | PUT | `/api/lifestyle/smoking/{entry_date}` | 認證 | 本人 | 保存當日買菸與吸菸包數。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
+| 104 | GET | `/api/lifestyle/smoking` | 認證 | 本人 | 本人每月購買與實抽合計；inventory含月初、月底結餘及全歷史不足狀態，結餘保留負值供修正，不自動更改歷史。 |
+| 105 | PUT | `/api/lifestyle/smoking/{entry_date}` | 認證 | 本人 | 本人當日整數包數；依全歷史日期累計檢查庫存，允許跨月結餘。造成新不足或加重既有不足回409，不寫入；舊異常可逐步改善。成功附同月inventory與權威month/days/totalBought/totalSmoked，維持單次PUT同步跨裝置資料。 |
 | 106 | GET | `/api/lifestyle/jar` | 認證 | 本人 | 我的存錢筒。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
 | 107 | PUT | `/api/lifestyle/jar` | 認證 | 本人 | 更新存錢筒名稱外型與金額。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |
 | 108 | PUT | `/api/lifestyle/jar/image` | 認證 | 本人 | 儲存私人存錢筒照片。只允許帳號本人；生日提醒限同家庭有效成員的姓名與月日。 |

@@ -146,10 +146,27 @@ class SmokingEntryIn(LifestyleSchema):
     smokedPacks: int = Field(ge=0, le=10_000, strict=True)
 
 
-class SmokingEntryOut(LifestyleSchema):
+class SmokingInventoryOut(LifestyleSchema):
+    openingPacks: int
+    closingPacks: int
+    minimumPacks: int
+    shortfallPacks: int
+    consistent: bool
+    firstShortfallDate: CalendarDate | None
+
+
+class SmokingDayOut(LifestyleSchema):
     date: CalendarDate
     boughtPacks: int
     smokedPacks: int
+
+
+class SmokingEntryOut(SmokingDayOut):
+    inventory: SmokingInventoryOut
+    month: str = Field(pattern=r"^\d{4}-(?:0[1-9]|1[0-2])$")
+    days: list[SmokingDayOut]
+    totalBought: int
+    totalSmoked: int
 
 
 class SavingsJarIn(LifestyleSchema):

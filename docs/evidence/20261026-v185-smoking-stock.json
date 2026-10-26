@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-26",
+  "resourceVersion": 185,
+  "stage": "prepared-for-ci",
+  "problem": "Independent nonnegative counters permitted consumption exceeding recorded stock.",
+  "rule": "Chronological cumulative bought minus smoked must not create or worsen a deficit; prior-month carryover is allowed.",
+  "history": "No historical rows are rewritten; signed deficits remain visible and non-worsening row corrections are allowed.",
+  "transport": "Same routes and request counts; successful PUT returns inventory and authoritative month/day totals to avoid stale cross-device displays in one request. No schema migration.",
+  "checks": {
+    "focusedSmokingAndLifestyle": {
+      "passed": 32,
+      "skipped": 0
+    },
+    "chromiumDesktop": {
+      "passed": 6,
+      "skipped": 0
+    },
+    "chromiumAndroidEmulation": {
+      "passed": 6,
+      "skipped": 0
+    },
+    "existingAppAndAppearance": {
+      "passed": 8,
+      "skipped": 0
+    },
+    "existingLifestyleBrowser": "passed",
+    "postgres18": {
+      "localOnly": true,
+      "randomSchemaOnly": true,
+      "productionConnected": false,
+      "concurrentConsumptionOfLastPackSerialized": true,
+      "purchaseReductionAndConsumptionSerialized": true,
+      "postgresMajor": 18,
+      "verified": true,
+      "temporarySchemaRemoved": true
+    },
+    "backendFullBaselineBeforeSnapshot": {
+      "passed": 1283,
+      "skipped": 0
+    },
+    "finalFocusedSmokingAndLifestyle": {
+      "passed": 33,
+      "skipped": 0
+    }
+  },
+  "productionDataWriteTested": false,
+  "actualPhoneTested": false,
+  "productionDeploymentPerformed": false,
+  "backendDataMigrationRequired": false,
+  "resourceVersions": {
+    "smoking": 185,
+    "localesViaI18n": 185,
+    "mainApplication": 184
+  },
+  "additionalRegressions": [
+    "Calendar dates remain unchanged in Honolulu display/editor",
+    "Successful PUT synchronizes other-device changes without an extra GET"
+  ]
+}

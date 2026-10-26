@@ -115,6 +115,37 @@ jobs:
       - run: |
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/fambudget-browser/node_modules/playwright"
           node -e 'require(process.env.PLAYWRIGHT_MODULE)'
-          node --test frontend/tests/payment-report-app-browser.cjs frontend/tests/statement-import-browser.cjs frontend/tests/monthly-report-setup-browser.cjs frontend/tests/billing-profile-browser.cjs
+          node --test frontend/tests/smoking-inventory-browser.cjs frontend/tests/payment-report-app-browser.cjs frontend/tests/statement-import-browser.cjs frontend/tests/monthly-report-setup-browser.cjs frontend/tests/billing-profile-browser.cjs
           node --test frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs frontend/tests/ai-draft-replay.test.cjs frontend/tests/ai-bounded-replay.test.cjs frontend/tests/safety-center-browser.cjs frontend/tests/transaction-archive-browser.cjs frontend/tests/activity-ui-browser.cjs frontend/tests/direct-shortcuts-browser.cjs frontend/tests/shortcut-labels-browser.cjs frontend/tests/system-appearance-browser.cjs frontend/tests/dashboard-extras-browser.test.cjs frontend/tests/receipt-entry.test.cjs frontend/tests/savings-units-browser.test.cjs frontend/tests/voice-accessibility-browser.cjs frontend/tests/assistant-report-query.test.cjs
           node frontend/tests/lifestyle-modules-browser.cjs
+  smoking-stock-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: fixture
+          POSTGRES_PASSWORD: fixture-only-password
+          POSTGRES_DB: smoking_stock_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fixture -d smoking_stock_fixture"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r backend/requirements.lock
+      - name: Verify stock cannot be consumed twice under real row locks
+        working-directory: backend
+        run: python -m tests.check_smoking_postgres
+        env:
+          DATABASE_URL: 'sqlite://'
+          JWT_SECRET: 'isolated-ci-test-secret-at-least-thirty-two-bytes'
+          APP_ENV: development
+          SMOKING_TEST_DATABASE_URL: 'postgresql+psycopg://fixture:fixture-only-password@127.0.0.1:5432/smoking_stock_fixture'

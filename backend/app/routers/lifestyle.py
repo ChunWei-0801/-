@@ -19,7 +19,7 @@ from app.routers.appearance import normalize_background
 from app.schemas.lifestyle import (HealthEntryIn, HealthEntryOut, JarImageIn, PreferencesOut,
                                    PreferencesPatch, SavingsJarOut, SavingsJarPatch, SavingsJarCreate, SavingsJarItem, SavingsJarListOut,
                                    SmokingEntryIn, SmokingEntryOut, SmokingSettingsIn, SmokingSettingsOut)
-from app.services.lifestyle import preferences_for, save_habit_preferences
+from app.services.lifestyle import preferences_for, save_habit_preferences, smoking_inventory, require_smoking_stock
 from app.toolkit import errors
 from app.toolkit.db import get_db
 
@@ -216,8 +216,8 @@ def _smoking(entry):
 def get_smoking(month: str | None = None, me: User = Depends(current_user), db: Session = Depends(get_db)):
     """我的每月買菸與吸菸紀錄
 
-    Sum only actual owner records in the chosen calendar month; previous months remain saved.
-    A zero limit returns a null ratio rather than dividing by zero.
+    Month totals include only that month; inventory carries all earlier owner stock.
+    Historical deficits stay visible. A zero limit returns a null ratio.
     """
     settings = _smoking_settings(db, me.id)
     preferences = db.get(LifestylePreferences, me.id)
@@ -229,11 +229,13 @@ def get_smoking(month: str | None = None, me: User = Depends(current_user), db: 
     except ValueError:
         raise errors.unprocessable("月份請使用有效的 YYYY-MM") from None
     end = date(start.year, start.month, monthrange(start.year, start.month)[1])
-    rows = db.scalars(select(SmokingEntry).where(SmokingEntry.user_id == me.id, SmokingEntry.entry_date.between(start, end))
-                      .order_by(SmokingEntry.entry_date)).all()
+    history = db.scalars(select(SmokingEntry).where(SmokingEntry.user_id == me.id, SmokingEntry.entry_date <= end)
+                         .order_by(SmokingEntry.entry_date)).all()
+    rows = [row for row in history if row.entry_date >= start]
     bought, smoked = sum(row.bought_packs for row in rows), sum(row.smoked_packs for row in rows)
     result = {"month": month, "days": [_smoking(row) for row in rows], "totalBought": bought, "totalSmoked": smoked,
-              "monthlyLimit": settings.monthly_limit, "ratio": smoked / settings.monthly_limit if settings.monthly_limit else None}
+              "monthlyLimit": settings.monthly_limit, "ratio": smoked / settings.monthly_limit if settings.monthly_limit else None,
+              "inventory": smoking_inventory(history, start, end)}
     db.commit()
     return result
 
@@ -242,12 +244,14 @@ def get_smoking(month: str | None = None, me: User = Depends(current_user), db: 
 def put_smoking(entry_date: str, body: SmokingEntryIn, me: User = Depends(current_user), db: Session = Depends(get_db)):
     """保存當日買菸與吸菸包數
 
-    Upsert separate nonnegative integer counts for the owner and a nonfuture local date.
+    Upsert owner daily counts under a user-row lock, preserving chronological stock.
+    Reject new or worse shortages; prior-month stock remains usable.
     """
     preferences = preferences_for(db, me.id)
     day = _day(entry_date, today=_today(preferences))
     if body.date is not None and body.date != day:
         raise errors.unprocessable("紀錄日期與網址中的日期不一致")
+    require_smoking_stock(db, me.id, day, body.boughtPacks, body.smokedPacks)
     row = db.scalar(select(SmokingEntry).where(SmokingEntry.user_id == me.id, SmokingEntry.entry_date == day))
     if row is None:
         row = SmokingEntry(user_id=me.id, entry_date=day)
@@ -255,6 +259,16 @@ def put_smoking(entry_date: str, body: SmokingEntryIn, me: User = Depends(curren
     row.bought_packs, row.smoked_packs = body.boughtPacks, body.smokedPacks
     db.flush()
     result = _smoking(row)
+    start = day.replace(day=1)
+    end = day.replace(day=monthrange(day.year, day.month)[1])
+    history = db.scalars(select(SmokingEntry).where(SmokingEntry.user_id == me.id, SmokingEntry.entry_date <= end)
+                         .order_by(SmokingEntry.entry_date)).all()
+    result["inventory"] = smoking_inventory(history, start, end)
+    month_rows = [entry for entry in history if entry.entry_date >= start]
+    result.update({"month": "%04d-%02d" % (day.year, day.month),
+                   "days": [_smoking(entry) for entry in month_rows],
+                   "totalBought": sum(entry.bought_packs for entry in month_rows),
+                   "totalSmoked": sum(entry.smoked_packs for entry in month_rows)})
     db.commit()
     return result
 

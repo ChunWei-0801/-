@@ -78,3 +78,52 @@ def profile_birthday_change(user, body, db):
             raise errors.unprocessable("出生年份與完整生日不一致")
     preferences.birth_date = birthday
     return {"birth_year": birthday.year if birthday else (body.birthYear if "birthYear" in sent else None)}
+
+
+def smoking_inventory(rows, start, end):
+    """Signed owner stock through month end, including earlier-month carryover.
+
+    Rows are ordered by date. Historical deficits are reported without rewriting
+    or hiding records; a later purchase cannot erase an earlier missing stock.
+    """
+    balance = opening = minimum = 0
+    first_shortfall = None
+    for row in rows:
+        if row.entry_date > end:
+            break
+        balance += row.bought_packs - row.smoked_packs
+        if row.entry_date < start:
+            opening = balance
+        if balance < 0 and first_shortfall is None:
+            first_shortfall = row.entry_date.isoformat()
+        minimum = min(minimum, balance)
+    return {"openingPacks": opening, "closingPacks": balance,
+            "minimumPacks": minimum, "shortfallPacks": max(0, -minimum),
+            "consistent": first_shortfall is None,
+            "firstShortfallDate": first_shortfall}
+
+
+def require_smoking_stock(db, user_id, day, bought, smoked):
+    """Reject new/worse deficits at any date under the caller's user-row lock.
+
+    The caller must first call preferences_for in this same transaction. Compare
+    old and proposed chronological balances so historical bad records remain
+    repairable one at a time, while no edit can create or deepen a shortfall.
+    """
+    from app.models.lifestyle import SmokingEntry
+    from app.toolkit import errors
+
+    rows = db.execute(select(SmokingEntry.entry_date, SmokingEntry.bought_packs,
+                             SmokingEntry.smoked_packs).where(
+        SmokingEntry.user_id == user_id).order_by(SmokingEntry.entry_date)).all()
+    by_day = {row.entry_date: row for row in rows}
+    previous = proposed = 0
+    for current in sorted(set(by_day) | {day}):
+        row = by_day.get(current)
+        old_delta = row.bought_packs - row.smoked_packs if row else 0
+        previous += old_delta
+        proposed += bought - smoked if current == day else old_delta
+        if proposed < min(0, previous):
+            raise errors.conflict(
+                "這次修改會讓 %s 的可用菸量不足 %s 包。請先補正該日或更早的購買／實抽紀錄，再儲存。"
+                % (current.isoformat(), -proposed))
