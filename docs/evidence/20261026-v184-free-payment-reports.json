@@ -1,6 +1,6 @@
 {
   "date": "2026-10-26",
-  "stage": "prepared-for-ci",
+  "stage": "ci-verified-not-deployed",
   "resourceVersion": 184,
   "features": [
     "reviewed CSV/TSV payment import",
@@ -66,6 +66,81 @@
     "buyer tax ID format only; cannot modify an issued invoice",
     "monthly report requires user Google authorization; PDF/CSV do not include full database or photos",
     "free quotas and provider policies can change",
-    "user-device and actual monthly delivery acceptance remains pending"
-  ]
+    "user-device and actual monthly delivery acceptance remains pending",
+    "Cross-browser automation covers actual app workflows and page layouts, not every operation on every device or embedded browser."
+  ],
+  "testedSource": "bce6ef04dda5d474f02cf7261d17d90c98607c15",
+  "testedTree": "52bf82122e505fa6411c3f3d6af37ca5a6b60a01",
+  "applicationCI": {
+    "runId": 40274337261,
+    "url": "https://github.com/ChunWei-0801/-/actions/runs/40274337261",
+    "jobs": {
+      "checks": "success",
+      "browser": "success",
+      "windows-backup": "success"
+    },
+    "backendPassed": 1276,
+    "frontendUnitPassed": 173,
+    "frontendNodeBrowserOnlyCasesDeferredToBrowserJob": 9,
+    "browserPassed": 83,
+    "lifestyleBrowserContract": "passed"
+  },
+  "browserCompatibility": {
+    "runId": 40274337200,
+    "url": "https://github.com/ChunWei-0801/-/actions/runs/40274337200",
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "profilesPerEngine": 2,
+    "testCasesPerProfile": 2,
+    "expectedPassed": 12,
+    "physicalAndroidTested": false,
+    "physicalIphoneTested": false,
+    "actualChromeOrEdgeBrandBinaryClaimed": false,
+    "safariBrandBinaryClaimed": false,
+    "chromium": "success",
+    "firefox": "success",
+    "webkit": "success",
+    "passed": 12,
+    "skipped": 0,
+    "screenshotArtifacts": [
+      {
+        "name": "browser-layout-webkit",
+        "id": 12629239242,
+        "expiresAt": "2026-11-09T05:35:00Z",
+        "sha256": "sha256:48a971a8e41c2985b6acbf4386d959f4e6a29d6dcfb1bd22e4e9e3a73edd3ee6",
+        "url": "https://github.com/ChunWei-0801/-/actions/runs/40274337200/artifacts/12629239242"
+      },
+      {
+        "name": "browser-layout-firefox",
+        "id": 12629133623,
+        "expiresAt": "2026-11-09T05:28:34Z",
+        "sha256": "sha256:45ca23ece58a22ac603af3a5ee40e4b50e40964e1c96666f0ee1fa253e750300",
+        "url": "https://github.com/ChunWei-0801/-/actions/runs/40274337200/artifacts/12629133623"
+      },
+      {
+        "name": "browser-layout-chromium",
+        "id": 12629108950,
+        "expiresAt": "2026-11-09T05:28:59Z",
+        "sha256": "sha256:6f1cc878e019fee228d03fa0dda94de6d975487916d793be11f872bf0c15d640",
+        "url": "https://github.com/ChunWei-0801/-/actions/runs/40274337200/artifacts/12629108950"
+      }
+    ]
+  },
+  "deployment": {
+    "performed": false,
+    "reason": "The selected execution workspace became unavailable before deployment; connector-based CI and repository work continued.",
+    "liveSource": "c578b6a588410b6c00b9c386395a76ba6df517c3",
+    "liveAppResourceVersion": 183,
+    "preparedAppResourceVersion": 184,
+    "service": "fambudget-recovery-20261017",
+    "serviceId": "srv-db9opo61egvs7382obu0",
+    "url": "https://fambudget-recovery-20261017.onrender.com",
+    "databaseProvider": "Render",
+    "databaseCutover": false,
+    "maintenanceEnabled": false
+  },
+  "checkedAt": "2026-10-26T05:36:09Z"
 }
