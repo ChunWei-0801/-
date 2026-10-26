@@ -1,6 +1,17 @@
 # Production acceptance handoff
 
-## Current v184 release: deployed, device and delivery acceptance pending
+## Current v185 smoking stock release
+
+Source `e0a9acb01248f4549afad70e8799b960f6a4c361` / tree `4b21ce3667178b8a61c37d5f73a8550fd2172144` is **live** on Render `dep-dbfok8qfngtc73du3e3g`, finished **2026-10-27 01:14:37 Asia/Taipei**. Smoking JS/CSS and locale-loading resources are185; the main application remains184. The existing service remainsFree, the private DATABASE_URL digest is unchanged, maintenance isoff, and no schema migration was introduced. Original recorded counts are preserved until the owner explicitly corrects them.
+
+The prior endpoint accepted independent nonnegative counters and could record more consumption than cumulative purchases. Writes now serialize on the owner's User row and reject any new or worse chronological shortage, including edits to old purchases that invalidate later consumption. Prior-month stock carries forward. Existing deficits remain visible and can be corrected progressively in the daily-history editor. Successful PUTs return an authoritative month snapshot with stock, keeping other-date device changes consistent in one request. Calendar-date labels retain the stored day in Honolulu and other time zones. Stable lung nodes keep breathing; failed writes never trigger a successful cough animation. Unknown outcomes plus failed refresh block further count changes until a successful read.
+
+[Application checks40365971733](https://github.com/ChunWei-0801/-/actions/runs/40365971733) passed all4jobs: backend1284, browser89 plus the standalone lifestyle contract, frontend unit173, Windows checks and an isolated PostgreSQL18 row-lock concurrency job. Nine browser-only Node cases are deferred to the browser job. [Browser compatibility40365971569](https://github.com/ChunWei-0801/-/actions/runs/40365971569) passed Chromium/Firefox/WebKit, desktop and mobile/narrow contexts,48 actual-page cases with zero skips. This includes36 smoking UI cases; it does not mean physical Android/iPhone or every brand binary was tested. Initial dependency installation stalled on the Ubuntu Azure mirror; the final workflow uses canonical HTTPS mirrors and bounded waits, preserving package/TLS validation.
+
+No production-account write or direct deployedHTTP/resource-hash smoke was performed; the public host remains excluded by executor policy. Local screenshots and real PostgreSQL18 races were inspected/verified in isolated fixtures. Physical-device acceptance and actual user-record correction remain pending. [Behavior and limits](SMOKING-STOCK.md) · [evidence](evidence/20261026-v185-smoking-stock.json).
+
+
+## Previous v184 release: device and delivery acceptance pending
 
 Deployed source `bce6ef04dda5d474f02cf7261d17d90c98607c15` adds reviewed CSV/TSV imports with durable idempotency, optional payment/buyer tax ID metadata, a private common billing profile, and opt-in personal monthly report settings. Google Apps Script generation supports email, Drive, or both; the default recipient is the owner's verified email. No Google job, mail, upload, payment provider or carrier integration was executed by these checks.
 

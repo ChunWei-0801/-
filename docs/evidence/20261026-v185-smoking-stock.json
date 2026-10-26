@@ -1,7 +1,7 @@
 {
   "date": "2026-10-26",
   "resourceVersion": 185,
-  "stage": "prepared-for-ci",
+  "stage": "deployed-awaiting-physical-user-acceptance",
   "problem": "Independent nonnegative counters permitted consumption exceeding recorded stock.",
   "rule": "Chronological cumulative bought minus smoked must not create or worsen a deficit; prior-month carryover is allowed.",
   "history": "No historical rows are rewritten; signed deficits remain visible and non-worsening row corrections are allowed.",
@@ -45,7 +45,7 @@
   },
   "productionDataWriteTested": false,
   "actualPhoneTested": false,
-  "productionDeploymentPerformed": false,
+  "productionDeploymentPerformed": true,
   "backendDataMigrationRequired": false,
   "resourceVersions": {
     "smoking": 185,
@@ -55,5 +55,46 @@
   "additionalRegressions": [
     "Calendar dates remain unchanged in Honolulu display/editor",
     "Successful PUT synchronizes other-device changes without an extra GET"
-  ]
+  ],
+  "testedSource": "e0a9acb01248f4549afad70e8799b960f6a4c361",
+  "testedTree": "4b21ce3667178b8a61c37d5f73a8550fd2172144",
+  "deployment": {
+    "source": "e0a9acb01248f4549afad70e8799b960f6a4c361",
+    "deployId": "dep-dbfok8qfngtc73du3e3g",
+    "status": "live",
+    "finishedAt": "2026-10-26T17:14:37.187077Z",
+    "plan": "free",
+    "databaseValueUnchanged": true,
+    "databaseProvider": "Render",
+    "maintenanceEnabled": false,
+    "noSchemaMigrationRequired": true,
+    "directProductionHttpSmokePerformed": false,
+    "actualUserDeviceAcceptancePerformed": false
+  },
+  "finishedAtAsiaTaipei": "2026-10-27 01:14:37",
+  "applicationCI": {
+    "runId": 40365971733,
+    "status": "success",
+    "jobs": 4,
+    "backendPassed": 1284,
+    "browserPassed": 89,
+    "unitPassed": 173,
+    "browserOnlyNodeCasesDeferredToBrowserJob": 9,
+    "postgres18LockConcurrency": "passed"
+  },
+  "browserCompatibilityCI": {
+    "runId": 40365971569,
+    "status": "success",
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "profilesPerEngine": 2,
+    "casesPerProfile": 8,
+    "passed": 48,
+    "skipped": 0,
+    "physicalDevicesTested": false
+  },
+  "ciInfrastructureFix": "Official HTTPS Ubuntu mirrors and bounded download waits replace the stalled Azure mirror path; package signature and TLS validation remain enabled."
 }

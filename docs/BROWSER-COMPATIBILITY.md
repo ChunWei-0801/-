@@ -1,5 +1,7 @@
 # 手機及瀏覽器相容性
 
+最新v185吸菸修正在[CI40365971569](https://github.com/ChunWei-0801/-/actions/runs/40365971569)完成三核心、六種情境、48項實際頁面測試（含36項庫存／修正／錯誤恢復檢查），零跳過，並已部署。測試使用裝置設定與窄螢幕，仍不等於實體手機及各品牌完整驗收。
+
 2026-10-26：版本`bce6ef04dda5d474f02cf7261d17d90c98607c15`的[三核心CI](https://github.com/ChunWei-0801/-/actions/runs/40274337200)已全數通過，六種情境共十二項實際頁面測試，沒有跳過。各核心的桌面與手機截圖保存在該次工作流程的Artifacts，保留至2026-11-09。這份程式已於2026-10-26 14:04:11（臺灣時間）部署為v184；實體手機與各品牌瀏覽器完整驗收仍待進行。
 
 目標為Android與iPhone，以及Chrome、Safari、Edge、Firefox的現行版本。Chrome與Edge使用Chromium核心；Safari使用WebKit，Firefox使用Gecko。iOS上的其他瀏覽器通常也使用WebKit，但不代表各品牌介面、相機及下載權限完全相同。
