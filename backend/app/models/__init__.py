@@ -37,3 +37,11 @@ TABLES["additional_savings_jars"] = AdditionalSavingsJar
 from app.models.calendar import CalendarEvent, CalendarMarker
 __all__ += ['CalendarEvent', 'CalendarMarker']
 TABLES.update({'calendar_events': CalendarEvent, 'calendar_markers': CalendarMarker})
+
+from app.models.transaction_details import TransactionDetails, BillingProfile, StatementImportBatch
+__all__ += ["TransactionDetails", "BillingProfile", "StatementImportBatch"]
+TABLES.update({"transaction_details": TransactionDetails, "billing_profiles": BillingProfile, "statement_import_batches": StatementImportBatch})
+
+from app.models.report_subscription import ReportSubscription
+__all__ += ["ReportSubscription"]
+TABLES["report_subscriptions"] = ReportSubscription

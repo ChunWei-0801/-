@@ -1,5 +1,14 @@
 # Production acceptance handoff
 
+## v184 payment import, buyer tax ID and free monthly report preparation
+
+The current working source adds reviewed CSV/TSV imports with durable idempotency, optional payment/buyer tax ID metadata, a private common billing profile, and opt-in personal monthly report settings. Google Apps Script generation supports email, Drive, or both; the default recipient is the owner's verified email. No Google job, mail, upload, payment provider or carrier integration was executed by these checks.
+
+Local checks passed: backend **1276**, final backend contract **273**, new frontend **43** (24 unit / 19 browser), existing browser **63**, existing Node **158**, and the standalone lifestyle contract. The actual-page mobile test exposed a generic lifestyle form style conflict; the report dialog now explicitly uses vertical form layout, verified in the full HTML at320/390/1280px and inspected visually. Local PostgreSQL18 upgraded0009→0011, preserved all34 old application tables and photo bytes, and serialized two concurrent identical imports into one transaction. Four additive application tables are introduced; the old Neon restore will therefore need a fresh final comparison/restore before cutover. This is synthetic local evidence, not a new production backup.
+
+Deployment and CI results are pending for this source. [User guide](FREE-PAYMENTS-AND-MONTHLY-REPORTS.md) · [evidence](evidence/20261026-v184-free-payment-reports.json).
+
+
 ## Current system appearance release
 
 Current deployed source is `c578b6a588410b6c00b9c386395a76ba6df517c3`, tree `89f61a9f012807adbac2dfa7480a9ce2ae8d074f`, on release branch `recovery/system-appearance-20261025`. Main app and system appearance resources are183; shortcuts remain182 and LLM180. Render `dep-dberoq0m7kps73esc9h0` reports **live**, finished **2026-10-25 16:24:36 Asia/Taipei** at `https://fambudget-recovery-20261017.onrender.com`.

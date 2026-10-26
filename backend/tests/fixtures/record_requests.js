@@ -44,6 +44,15 @@ async function rec(name, ...args) {
   // Even with a saved session, public resources omit credentials and do not require mock login.
   sessionStorage.setItem('fambudget.auth', JSON.stringify({accessToken:'fixture-private-access',refreshToken:'fixture-private-refresh'}));
   await rec('fraudUpdates', {refresh:true});
+  await rec('billingProfile');
+  await rec('setBillingProfile', {buyerTaxId:'00123456',companyName:'測試單位'});
+  const statement={provider:'信用卡CSV',paymentMethod:'credit_card',statementId:'a'.repeat(64),items:[{rowIndex:2,date:'2026-10-01',amount:'65.00',kind:'expense',cat:'1',merchant:'早餐店',currency:'TWD'}]};
+  await rec('previewStatementImport', statement);
+  await rec('confirmStatementImport', {...statement,idempotencyKey:'00000000-0000-4000-8000-000000000001'});
+  await rec('monthlyReportSettings');
+  await rec('setMonthlyReportSettings', {enabled:false,delivery:'email'});
+  await rec('authorizeMonthlyReport', {enabled:true,delivery:'email',termsAccepted:true});
+  await rec('revokeMonthlyReport');
   await rec('financialReferences', {language:'ja'});
   sessionStorage.removeItem('fambudget.auth');
   const dad = await rec('register', { name: '王大明', email: 'daming@wang.tw', password: 'daming-pass-1' });

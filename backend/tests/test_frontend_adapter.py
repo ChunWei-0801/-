@@ -284,7 +284,8 @@ def test_私有媒體轉接器帶工作階段權杖_圖片保留二進位(media_
     assert all(len(entries) == 1 for entries in media_sent["sent"].values())
     for row in rows:
         assert row["adapter"] == "media"
-        assert row["request"]["headers"].get("Authorization") == "Bearer contract-access-token"
+        expected_token = "Bearer contract-monthly-read-only-token" if row["request"]["url"].startswith("/api/monthly-reports/export?") else "Bearer contract-access-token"
+        assert row["request"]["headers"].get("Authorization") == expected_token
         assert row["request"]["url"].startswith("/api/")
         if row["request"]["method"] == "GET" and "image" in row["request"]["url"]:
             assert row["response"]["contentType"] == "image/jpeg"

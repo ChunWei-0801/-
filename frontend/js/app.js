@@ -885,11 +885,12 @@
         '<span data-i18n-skip>' + esc(t.merchant || t.catName) + '</span>' +
         (t.raw ? '<br><span class="txr__raw" data-i18n-skip>「' + esc(t.raw) + '」</span>' : '') +
         '<span class="txr__gm"><span>活動：</span><span data-i18n-skip>' + esc(txActivity(t)) + '</span></span>' +
+        ((t.paymentMethod || t.buyerTaxId) ? '<span class="txr__gm" data-i18n-skip>' + esc(({cash:'現金',credit_card:'信用卡',bank_transfer:'銀行轉帳',jkopay:'街口支付',line_pay:'LINE Pay',easycard:'悠遊卡',other:'其他付款方式'})[t.paymentMethod] || '') + (t.buyerTaxId ? '・買方統編 ' + esc(t.buyerTaxId) : '') + '</span>' : '') +
         '<span class="txr__note-mobile"><span>備註：</span><span data-i18n-skip>' + esc(t.note || '—') + '</span></span>' +
       '</td>' +
       '<td class="txr__g" data-i18n-skip>' + esc(txActivity(t)) + '</td>' +
       '<td class="txr__u" data-i18n-skip>' + esc(t.userName) + '</td>' +
-      '<td class="txr__s">' + (t.source === 'nlp' ? '段落' : '手動') + '</td>' +
+      '<td class="txr__s">' + (t.source === 'nlp' ? '段落' : t.source === 'import' ? '匯入' : '手動') + '</td>' +
       '<td class="txr__a' + (t.kind === 'income' ? ' is-in' : '') + '">' +
         (t.kind === 'income' ? '+' : '−') + money(t.amount).replace('NT$ ', '') + '</td>' +
       '<td class="txr__x">' +
@@ -1015,7 +1016,7 @@
     head('收支明細', '');
     var h = '<div class="page">';
     h += '<nav class="entry-access" aria-label="選擇記帳方式"><button class="btn btn--go" data-manual-entry>手動輸入實際金額</button>' +
-      '<button class="btn" data-paragraph-entry>文字解析記帳</button><button class="btn" data-receipt-entry>掃描發票記帳</button><a class="btn" href="#/exchange">國際匯率換算</a></nav>';
+      '<button class="btn" data-statement-import>匯入付款紀錄</button><button class="btn" data-paragraph-entry>文字解析記帳</button><button class="btn" data-receipt-entry>掃描發票記帳</button><a class="btn" href="#/exchange">國際匯率換算</a></nav>';
 
     /* 篩選放在標題那一列，跟「記一筆」並排——不要自己佔一整條 */
     h += foldHead('entry', '所有紀錄', '記一筆', '', null, filterBar(), pickToggle());
@@ -1121,6 +1122,7 @@
     var box = document.getElementById('entryBox');
     if (!box) return;
     box.innerHTML = MODE === 'para' ? paraHTML() : singleHTML();
+    if (MODE === 'single' && global.BillingProfile) global.BillingProfile.enhanceForm(box, { api: API, owner: ME && ME.user, container: box.querySelector('[data-billing-entry]') || box });
     if (MODE === 'single' && MANUAL_IMPORT) {
       box.querySelector('[data-s="amount"]').value = MANUAL_IMPORT.amount;
       box.querySelector('[data-s="note"]').value = String(MANUAL_IMPORT.note || '').slice(0, 500);
@@ -1321,7 +1323,7 @@
         '<div class="prs__f"><label for="singleMerchant">店家</label><input id="singleMerchant" data-s="merchant" type="text" maxlength="120" placeholder="選填"></div>' +
         '<div class="prs__f"><label for="singleNote">備註</label><input id="singleNote" data-s="note" type="text" maxlength="500" placeholder="選填"></div>' +
       '</div>' +
-      '<div class="prs__a"><button class="btn btn--go" id="singleSave">寫入這一筆</button>' +
+      '<div data-billing-entry></div><div class="prs__a"><button class="btn btn--go" id="singleSave">寫入這一筆</button>' +
       '<button class="btn" id="singleClear">清空</button></div></div>';
   }
 
@@ -1338,7 +1340,7 @@
     }
     return '<div class="bar bar--inline">' +
       sel('kind', '收支', [['all', '全部'], ['expense', '支出'], ['income', '收入']]) +
-      sel('source', '來源', [['all', '全部'], ['nlp', '段落記帳'], ['manual', '手動輸入']]) +
+      sel('source', '來源', [['all', '全部'], ['nlp', '段落記帳'], ['manual', '手動輸入'], ['import', '帳單匯入']]) +
       '</div>';
   }
 
@@ -1478,6 +1480,7 @@
         '</div>' +
       '</div></div>');
     document.body.appendChild(w);
+    if (global.BillingProfile) global.BillingProfile.enhanceForm(w, { api: API, owner: ME && ME.user, container: w.querySelector('.hp__b'), prefill: false, values: { paymentMethod: t.paymentMethod, buyerTaxId: t.buyerTaxId } });
     document.body.classList.add('hp-on');
     requestAnimationFrame(function () { w.classList.add('on'); });
     document.getElementById('txeAmt').focus();
@@ -1501,12 +1504,16 @@
       date: val('txeDate'), amount: Number(val('txeAmt')), kind: val('txeKind'), cat: val('txeCat'),
       merchant: (val('txeMer') || '').trim(), note: (val('txeNote') || '').trim()
     };
+    if (global.BillingProfile) {
+      if (!global.BillingProfile.valid(document.getElementById('txEd'))) { err.textContent = '買方統一編號請填 8 位數字，或留白'; err.hidden = false; return; }
+      Object.assign(next, global.BillingProfile.values(document.getElementById('txEd')));
+    }
     if (val('txeGroup') !== null) next.groupId = val('txeGroup');
     if (!next.date) { err.textContent = '請選日期'; err.hidden = false; return; }
     if (!(next.amount > 0)) { err.textContent = '金額要大於 0'; err.hidden = false; return; }
 
     var now = { date: t.date, amount: Number(t.amount), kind: t.kind, cat: t.cat,
-                merchant: t.merchant || '', note: t.note || '', groupId: t.group };
+                merchant: t.merchant || '', note: t.note || '', groupId: t.group, paymentMethod: t.paymentMethod || null, buyerTaxId: t.buyerTaxId || null };
     var diff = {};
     Object.keys(next).forEach(function (k) { if (next[k] !== now[k]) diff[k] = next[k]; });
     if (!Object.keys(diff).length) { closeTxEdit(); toast('沒有改到任何欄位'); return; }
@@ -3443,7 +3450,7 @@
         '</section>' +
       '</div>' +
 
-      '<section class="card settings-shortcuts"><h2>更多設定</h2><a href="#/appearance">主題與背景 →</a><a href="#/settings">帳號與系統設定 →</a><a href="#/tutorial">使用教學與導覽 →</a></section>' +
+      '<section class="card settings-shortcuts"><h2>更多設定</h2><button class="btn" data-billing-profile>常用買方統編</button><a href="#/appearance">主題與背景 →</a><a href="#/settings">帳號與系統設定 →</a><a href="#/tutorial">使用教學與導覽 →</a></section>' +
       '</div>';
       $view.innerHTML = h;
       if (global.Wellness) global.Wellness.mountProfile($view.querySelector('.duo__c'), global.LifeFeatures && global.LifeFeatures.prefs());
@@ -3850,6 +3857,7 @@
       '<a class="card settings-link" href="#/tutorial"><span>🧭</span><h2>使用教學與導覽</h2><p>了解各項功能，隨時重新開啟逐步操作導覽。</p></a>' +
       '<a class="card settings-link" href="#/ai"><span>✨</span><h2>免費 AI 試用</h2><p>先試用裝置端模型、照片記帳與有依據的帳務問答。</p></a>' +
       '<a class="card settings-link" href="#/memories"><span>🧩</span><h2>記帳小天地</h2><p>設定拼圖照片、目標片數與自己的成就牆。</p></a></nav>' +
+      '<section class="card"><h2>資料匯入與保存</h2><p class="flow-help">匯入 CSV／TSV 付款紀錄，先核對再記帳。月報可選已驗證信箱、個人 Google Drive 或兩者。</p><div class="entry-access"><button class="btn" data-statement-import>匯入付款紀錄</button><button class="btn" data-monthly-report-setup>每月報表與雲端保存</button><button class="btn" data-billing-profile>常用買方統編</button></div></section>' +
       '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和活動名稱會保留原文。</p>' + languageSelector() + '</section>' +
       '<section class="card"><h2>帳號安全</h2><p class="flow-help">可在個人資料檢查登入中的裝置，並登出其他裝置。</p><a class="btn" href="#/profile">管理登入裝置</a> <button class="btn btn--danger" id="logout">登出</button></section></div>';
     if (global.LifeFeatures) global.LifeFeatures.mountSettings($view);
@@ -3919,6 +3927,9 @@
 
   function paint() {
     if (global.ReceiptEntry) global.ReceiptEntry.close(true);
+    if (global.StatementImport) global.StatementImport.close(true);
+    if (global.MonthlyReportSetup) global.MonthlyReportSetup.close(true);
+    if (global.BillingProfile) global.BillingProfile.close(true);
     if (TXARCHIVE) { TXARCHIVE.destroy(); TXARCHIVE=null; }
     TXLOAD++;
     var requestedHash = location.hash;
@@ -4049,13 +4060,32 @@
     if (q) { openHelp(q.dataset.help); return; }
     if (t.closest('[data-retry]')) { ME = null; CATS = []; paint(); return; }
     if (t.closest('[data-verify-again]')) { EMAIL_VERIFY_TOKEN = ''; vVerifyEmail(); return; }
+    if (t.closest('button[data-billing-profile]') || t.closest('[data-monthly-report-setup]')) {
+      if (!ME || !ME.user) { toast('請先登入', 'err'); return; }
+      var feature = t.closest('button[data-billing-profile]') ? global.BillingProfile : global.MonthlyReportSetup;
+      if (feature) feature.open({ api: API, owner: ME.user });
+      return;
+    }
+    if (t.closest('[data-statement-import]')) {
+      if (!global.StatementImport || !ME || !ME.user) { toast('請登入並重新整理後再匯入', 'err'); return; }
+      var importActor = String(ME.user.id), importRoute = location.hash, importSaved = false;
+      API.groups().then(function (d) {
+        if (!ME || !ME.user || String(ME.user.id) !== importActor || location.hash !== importRoute) return;
+        var writable = (d.groups || []).filter(function (g) { return !g.archived && !g.archivedAt && !g.settledAt && (String(g.owner) === importActor || Array.isArray(g.members) && g.members.some(function (id) { return String(id) === importActor; })); });
+        global.StatementImport.open({ api: API, owner: ME.user, categories: cats(), groups: writable, groupId: GROUP === 'all' ? null : GROUP,
+          isCurrentUser: function () { return !!(ME && ME.user && String(ME.user.id) === importActor); },
+          onSaved: function () { importSaved = true; if (/^#\/entry(?:\/|$)/.test(location.hash)) loadTx(); },
+          onClose: function () { if (importSaved && location.hash === importRoute && !/^#\/entry(?:\/|$)/.test(location.hash)) paint(); } });
+      }).catch(function (err) { toast(err.message || '無法取得可寫入活動', 'err'); });
+      return;
+    }
     if (t.closest('[data-receipt-entry]')) {
       if (!global.ReceiptEntry || !ME || !ME.user) { toast('請登入並重新整理後再使用發票辨識', 'err'); return; }
       var receiptActor=String(ME.user.id),receiptRoute=location.hash,receiptSaved=false;
       API.groups().then(function(d){
         if(!ME||!ME.user||String(ME.user.id)!==receiptActor||location.hash!==receiptRoute)return;
         var writable=(d.groups||[]).filter(function(g){return !g.archived&&!g.archivedAt&&!g.settledAt&&(String(g.owner)===receiptActor||Array.isArray(g.members)&&g.members.some(function(id){return String(id)===receiptActor;}));});
-        global.ReceiptEntry.open({api:API,categories:cats(),groups:writable,groupId:GROUP==='all'?null:GROUP,onSaved:function(){receiptSaved=true;if(/^#\/entry(?:\/|$)/.test(location.hash))loadTx();},onClose:function(){if(receiptSaved&&location.hash===receiptRoute&&!/^#\/entry(?:\/|$)/.test(location.hash))paint();}});
+        global.ReceiptEntry.open({api:API,owner:ME.user,categories:cats(),groups:writable,groupId:GROUP==='all'?null:GROUP,onSaved:function(){receiptSaved=true;if(/^#\/entry(?:\/|$)/.test(location.hash))loadTx();},onClose:function(){if(receiptSaved&&location.hash===receiptRoute&&!/^#\/entry(?:\/|$)/.test(location.hash))paint();}});
       }).catch(function(err){toast(err.message||'無法取得可寫入活動，請稍後重試','err');});
       return;
     }
@@ -4791,6 +4821,10 @@
       Array.prototype.forEach.call(box.querySelectorAll('[data-s]'), function (i) {
         v[i.dataset.s] = i.value;
       });
+      if (global.BillingProfile) {
+        if (!global.BillingProfile.valid(box)) { toast('買方統一編號請填 8 位數字，或留白', 'err'); return; }
+        Object.assign(v, global.BillingProfile.values(box));
+      }
       if (!Number.isFinite(Number(v.amount)) || Number(v.amount) <= 0) { toast('請輸入大於 0 的金額', 'err'); return; }
       if (!v.date || !v.cat) { toast('請填好日期及分類', 'err'); return; }
 
@@ -4818,7 +4852,7 @@
       btn.textContent = '寫入中…';
       API.createTransaction({
         date: v.date, amount: Number(v.amount), kind: v.kind, cat: v.cat,
-        merchant: v.merchant, note: v.note,
+        merchant: v.merchant, note: v.note, paymentMethod: v.paymentMethod, buyerTaxId: v.buyerTaxId,
         // 記進目前正在看的那一個活動；看「全部」就交給後端決定
         groupId: GROUP === 'all' ? null : GROUP
       }).then(function () {

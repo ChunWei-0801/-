@@ -684,7 +684,7 @@
   }
 
   /* PATCH 可以改的欄位、一次最多刪幾筆。跟 toolkit/ledger.py 的 EDITABLE／MAX_BATCH 一樣 */
-  var TX_EDITABLE = ['date', 'amount', 'kind', 'cat', 'merchant', 'note', 'groupId'];
+  var TX_EDITABLE = ['date', 'amount', 'kind', 'cat', 'merchant', 'note', 'groupId', 'paymentMethod', 'buyerTaxId'];
   var MAX_BATCH = 100;
 
   /* 這本帳裡的紀錄還能不能改、能不能刪。結算過的不行；
@@ -1975,7 +1975,7 @@
           if (f.source && f.source !== 'all' && (t.source || 'manual') !== f.source) return false;
           if (f.q) {
             var activityName = t.groupName || (groupOf(t.group) || {}).name || '';
-            var hay = (t.merchant + ' ' + (t.note || '') + ' ' + (t.raw || '') + ' ' + activityName).toLowerCase();
+            var hay = (t.merchant + ' ' + (t.note || '') + ' ' + (t.raw || '') + ' ' + activityName + ' ' + (t.buyerTaxId || '')).toLowerCase();
             if (hay.indexOf(f.q.toLowerCase()) < 0) return false;
           }
           return true;
@@ -2055,6 +2055,14 @@
 
     /* 手動記帳不經過模型，走 POST /api/transactions，來源記成 manual。
        之前這裡借用 nlp/confirm，害手動填的資料被標成 AI 記帳，來源篩選也篩不到 */
+    billingProfile: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
+    setBillingProfile: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
+    previewStatementImport: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
+    confirmStatementImport: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
+    monthlyReportSettings: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
+    setMonthlyReportSettings: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
+    authorizeMonthlyReport: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
+    revokeMonthlyReport: function (p) { return Promise.reject(oops('此功能需登入線上帳號使用', 503)); },
     createTransaction: function (p) {
       var s = load();
       return sleep(260).then(function () {
@@ -2062,7 +2070,7 @@
           id: stampId('N'), user: s.me, date: p.date, amount: Number(p.amount),
           group: groupFor(s.me, p.groupId),
           kind: p.kind, cat: p.cat, merchant: p.merchant || '',
-          note: p.note || '', source: 'manual', raw: ''
+          note: p.note || '', paymentMethod: p.paymentMethod || '', buyerTaxId: p.buyerTaxId || '', source: 'manual', raw: ''
         };
         s.transactions.unshift(t); save();
         return clone(t);
@@ -2149,6 +2157,14 @@
         if (unknown.length) throw oops('不認得的欄位：' + unknown.join('、'), 422);
 
         var next = {};
+        if ('buyerTaxId' in p) {
+          if (p.buyerTaxId != null && !/^[0-9]{8}$/.test(p.buyerTaxId)) throw oops('買方統編請填8碼數字或留白', 422);
+          next.buyerTaxId = p.buyerTaxId || '';
+        }
+        if ('paymentMethod' in p) {
+          if (p.paymentMethod != null && ['cash','credit_card','bank_transfer','jkopay','line_pay','easycard','other'].indexOf(p.paymentMethod) < 0) throw oops('不支援的付款方式', 422);
+          next.paymentMethod = p.paymentMethod || '';
+        }
         if ('amount' in p) {
           var amt = Number(p.amount);
           if (!(amt > 0) || !isFinite(amt)) throw oops('金額要是大於 0 的數字', 400);
@@ -3143,6 +3159,14 @@
     nlpParseBatch:     function (t)     { return req('/api/nlp/parse-batch', { method: 'POST', body: { text: t } }); },
     nlpConfirm:        function (p)     { return req('/api/nlp/confirm', { method: 'POST', body: p }); },
     nlpConfirmBatch:   function (i)     { return req('/api/nlp/confirm-batch', { method: 'POST', body: { items: i } }); },
+    billingProfile: function (p) { return req('/api/billing/profile', { method: 'GET' }); },
+    setBillingProfile: function (p) { return req('/api/billing/profile', { method: 'PUT', body: p }); },
+    previewStatementImport: function (p) { return req('/api/statement-import/preview', { method: 'POST', body: p }); },
+    confirmStatementImport: function (p) { return req('/api/statement-import/confirm', { method: 'POST', body: p }); },
+    monthlyReportSettings: function (p) { return req('/api/monthly-reports/settings', { method: 'GET' }); },
+    setMonthlyReportSettings: function (p) { return req('/api/monthly-reports/settings', { method: 'PUT', body: p }); },
+    authorizeMonthlyReport: function (p) { return req('/api/monthly-reports/authorize', { method: 'POST', body: p }); },
+    revokeMonthlyReport: function (p) { return req('/api/monthly-reports/authorization', { method: 'DELETE' }); },
     createTransaction: function (p)     { return req('/api/transactions', { method: 'POST', body: p }); },
     deleteTransaction: function (id)    { return req('/api/transactions/' + encodeURIComponent(id), { method: 'DELETE' }); },
     deleteTransactions: function (ids)  { return req('/api/transactions' + qs({ ids: ids.join(',') }), { method: 'DELETE' }); },
@@ -3216,6 +3240,15 @@
         路由與負責人跟 backend/app/ownership.py 對齊，有測試擋。
      ============================================================ */
   var FN = {
+    billingProfile: ['GET /api/billing/profile', '記帳'],
+    setBillingProfile: ['PUT /api/billing/profile', '記帳'],
+    previewStatementImport: ['POST /api/statement-import/preview', '記帳'],
+    confirmStatementImport: ['POST /api/statement-import/confirm', '記帳'],
+    monthlyReportSettings: ['GET /api/monthly-reports/settings', '數字'],
+    setMonthlyReportSettings: ['PUT /api/monthly-reports/settings', '數字'],
+    authorizeMonthlyReport: ['POST /api/monthly-reports/authorize', '數字'],
+    revokeMonthlyReport: ['DELETE /api/monthly-reports/authorization', '數字'],
+
     transactionArchives: ['GET /api/transactions/archives', '記帳'],
     lookupGroupUser: ['GET /api/groups/lookup', '記帳'],
     groupInvites: ['GET /api/groups/{gid}/invites', '記帳'],
@@ -3320,6 +3353,7 @@
      Keep these real transports in the same route catalog without inventing
      mock photo storage or extra callable facade methods. */
   var MEDIA_ROUTES = {
+    monthlyReportExport: ['GET /api/monthly-reports/export', '數字'],
     calendarMarkers: ['GET /api/lifestyle/calendar/markers', '認證'],
     calendarAddMarker: ['POST /api/lifestyle/calendar/markers', '認證'],
     calendarChangeMarker: ['PUT /api/lifestyle/calendar/markers/{marker_key}', '認證'],

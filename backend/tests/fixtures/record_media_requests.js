@@ -140,6 +140,7 @@ async function image(url, bridge = media.imageURL) {
   await record('PUT /api/lifestyle/calendar/shifts/{day}', () => life.request('PUT', '/calendar/shifts/2026-10-24', {markerKey:'early'}));
   await record('GET /api/lifestyle/calendar/reminders', () => life.request('GET', '/calendar/reminders'));
   await record('POST /api/lifestyle/calendar/reminders/ack', () => life.request('POST', '/calendar/reminders/ack', {ids:[501]}));
+  await record('GET /api/monthly-reports/export', () => fetch('http://api.test/api/monthly-reports/export?period=2026-09', {headers:{Authorization:'Bearer contract-monthly-read-only-token'}}));
   assert.deepEqual(Object.keys(out).sort(), Object.values(API.mediaRoutes).map(entry => entry[0]).sort(),
     'Every supplemental route needs an explicit request scenario');
   process.stdout.write(JSON.stringify({sent:out, auth}));

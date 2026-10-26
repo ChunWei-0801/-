@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 136 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 145 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>136 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>145 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">136 ROUTES · 4 MODULES</div>
+    <div class="mono">145 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -112,6 +112,15 @@
 
   /* 路由與回應形狀取自 frontend/js/api.js 的契約定義 */
   var ROUTES = [
+    { n: 137, o: 'm2', m: 'GET', p: '/api/billing/profile', a: '本人', d: "常用買方統編與單位名稱。只讀本人設定，可留白。", res: '{}', note: "常用買方統編與單位名稱。只讀本人設定，可留白。" },
+    { n: 138, o: 'm2', m: 'PUT', p: '/api/billing/profile', a: '本人', d: "保存或清除常用買方統編。buyerTaxId為8碼字串或null；companyName最多80字，未連接政府公司查詢。", res: '{}', note: "保存或清除常用買方統編。buyerTaxId為8碼字串或null；companyName最多80字，未連接政府公司查詢。" },
+    { n: 139, o: 'm2', m: 'POST', p: '/api/statement-import/preview', a: '本人', d: "唯讀核對最多500筆TWD草稿、分類、活動權限、已匯入與可能重複的交易，不新增明細。", res: '{}', note: "唯讀核對最多500筆TWD草稿、分類、活動權限、已匯入與可能重複的交易，不新增明細。" },
+    { n: 140, o: 'm2', m: 'POST', p: '/api/statement-import/confirm', a: '本人', d: "確認最多200筆；UUID冪等鍵與來源交易識別防止重複，全部驗證後原子寫入，預設本人私人收支。", res: '{}', note: "確認最多200筆；UUID冪等鍵與來源交易識別防止重複，全部驗證後原子寫入，預設本人私人收支。" },
+    { n: 141, o: 'm3', m: 'GET', p: '/api/monthly-reports/settings', a: '本人', d: "讀取個人月報選擇。預設未啟用、寄至本人已驗證信箱，亦可選Drive或兩者。", res: '{}', note: "讀取個人月報選擇。預設未啟用、寄至本人已驗證信箱，亦可選Drive或兩者。" },
+    { n: 142, o: 'm3', m: 'PUT', p: '/api/monthly-reports/settings', a: '本人', d: "經本人確認保存月報寄送選擇；未輸入收件者使用本人已驗證信箱，不代為安裝Google排程。", res: '{}', note: "經本人確認保存月報寄送選擇；未輸入收件者使用本人已驗證信箱，不代為安裝Google排程。" },
+    { n: 143, o: 'm3', m: 'POST', p: '/api/monthly-reports/authorize', a: '本人', d: "建立或輪替12個月有效的月報唯讀金鑰；只顯示一次，資料庫只存雜湊，需明確同意。", res: '{}', note: "建立或輪替12個月有效的月報唯讀金鑰；只顯示一次，資料庫只存雜湊，需明確同意。" },
+    { n: 144, o: 'm3', m: 'DELETE', p: '/api/monthly-reports/authorization', a: '本人', d: "撤銷月報讀取授權；Google端觸發條件仍需自行移除。", res: '{}', note: "撤銷月報讀取授權；Google端觸發條件仍需自行移除。" },
+    { n: 145, o: 'm3', m: 'GET', p: '/api/monthly-reports/export', a: '月報唯讀授權', d: "專用Bearer金鑰，period=YYYY-MM，只讀本人最近24個已結束月份。提供PDF用HTML及CSV，不接受登入JWT或查詢字串金鑰。", res: '{}', note: "專用Bearer金鑰，period=YYYY-MM，只讀本人最近24個已結束月份。提供PDF用HTML及CSV，不接受登入JWT或查詢字串金鑰。" },
     { n: 1, o: 'm1', m: 'POST', p: '/api/auth/register', a: '公開',
       d: '註冊：正式環境先驗證信箱；開發模式可直接登入',
       body: '{ "name": "王大明", "email": "daming@wang.tw", "password": "daming-pass-1" }',

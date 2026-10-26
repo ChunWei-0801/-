@@ -27,7 +27,7 @@
     // Equal top-ranked totals stay unselected: a human must choose the right one.
     return {currency:currency,date:dates.length===1?dates[0]:'',dateCandidates:dates,merchant:merchant,candidates:candidates,amount:candidates.length&&candidates[0].rank===100&&(candidates.length===1||candidates[0].rank>candidates[1].rank)?candidates[0].amount:null};
   }
-  function alive(s){return current===s&&!s.closed;}
+  function alive(s){if(current!==s||s.closed)return false;if(s.owner!==null&&global.LifeFeatures&&typeof global.LifeFeatures.user==='function'){var user=global.LifeFeatures.user();if(!user||String(user.id)!==s.owner){close(true);return false;}}return true;}
   function status(s,message,error){if(!alive(s))return;s.status.textContent=message;s.status.classList.toggle('is-error',!!error);}
   function cleanup(s){if(s.abort)s.abort.abort();if(s.url)URL.revokeObjectURL(s.url);s.url=null;s.file=null;s.raw='';s.draft=null;if(s.preview){s.preview.removeAttribute('src');s.preview.hidden=true;}}
   function close(force){var s=current;if(!s||s.saving&&!force)return;current=null;s.closed=true;cleanup(s);s.dialog.close();s.dialog.remove();if(s.options.onClose)s.options.onClose();if(s.focus&&s.focus.isConnected)s.focus.focus();}
@@ -46,6 +46,7 @@
     categories();kind.onchange=categories;grid.append(field(t('kind','收支'),kind),field(t('category','分類'),category));
     var merchant=input('text','merchant',result.merchant);merchant.maxLength=120;var note=input('text','note','');note.maxLength=500;
     grid.append(field(t('merchant','店家'),merchant),field(t('note','備註'),note));form.append(grid);
+    if(global.BillingProfile)global.BillingProfile.enhanceForm(form,{api:s.api,owner:s.options.owner,container:grid});
     if(s.groups.length){var group=el('select');group.name='group';group.append(new Option(t('personal','個人收支'),''));s.groups.forEach(function(g){group.append(new Option(g.name,String(g.id)));});group.value=s.options.groupId==null?'':String(s.options.groupId);form.append(field(t('activity','活動'),group));}
     s.fx=input('checkbox','fx');if(result.currency!=='TWD'){amount.value='';form.append(el('p',t('foreignCurrency','辨識到其他幣別（{currency}）。系統以新臺幣入帳，請自行換算金額後確認。',{currency:result.currency}),'receipt-help'),field(t('fxConfirm','我已換算並核對新臺幣金額'),s.fx));}
     s.attach=input('checkbox','attach');s.attach.checked=true;form.append(field(t('attach','確認後附上這張發票照片'),s.attach));
@@ -72,15 +73,18 @@
   async function saveEntry(s){
     if(!alive(s)||s.saving||s.savedId||s.uncertain||!s.form)return;
     var values=new FormData(s.form),amount=amountValue(values.get('amount')),cat=s.categories.find(function(c){return String(c.id)===values.get('cat')&&c.kind===values.get('kind');}),group=values.get('group')||null;
+    if(global.BillingProfile&&!global.BillingProfile.valid(s.form)){status(s,t('billingInvalid','買方統編請填 8 位數字或留白，並選擇有效付款方式。'),true);return;}
     if(!s.accept.checked||!dateValid(values.get('date'))||amount===null||!cat||s.draft.currency!=='TWD'&&!s.fx.checked||group&&!s.groups.some(function(g){return String(g.id)===group;})){status(s,t('validation','請完成日期、正數金額、收支、分類、活動與核對勾選。'),true);return;}
     s.saving=true;s.form.querySelectorAll('input,select,button').forEach(function(node){node.disabled=true;});s.dialog.querySelector('[data-receipt-action="close"]').disabled=true;status(s,t('saving','正在儲存這一筆…'));
-    try{var record=await s.api.createTransaction({date:values.get('date'),amount:amount,kind:values.get('kind'),cat:String(cat.id),merchant:String(values.get('merchant')||'').trim(),note:String(values.get('note')||'').trim(),groupId:group},{attachPendingPhotos:false});if(!alive(s))return;if(!record||record.id==null)throw new Error('Missing record id');s.savedId=String(record.id);s.review.replaceChildren(el('p',t('saved','已新增一筆收支明細。'),'receipt-success'));s.selectors.forEach(function(node){node.disabled=true;});if(typeof s.options.onSaved==='function')s.options.onSaved(record);if(s.attach.checked)await upload(s);else{status(s,t('saved','已新增一筆收支明細。'));cleanup(s);}}
+    try{var payload={date:values.get('date'),amount:amount,kind:values.get('kind'),cat:String(cat.id),merchant:String(values.get('merchant')||'').trim(),note:String(values.get('note')||'').trim(),groupId:group};
+      var paymentMethod=String(values.get('paymentMethod')||''),buyerTaxId=String(values.get('buyerTaxId')||'').trim();if(paymentMethod)payload.paymentMethod=paymentMethod;if(buyerTaxId)payload.buyerTaxId=buyerTaxId;
+      var record=await s.api.createTransaction(payload,{attachPendingPhotos:false});if(!alive(s))return;if(!record||record.id==null)throw new Error('Missing record id');s.savedId=String(record.id);s.review.replaceChildren(el('p',t('saved','已新增一筆收支明細。'),'receipt-success'));s.selectors.forEach(function(node){node.disabled=true;});if(typeof s.options.onSaved==='function')s.options.onSaved(record);if(s.attach.checked)await upload(s);else{status(s,t('saved','已新增一筆收支明細。'));cleanup(s);}}
     catch(error){if(alive(s)){s.uncertain=true;status(s,t('saveUncertain','未能確認寫入結果。請先查看收支明細，避免重複記帳；本視窗不會再次送出。'),true);s.review.append(el('a',t('openDetails','前往收支明細')));s.review.lastChild.href='#/entry';}}
     finally{if(alive(s)){s.saving=false;s.dialog.querySelector('[data-receipt-action="close"]').disabled=false;}}
   }
   function open(options){
     options=options||{};close();if(current)return null;var api=options.api||global.API;if(!api||typeof api.createTransaction!=='function')return null;
-    var dialog=el('dialog',null,'receipt-dialog'),s={options:options,api:api,dialog:dialog,categories:options.categories||[],groups:(options.groups||[]).filter(function(g){return !g.settledAt&&!g.archivedAt&&g.canWrite!==false;}),closed:false,busy:false,saving:false,uploading:false,savedId:null,uncertain:false,file:null,url:null,raw:'',focus:document.activeElement};current=s;
+    var dialog=el('dialog',null,'receipt-dialog'),s={options:options,owner:options.owner==null?null:String(typeof options.owner==='object'?options.owner.id:options.owner),api:api,dialog:dialog,categories:options.categories||[],groups:(options.groups||[]).filter(function(g){return !g.settledAt&&!g.archivedAt&&g.canWrite!==false;}),closed:false,busy:false,saving:false,uploading:false,savedId:null,uncertain:false,file:null,url:null,raw:'',focus:document.activeElement};current=s;
     var header=el('div',null,'receipt-header');header.append(el('h2',t('title','掃描發票記帳')),button(t('close','關閉'),'close'));dialog.append(header,el('p',t('privacy','拍照或選擇發票後，在這台裝置辨識文字。首次需下載辨識程式與語言檔；確認之前不會上傳照片或新增記帳。'),'receipt-help'));
     var actions=el('div',null,'receipt-actions');s.selectors=[];[['choose','選擇發票照片',false],['camera','拍攝發票',true]].forEach(function(item){var file=input('file',item[0]);file.accept='image/jpeg,image/png,image/webp';if(item[2])file.setAttribute('capture','environment');file.dataset.receiptFile=item[0];file.addEventListener('change',function(){var selected=file.files&&file.files[0];file.value='';if(selected)choose(s,selected);});var label=field(t(item[0],item[1]),file);actions.append(label);s.selectors.push(file);});dialog.append(actions);
     s.preview=el('img',null,'receipt-preview');s.preview.alt=t('preview','已選發票預覽');s.preview.hidden=true;s.progress=el('progress');s.progress.max=1;s.progress.hidden=true;s.status=el('p',null,'receipt-status');s.status.setAttribute('role','status');s.status.setAttribute('aria-live','polite');s.review=el('div',null,'receipt-review');dialog.append(s.preview,s.progress,s.status,s.review);

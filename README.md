@@ -130,7 +130,7 @@ Docker 建置以專案根目錄為 context，使用 `backend/Dockerfile`。
 | 實際金額與匯率 | 獨立手動記帳、153種貨幣試算、TWD換算結果預填 | 入帳前可改實際扣款，備註保存原幣、匯率及日期 |
 | 教學與發表 | 操作流程、架構解釋、中英名詞、投影片、答辯與部署 | 可離線閱讀，不虛構模型成績 |
 
-業務 API 共 **136 支路由**，分工與契約保留在 `backend/app/ownership.py`。
+業務 API 共 **145 支路由**，分工與契約保留在 `backend/app/ownership.py`。
 另有 `/healthz`（程式存活）、`/readyz`（資料庫及分類就緒）、
 `/capabilities`（可選整合設定狀態，不回傳機密）。
 

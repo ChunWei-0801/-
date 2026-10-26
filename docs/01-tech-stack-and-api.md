@@ -62,7 +62,7 @@
 | **Pydantic** | v2 | 請求／回應驗證 | **強制結構化輸出的關鍵**，LLM 回傳也用它驗 |
 | **pydantic-settings** | 2.6+ | 環境變數管理 | 設定集中，不散落在各處 |
 | **SQLAlchemy** | 2.0 | ORM | 2.0 的型別標註對新手比較友善 |
-| **Alembic** | 1.14+ | 資料庫遷移 | 34 張表一定會改，沒有遷移工具會很痛苦 |
+| **Alembic** | 1.14+ | 資料庫遷移 | 38 張表一定會改，沒有遷移工具會很痛苦 |
 | **psycopg** | 3.2+ | PostgreSQL 驅動 | `[binary]` 版有預編譯輪檔，不用編譯 |
 | **PyJWT** | 2.10+ | JWT 簽發驗證 | 比 python-jose 維護更活躍 |
 | **passlib[bcrypt]** | 1.7+ | 密碼雜湊 | **絕不自己實作密碼雜湊** |
@@ -151,9 +151,9 @@ final_project/
 │   │   ├── ownership.py         分工的單一事實來源（誰負責哪支路由、哪些檔案）
 │   │   ├── catalog.py           固定清單（角色、權限表、理財選項、系統分類…），正本是 data.js
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
-│   │   ├── models/              34 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
+│   │   ├── models/              38 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             136 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             145 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **136 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **145 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -454,8 +454,8 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 | 領域 | 資料夾 | 路由 |
 |---|---|---|
 | **認證** | `backend/app/routers/auth/` | 55 支 |
-| **記帳** | `backend/app/routers/ledger/` | 41 支 |
-| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 19 支 |
+| **記帳** | `backend/app/routers/ledger/` | 45 支 |
+| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 24 支 |
 | **家庭** | `backend/app/routers/access/` | 21 支 |
 
 路由屬於哪個領域，寫在 `backend/app/ownership.py`（`python -m app.ownership` 會印出各領域的完成度）。
@@ -552,6 +552,15 @@ python -m http.server 5174 --directory frontend
 | 116 | GET | `/api/groups/lookup` | 記帳 | 建立者 | 用完整email查找活動朋友。僅活動建立者可查，每帳號每分鐘至多10次，與家庭查找共用額度。只回最少姓名、頭像與available/member/invited/unavailable狀態，不回家庭或帳務資料。 |
 | 117 | GET | `/api/groups/invites` | 記帳 | 登入 | 本人收到且仍有效的活動邀請。只列邀請給本人的pending、未過期且活動仍可加入的帳號邀請，最多100項；不加入家庭、不提供其他活動資料。 |
 | 118 | POST | `/api/groups/join` | 記帳 | 登入 | 使用單次邀請碼加入活動。單次七天邀請碼，每帳號每分鐘至多10次嘗試。成功只增加該活動成員資格，不更動家庭或家庭角色；不公開其他私人紀錄。 |
+| 137 | GET | `/api/billing/profile` | 記帳 | 本人 | 常用買方統編與單位名稱。只讀本人設定，可留白。 |
+| 138 | PUT | `/api/billing/profile` | 記帳 | 本人 | 保存或清除常用買方統編。buyerTaxId為8碼字串或null；companyName最多80字，未連接政府公司查詢。 |
+| 139 | POST | `/api/statement-import/preview` | 記帳 | 本人 | 唯讀核對最多500筆TWD草稿、分類、活動權限、已匯入與可能重複的交易，不新增明細。 |
+| 140 | POST | `/api/statement-import/confirm` | 記帳 | 本人 | 確認最多200筆；UUID冪等鍵與來源交易識別防止重複，全部驗證後原子寫入，預設本人私人收支。 |
+| 141 | GET | `/api/monthly-reports/settings` | 數字 | 本人 | 讀取個人月報選擇。預設未啟用、寄至本人已驗證信箱，亦可選Drive或兩者。 |
+| 142 | PUT | `/api/monthly-reports/settings` | 數字 | 本人 | 經本人確認保存月報寄送選擇；未輸入收件者使用本人已驗證信箱，不代為安裝Google排程。 |
+| 143 | POST | `/api/monthly-reports/authorize` | 數字 | 本人 | 建立或輪替12個月有效的月報唯讀金鑰；只顯示一次，資料庫只存雜湊，需明確同意。 |
+| 144 | DELETE | `/api/monthly-reports/authorization` | 數字 | 本人 | 撤銷月報讀取授權；Google端觸發條件仍需自行移除。 |
+| 145 | GET | `/api/monthly-reports/export` | 數字 | 月報唯讀授權 | 專用Bearer金鑰，period=YYYY-MM，只讀本人最近24個已結束月份。提供PDF用HTML及CSV，不接受登入JWT或查詢字串金鑰。 |
 | 119 | POST | `/api/groups/invites/{invite_id}/accept` | 記帳 | 被邀請的人 | 接受活動帳號邀請。無請求主體，只接受登入本人被邀請的有效帳號邀請。原子地消耗邀請並新增該活動資格；已回覆或活動已關閉時拒絕。 |
 | 120 | DELETE | `/api/groups/invites/{invite_id}` | 記帳 | 被邀請的人 | 婉拒收到的活動帳號邀請。只有被邀請本人可婉拒仍pending的帳號邀請，不改動家庭、既有活動成員或任何交易。 |
 | 121 | GET | `/api/groups/{gid}/invites` | 記帳 | 建立者 | 查看活動待處理邀請。活動建立者查看該活動pending、未過期邀請，最多100項；可在封存／結算後整理邀請。不回原始邀請碼或雜湊。 |

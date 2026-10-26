@@ -12,6 +12,7 @@ from __future__ import annotations
 
 
 from pydantic import BaseModel, ConfigDict, Field
+from app.schemas.statement_import import PaymentMethod, TaxId
 
 
 class TransactionIn(BaseModel):
@@ -23,6 +24,8 @@ class TransactionIn(BaseModel):
     merchant: str = ""
     note: str = ""
     groupId: str | None = None
+    paymentMethod: PaymentMethod | None = None
+    buyerTaxId: TaxId | None = None
 
 
 class TransactionPatchIn(BaseModel):
@@ -35,6 +38,8 @@ class TransactionPatchIn(BaseModel):
     merchant: str | None = None
     note: str | None = None
     groupId: str | None = None
+    paymentMethod: PaymentMethod | None = None
+    buyerTaxId: TaxId | None = None
 
 
 class CategoryIn(BaseModel):

@@ -40,7 +40,7 @@ LEGACY_MODULE_NAMES = {
     "app.routers.access.notifications",
 }
 PUBLIC_PRODUCT_MODULE_NAMES = {"app.routers.resources"}
-PRODUCT_MODULE_NAMES = {"app.routers.calendar", "app.routers.memories", "app.routers.appearance", "app.routers.lifestyle", "app.routers.ai_local", "app.routers.ledger.group_invites"} | PUBLIC_PRODUCT_MODULE_NAMES
+PRODUCT_MODULE_NAMES = {"app.routers.monthly_reports", "app.routers.ledger.statement_import", "app.routers.calendar", "app.routers.memories", "app.routers.appearance", "app.routers.lifestyle", "app.routers.ai_local", "app.routers.ledger.group_invites"} | PUBLIC_PRODUCT_MODULE_NAMES
 PRODUCT_ROUTES_IN_LEGACY_MODULES = {("GET", "/transactions/archives")}
 BODYLESS_PRODUCT_COMMANDS = {("POST", "/groups/invites/{invite_id}/accept")}
 LEGACY_MODULES = [module for module in routers.ALL if module.__name__ in LEGACY_MODULE_NAMES]

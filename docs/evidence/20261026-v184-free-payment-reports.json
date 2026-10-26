@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-26",
+  "stage": "prepared-for-ci",
+  "resourceVersion": 184,
+  "features": [
+    "reviewed CSV/TSV payment import",
+    "optional buyer tax ID and private common billing profile",
+    "opt-in monthly email/Google Drive via user-installed Apps Script"
+  ],
+  "checks": {
+    "backendFull": {
+      "passed": 1276,
+      "skipped": 0
+    },
+    "backendFinalContract": {
+      "passed": 273,
+      "skipped": 0
+    },
+    "newFrontend": {
+      "passed": 43,
+      "skipped": 0,
+      "includesUnit": 24,
+      "includesBrowser": 19
+    },
+    "existingBrowser": {
+      "passed": 63,
+      "skipped": 0
+    },
+    "existingNode": {
+      "passed": 158,
+      "skipped": 0
+    },
+    "lifestyleBrowserContract": "passed",
+    "layoutAfterActualAppConflictFix": {
+      "passed": 5,
+      "skipped": 0
+    },
+    "taxHelpAndActualAppFinal": {
+      "passed": 7,
+      "skipped": 0
+    },
+    "postgres18": {
+      "isolated": true,
+      "productionConnected": false,
+      "verified": true,
+      "postgresMajor": 18,
+      "existingTablesPreserved": 34,
+      "addedTables": 4,
+      "photoBytesPreserved": true,
+      "concurrentIdenticalImportCreatedOnce": true,
+      "temporaryDatabaseRemoved": true
+    }
+  },
+  "externalEffects": {
+    "productionDatabaseConnectedForTesting": false,
+    "actualEmailSent": false,
+    "actualDriveUpload": false,
+    "monthlyTriggerInstalled": false,
+    "bankApiConnected": false,
+    "governmentInvoiceCarrierConnected": false,
+    "databaseCutoverPerformed": false,
+    "maintenanceEnabled": false
+  },
+  "limits": [
+    "CSV/TSV only; reviewed TWD fields, max500 drafts and max200 per confirmation",
+    "buyer tax ID format only; cannot modify an issued invoice",
+    "monthly report requires user Google authorization; PDF/CSV do not include full database or photos",
+    "free quotas and provider policies can change",
+    "user-device and actual monthly delivery acceptance remains pending"
+  ]
+}

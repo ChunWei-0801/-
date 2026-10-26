@@ -31,6 +31,8 @@ from app.schemas.transaction import TransactionIn, TransactionPatchIn
 from app.toolkit import crud, errors, ledger, money, notify
 from app.toolkit.db import get_db
 from app.services.ledger import transaction_amount, confidence
+from app.services.statement_import import save_transaction_details, transaction_metadata
+from app.models.transaction_details import TransactionDetails
 
 router = APIRouter(tags=["記帳"])
 OWNER = "記帳"
@@ -91,6 +93,7 @@ def _transaction_filters(
             func.lower(Transaction.merchant).contains(word, autoescape=True),
             func.lower(Transaction.note).contains(word, autoescape=True),
             Transaction.group_id.in_(matching_groups),
+            Transaction.id.in_(select(TransactionDetails.transaction_id).where(TransactionDetails.buyer_tax_id.contains(word, autoescape=True))),
         ))
     return conditions
 
@@ -252,6 +255,7 @@ def list_transactions(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
 
@@ -328,6 +332,7 @@ def list_transactions(
 
     # 8. 轉成前端要的樣子
     group_names = {g.id: g.name for g in crud.find(Group, {"id__in": {t.group_id for t in rows}}, db=db)} if rows else {}
+    details = transaction_metadata(db, [t.id for t in rows])
     out = []
     for t in rows:
         item = crud.to_dict(
@@ -344,6 +349,7 @@ def list_transactions(
             item["parsed"] = {"conf": float(p.confidence or 0), "catConf": float(p.cat_confidence or 0)}
         else:
             item["parsed"] = {"conf": 1, "catConf": 1}
+        item.update(details.get(str(t.id), {}))
         out.append(item)
     return {"transactions": out, "total": result["total"]}
 
@@ -386,6 +392,7 @@ def transaction_archives(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.models.transaction_details import TransactionDetails
 
         第二步：由共同篩選與年月統計函式回傳
 
@@ -515,6 +522,7 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
 
@@ -664,6 +672,8 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
         "source": "manual",
     }, db=db)
 
+    save_transaction_details(db, tx, payment_method=body.paymentMethod, buyer_tax_id=body.buyerTaxId)
+
     # 5. 新增通知
     guardians = crud.find(Guardianship, {"ward_id": me.id, "ended_at__isnull": True}, db=db)
     members = crud.find(GroupMember, {"group_id": group.id}, db=db)
@@ -689,6 +699,7 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
     out["merchant"] = tx.merchant or ""
     out["note"] = tx.note or ""
     out["raw"] = ""
+    out.update(transaction_metadata(db, [tx.id]).get(str(tx.id), {}))
     return out
 
 
@@ -801,6 +812,7 @@ def update_transaction(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
 
@@ -915,8 +927,12 @@ def update_transaction(
 
 
     # 1. 整理要改的欄位：只拿有送來的，空的、格式不對的回 400
+    requested = body.model_dump(exclude_unset=True)
+    metadata_patch = {key: requested.pop(key) for key in ("paymentMethod", "buyerTaxId") if key in requested}
     try:
-        patch = ledger.clean_patch(body.model_dump(exclude_unset=True))
+        patch = ledger.clean_patch(requested) if requested else {}
+        if not patch and not metadata_patch:
+            raise ValueError("沒有要改的欄位")
     except ValueError as exc:
         raise errors.bad_request(str(exc)) from None
 
@@ -988,6 +1004,12 @@ def update_transaction(
                 corrected[key] = float(value) if key == "amount" else value
         crud.save(NlpParse, {"id": parse.id, "user_corrected": corrected}, db=db)
 
+    if metadata_patch:
+        previous = db.get(TransactionDetails, row.id)
+        payment = metadata_patch.get("paymentMethod", previous.payment_method if previous else None)
+        tax_id = metadata_patch.get("buyerTaxId", previous.buyer_tax_id if previous else None)
+        save_transaction_details(db, row, payment_method=payment, buyer_tax_id=tax_id)
+
     # 7. 一起寫進資料庫，回傳改完的那一筆
     db.commit()
     out = crud.to_dict(
@@ -999,6 +1021,7 @@ def update_transaction(
     out["merchant"] = row.merchant or ""
     out["note"] = row.note or ""
     out["raw"] = parse.raw_text if parse else ""
+    out.update(transaction_metadata(db, [row.id]).get(str(row.id), {}))
     return out
 
 
@@ -1074,6 +1097,7 @@ def delete_transaction(row=Depends(own(Transaction, "tx_id")), db: Session = Dep
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
 
@@ -1215,6 +1239,7 @@ def delete_transactions(me: User, ids: str | None = None, db: Session = Depends(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
 
