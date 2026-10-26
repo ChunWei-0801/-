@@ -16,3 +16,5 @@
 .billing-dialog .btn{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
 .receipt-grid>.billing-entry-fields{grid-column:1/-1}
 @media(max-width:480px){.billing-dialog{padding:1rem}.billing-entry-fields{grid-template-columns:minmax(0,1fr);padding:.75rem}.billing-dialog-head{align-items:flex-start}.billing-actions .btn{flex:1 1 auto}}
+
+.txr__payment{display:block;margin-top:.25rem;font-size:.78rem;line-height:1.6;color:var(--ink-dim);overflow-wrap:anywhere}

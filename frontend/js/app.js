@@ -885,7 +885,7 @@
         '<span data-i18n-skip>' + esc(t.merchant || t.catName) + '</span>' +
         (t.raw ? '<br><span class="txr__raw" data-i18n-skip>「' + esc(t.raw) + '」</span>' : '') +
         '<span class="txr__gm"><span>活動：</span><span data-i18n-skip>' + esc(txActivity(t)) + '</span></span>' +
-        ((t.paymentMethod || t.buyerTaxId) ? '<span class="txr__gm" data-i18n-skip>' + esc(({cash:'現金',credit_card:'信用卡',bank_transfer:'銀行轉帳',jkopay:'街口支付',line_pay:'LINE Pay',easycard:'悠遊卡',other:'其他付款方式'})[t.paymentMethod] || '') + (t.buyerTaxId ? '・買方統編 ' + esc(t.buyerTaxId) : '') + '</span>' : '') +
+        ((t.paymentMethod || t.buyerTaxId) ? '<span class="txr__payment" data-i18n-skip>' + esc(({cash:'現金',credit_card:'信用卡',bank_transfer:'銀行轉帳',jkopay:'街口支付',line_pay:'LINE Pay',easycard:'悠遊卡',other:'其他付款方式'})[t.paymentMethod] || '') + (t.buyerTaxId ? '・買方統編 ' + esc(t.buyerTaxId) : '') + '</span>' : '') +
         '<span class="txr__note-mobile"><span>備註：</span><span data-i18n-skip>' + esc(t.note || '—') + '</span></span>' +
       '</td>' +
       '<td class="txr__g" data-i18n-skip>' + esc(txActivity(t)) + '</td>' +

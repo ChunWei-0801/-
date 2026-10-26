@@ -1,0 +1,35 @@
+name: Browser compatibility
+on:
+  push:
+    branches: [main, 'recovery/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  browsers:
+    name: ${{ matrix.engine }} desktop and mobile
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --prefix "$RUNNER_TEMP/fambudget-browser" playwright@1.57.0
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-fambudget-playwright-1.57.0-${{ matrix.engine }}
+      - name: Install browser and system dependencies
+        run: '"$RUNNER_TEMP/fambudget-browser/node_modules/.bin/playwright" install --with-deps ${{ matrix.engine }}'
+      - name: Exercise actual app in desktop and mobile contexts
+        env:
+          FAMBUDGET_TEST_BROWSER: ${{ matrix.engine }}
+        run: |
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/fambudget-browser/node_modules/playwright"
+          for profile in desktop mobile; do
+            FAMBUDGET_TEST_DEVICE="$profile" node --test frontend/tests/payment-report-app-browser.cjs || exit 1
+          done
