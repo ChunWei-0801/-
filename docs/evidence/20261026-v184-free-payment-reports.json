@@ -1,6 +1,6 @@
 {
   "date": "2026-10-26",
-  "stage": "ci-verified-not-deployed",
+  "stage": "deployed-awaiting-user-device-and-google-authorization",
   "resourceVersion": 184,
   "features": [
     "reviewed CSV/TSV payment import",
@@ -130,17 +130,26 @@
     ]
   },
   "deployment": {
-    "performed": false,
-    "reason": "The selected execution workspace became unavailable before deployment; connector-based CI and repository work continued.",
-    "liveSource": "c578b6a588410b6c00b9c386395a76ba6df517c3",
-    "liveAppResourceVersion": 183,
+    "performed": true,
+    "liveSource": "bce6ef04dda5d474f02cf7261d17d90c98607c15",
+    "liveAppResourceVersion": 184,
     "preparedAppResourceVersion": 184,
     "service": "fambudget-recovery-20261017",
     "serviceId": "srv-db9opo61egvs7382obu0",
     "url": "https://fambudget-recovery-20261017.onrender.com",
     "databaseProvider": "Render",
     "databaseCutover": false,
-    "maintenanceEnabled": false
+    "maintenanceEnabled": false,
+    "status": "live",
+    "deployId": "dep-dbfepsqvcj2c73fsll40",
+    "finishedAt": "2026-10-26T06:04:11.476668Z",
+    "finishedAtAsiaTaipei": "2026-10-26 14:04:11",
+    "plan": "free",
+    "databaseValueUnchanged": true,
+    "healthCheckPath": "/healthz",
+    "startCommandIncludesMigrations": true,
+    "directProductionHttpSmokePerformed": false,
+    "actualUserDeviceAcceptancePerformed": false
   },
-  "checkedAt": "2026-10-26T05:36:09Z"
+  "checkedAt": "2026-10-26T06:06:15.112683+00:00"
 }

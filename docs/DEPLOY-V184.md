@@ -1,24 +1,28 @@
-# v184發布接續：程式已驗證，網站尚未更新
+# v184發布紀錄與使用入口
 
-目前正式網站仍為v183，網址是 https://fambudget-recovery-20261017.onrender.com 。本對話的執行工作區在發布前中斷，因此不能把程式保存或CI通過當成已更新網站。
+新版已於 **2026-10-26 14:04:11（臺灣時間）** 上線： https://fambudget-recovery-20261017.onrender.com 。
 
-已驗證來源：`bce6ef04dda5d474f02cf7261d17d90c98607c15`；來源樹：`52bf82122e505fa6411c3f3d6af37ca5a6b60a01`。
+Render部署 `dep-dbfepsqvcj2c73fsll40` 為Live；已驗證並發布的來源為 `bce6ef04dda5d474f02cf7261d17d90c98607c15`，來源樹為 `52bf82122e505fa6411c3f3d6af37ca5a6b60a01`。中斷的工作區已恢復，舊工作樹保留，使用新工作樹完成發布。
 
-- [一般功能、Windows與後端測試](https://github.com/ChunWei-0801/-/actions/runs/40274337261)：三個工作全通過；後端1276、瀏覽器83及生活功能獨立流程通過。
-- [三核心相容性測試](https://github.com/ChunWei-0801/-/actions/runs/40274337200)：Chromium、Firefox、WebKit，桌面與手機／窄螢幕共十二項通過，零跳過。裝置設定與真機驗收有別，見[完整範圍](BROWSER-COMPATIBILITY.md)。
+## 新功能入口
 
-## 工作區恢復後接續
+重新整理網站後，到「設定 → 資料匯入與保存」：
 
-重新連接原專案工作區，從GitHub取得最新的 `recovery/household-20261017`。中斷後的相容性與交接更新僅保存在GitHub，本機舊工作樹可能仍停在較早階段；保留原工作樹，使用乾淨的新工作樹讀取遠端來源。發布上述已驗證的特定來源；文件更新提交不改變應用程式內容。
+- 「匯入付款紀錄」：選擇CSV／TSV帳單，核對欄位與分類、檢查重複，再確認寫入；不會自動登入銀行或支付帳號。
+- 「常用買方統編」：保存、複製或清除常用8碼統編。手動記帳、照片確認及修改明細可逐筆填寫或留白；不會修改已開立發票。
+- 「每月報表與雲端保存」：預設本人已驗證信箱，可改選Google Drive或兩者。首次仍需本人在Google安裝並授權Apps Script；發布網站本身不會寄信或上傳。
 
-目標為既有免費Render Web Service：`fambudget-recovery-20261017`（`srv-db9opo61egvs7382obu0`），分支 `recovery/household-20261017`，autoDeploy目前關閉。最後一次唯讀檢查確認沒有維護模式環境變數。發布前再次確認方案為Free，保持目前私人的DATABASE_URL；這次功能更新不等於Neon切換。
+詳細步驟見[付款、統編與月報操作說明](FREE-PAYMENTS-AND-MONTHLY-REPORTS.md)。
 
-## 如由使用者在Render自行發布
+## 已完成的檢查
 
-1. 開啟Render Dashboard，選擇Web Service「fambudget-recovery-20261017」。
-2. 核對免費方案、儲存庫及上述分支，使用「Manual Deploy」中的特定提交選項，指定 `bce6ef04dda5d474f02cf7261d17d90c98607c15`。若介面未提供特定提交選項，先恢復專案工作區，再使用已備妥的固定來源發布流程。
-3. 等候部署顯示Live。啟動命令會套用0010／0011兩個新增遷移，再啟動網站；只更新前端檔案不足以啟用新功能。不要改成付費方案、重設資料庫或刪除原資料。
-4. 重載網站，到「設定 → 資料匯入與保存」，確認「匯入付款紀錄」、「每月報表與雲端保存」、「常用買方統編」三個入口；核對原明細與照片。
-5. [月報](FREE-PAYMENTS-AND-MONTHLY-REPORTS.md)仍需本人首次在Google安裝並授權。部署本身不會寄信或上傳雲端，也不是完整自動備份。
+- [一般功能、Windows與後端CI](https://github.com/ChunWei-0801/-/actions/runs/40274337261)：三個工作全通過；後端1276、瀏覽器83及生活功能獨立流程通過。
+- [三核心相容性CI](https://github.com/ChunWei-0801/-/actions/runs/40274337200)：Chromium、Firefox、WebKit，桌面與手機／窄螢幕共十二項通過，零跳過。裝置設定與真機驗收有別，見[完整範圍](BROWSER-COMPATIBILITY.md)。
+- Render發布前後確認方案仍為Free、原DATABASE_URL完全相同、維護關閉，健康檢查為`/healthz`。實際啟動命令包含Alembic遷移，並在啟動Uvicorn前執行。
+- 新遷移只增加4張表；隔離PostgreSQL18演練確認既有資料與照片一致。本次沒有直接查詢正式資料庫或對正式帳號做測試寫入。
 
-目前仍沒有本次正式部署或正式全站實機驗收證據；真正發布後，應再記錄實際部署來源、狀態與時間。
+## 尚需使用者確認
+
+實體Android／iPhone的相機、相簿、鍵盤、下載與加入主畫面仍需真機確認；測試不能保證每種瀏覽器、內嵌視窗及舊版本的全部功能相同。本機AI仍需要裝置支援WebGPU，無法使用時提供手動或明確標示的規則解析。
+
+Google月報尚未由使用者安裝排程、未實際收信或存入Drive。月報不是完整資料庫備份。Neon搬移也尚未執行；目前仍使用Render，原Neon副本是先前快照，切換前需重新備份與比對。這些項目不能因本次發布而標示為完成。
