@@ -24,7 +24,24 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-fambudget-playwright-1.57.0-${{ matrix.engine }}
+      - name: Use official Ubuntu mirrors with bounded network waits
+        run: |
+          sudo python3 - <<'PYSETUP'
+          from pathlib import Path
+          paths = list(Path('/etc/apt').glob('apt-mirrors*.txt'))
+          paths += list(Path('/etc/apt/sources.list.d').glob('*.sources'))
+          paths.append(Path('/etc/apt/sources.list'))
+          for source in paths:
+              if source.is_file():
+                  text = source.read_text()
+                  text = text.replace('http://azure.archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu')
+                  text = text.replace('http://archive.ubuntu.com/ubuntu', 'https://archive.ubuntu.com/ubuntu')
+                  text = text.replace('http://security.ubuntu.com/ubuntu', 'https://security.ubuntu.com/ubuntu')
+                  source.write_text(text)
+          Path('/etc/apt/apt.conf.d/99-fambudget-ci-network').write_text('Acquire::Retries "1";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nAcquire::ForceIPv4 "true";\n')
+          PYSETUP
       - name: Install browser and system dependencies
+        timeout-minutes: 8
         run: '"$RUNNER_TEMP/fambudget-browser/node_modules/.bin/playwright" install --with-deps ${{ matrix.engine }}'
       - name: Exercise actual app in desktop and mobile contexts
         env:
