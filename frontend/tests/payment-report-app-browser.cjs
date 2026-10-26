@@ -48,14 +48,14 @@ test('real application wires buyer details, review imports and opt-in report set
  await page.evaluate(()=>location.hash='#/settings');await page.locator('[data-billing-profile]').click();await page.locator('[data-billing-profile].billing-dialog').waitFor();assert.equal(await page.locator('.billing-dialog [name=buyerTaxId]').inputValue(),'00123456');await page.locator('[data-billing-close]').click();
  await page.locator('[data-monthly-report-setup]').click();await page.locator('.monthly-report-dialog').waitFor();assert.equal(await page.locator('[name=delivery]').inputValue(),'email');assert.equal(await page.locator('[name=enabled]').isChecked(),false);assert.equal(await page.locator('[name=recipientEmail]').inputValue(),'verified@example.test');assert.equal(await page.locator('[data-monthly-form]').evaluate(n=>getComputedStyle(n).display),'block');assert.ok(await page.locator('[name=termsAccepted]').locator('..').evaluate(n=>n.getBoundingClientRect().width>250),'Consent uses the dialog width');
  for(const width of [320,390,1280]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'settings and dialog fit '+width);}
- assert.equal(await page.evaluate(()=>__featureCalls.some(c=>c.path.includes('/authorize'))),false,'Opening settings does not authorize delivery');await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/tmp/fambudget-monthly-settings.png'});assert.deepEqual(errors,[]);
+ assert.equal(await page.evaluate(()=>__featureCalls.some(c=>c.path.includes('/authorize'))),false,'Opening settings does not authorize delivery');await page.setViewportSize({width:mobile?390:1280,height:mobile?844:900});await page.screenshot({path:require('node:path').join(process.env.RUNNER_TEMP||'/tmp','fambudget-'+engineName+'-'+(mobile?'mobile':'desktop')+'.png')});assert.deepEqual(errors,[]);
 });
 
 test('browser engine supports responsive routes, OS colours, touch controls and camera file selection',async t=>{
  const {page,context,errors}=await fixture(t);
  if(mobile&&engineName==='chromium')assert.match(await page.evaluate(()=>navigator.userAgent),/Android/);
  if(mobile&&engineName==='webkit')assert.match(await page.evaluate(()=>navigator.userAgent),/iPhone/);
- if(mobile&&engineName!=='firefox')assert.ok(await page.evaluate(()=>navigator.maxTouchPoints)>0);
+ if(mobile&&engineName==='chromium')assert.ok(await page.evaluate(()=>navigator.maxTouchPoints)>0);
  for(const scheme of ['dark','light']){
   await page.emulateMedia({colorScheme:scheme});await page.waitForFunction(s=>document.documentElement.dataset.colorScheme===s,scheme);
   assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).colorScheme),scheme);

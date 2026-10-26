@@ -33,3 +33,12 @@ jobs:
           for profile in desktop mobile; do
             FAMBUDGET_TEST_DEVICE="$profile" node --test frontend/tests/payment-report-app-browser.cjs || exit 1
           done
+
+      - name: Save isolated layout screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-layout-${{ matrix.engine }}
+          path: ${{ runner.temp }}/fambudget-${{ matrix.engine }}-*.png
+          if-no-files-found: ignore
+          retention-days: 14
