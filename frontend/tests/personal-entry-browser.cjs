@@ -16,11 +16,12 @@ async function fixture(t){
  await page.goto(base+'/?api=#/login');await page.waitForFunction(()=>window.API&&window.I18n);await page.evaluate(()=>I18n.ready);
  await page.evaluate(async()=>{await API.register({name:'私人記帳驗收',email:'private.entry.fixture@example.test',password:'Fixture-password-9!'});await API.updateProfile({onboarded:true});location.hash='#/';});
  await page.reload();await page.locator('.gsw__empty').waitFor();
+ await page.locator('#view [data-personal-details]').waitFor();
  return{page,errors};
 }
 test('no activity is needed for manual or parsed entries and the destination stays private after reload',{skip:!pw},async t=>{
  const {page,errors}=await fixture(t);
- await page.locator('[data-quick="entry"]:visible').first().click();await page.locator('#paraText').waitFor();
+ await page.locator('#view [data-quick="entry"]').first().click();await page.locator('#paraText').waitFor();
  await page.locator('[data-manual-entry]').click();await page.locator('#singleAmount').fill('65');await page.locator('#singleMerchant').fill('無活動早餐');
  assert.match(await page.locator('#entryDestination').innerText(),/不必先建立活動/);
  await page.locator('#singleSave').click();await page.locator('#singleSave').click();await page.locator('#txList').getByText('無活動早餐',{exact:true}).waitFor();
