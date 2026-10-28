@@ -264,7 +264,7 @@ def test_confirm_one_寫入明細與評測資料(api):
     g = ledger_of(me)
     food = str(cats["餐飲"].id)
     r = api.post("/api/nlp/confirm", headers=login(me), json={
-        "date": today(), "amount": 60, "kind": "expense", "cat": food, "raw": "早餐55", "conf": 0.99, "catConf": 0.9,
+        "date": today(), "amount": 60, "kind": "expense", "cat": food, "raw": "早餐55", "conf": 0.99, "catConf": 0.9, "groupId": str(g.id),
         "orig": {"by": "model", "date": today(), "amount": 55, "kind": "expense", "cat": food}})
     assert r.status_code == 201, r.text
     body = r.json()
@@ -366,7 +366,7 @@ def test_confirm_batch_有一筆不對就一筆都不寫(api):
     g = ledger_of(me, mom)
     crud.save(GroupMember, {"notify": True}, where={"group_id": g.id, "user_id": mom.id})
     food, salary = str(cats["餐飲"].id), str(cats["薪資"].id)
-    ok = {"span": "早餐55", "date": today(), "amount": 55, "kind": "expense", "cat": food}
+    ok = {"span": "早餐55", "date": today(), "amount": 55, "kind": "expense", "cat": food, "groupId": str(g.id)}
     h = login(me)
     r = api.post("/api/nlp/confirm-batch", headers=h, json={"items": [ok, {**ok, "cat": salary}]})
     assert r.status_code == 400 and "第 2 筆" in r.json()["detail"]

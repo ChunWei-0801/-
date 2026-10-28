@@ -230,7 +230,7 @@
       d: '手動新增。單筆手動模式走這支',
       body: '{\n  "date": "2026-09-13",\n  "amount": 1280,\n  "kind": "expense",\n  "cat": "C01",\n  "groupId": "G2",\n  "merchant": "全聯",\n  "note": "一週的菜"\n}',
       res: '{\n  "id": "T1",\n  "user": "U1",\n  "date": "2026-09-13",\n  "amount": 1280,\n  "group": "G2",\n  "kind": "expense",\n  "cat": "C01",\n  "merchant": "全聯",\n  "note": "一週的菜",\n  "source": "manual",\n  "raw": ""\n}',
-      note: '自行輸入實際金額；匯率頁也可帶入 TWD 金額與來源備註，再確認送出。不經過模型，寫入的 source 記成 manual。<code>groupId</code> 不帶就記進第一本還沒結算的帳；一本都沒有回 409。結算過的帳本回 409。' },
+      note: '自行輸入實際金額；匯率頁也可帶入 TWD 金額與來源備註，再確認送出。不經過模型，寫入的 source 記成 manual。<code>groupId</code> 不帶或為 null 時記入自己的收支明細；若尚未有可用的私人底層帳，會在同一交易中建立，不必先新增活動。明確指定活動時仍檢查成員權限；已結算或封存回 409，不會默默改記別處。' },
     { n: 17, o: 'm2', m: 'PATCH', p: '/api/transactions/{tx_id}', a: '本人',
       d: '修改一筆。只送要改的欄位',
       body: '{ "amount": 1350, "note": "一週的菜＋水果" }',

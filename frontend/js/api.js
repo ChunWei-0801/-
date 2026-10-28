@@ -792,14 +792,27 @@
      ⚠️ 結算過的帳本唯讀：指定了就擋（409），沒指定也不會落到它身上。
      真後端用 toolkit.ledger.require_open()。 */
   function groupFor(meId, wanted) {
-    var mine = visibleGroups(meId);
-    var open = mine.filter(function (id) { var g = groupOf(id); return g && !g.settledAt; });
-    if (wanted && mine.indexOf(wanted) >= 0) {
-      if (open.indexOf(wanted) < 0) throw oops('這本帳已經結算，不能再記新的帳。請換一本帳本', 409);
+    var mine = visibleGroups(meId, true);
+    var open = mine.filter(function (id) { var g = groupOf(id); return g && !g.archived && !g.settledAt; });
+    if (wanted) {
+      if (mine.indexOf(wanted) < 0) throw oops('找不到這個活動', 404);
+      if (open.indexOf(wanted) < 0) throw oops('活動已結算或封存，請選擇可記帳的活動', 409);
       return wanted;
     }
-    if (!open.length) throw new Error('你還沒有可以記帳的帳本，先到「帳本」開一本');
-    return open[0];
+    // No explicit activity means personal details, never the first shared activity.
+    var personal = open.filter(function (id) {
+      var g = groupOf(id), members = memberIdsOf(id);
+      return g.owner === meId && g.kind === 'standing' &&
+        (g.name === '個人帳本' || g.name === '收支明細') &&
+        members.length === 1 && members[0] === meId;
+    })[0];
+    if (personal) return personal;
+    var s = load(), id = stampId('G');
+    s.newGroups = (s.newGroups || []).concat([{ id:id, name:'收支明細',
+      color:(global.DATA.groupColors || [{}])[0].id || 'book-indigo',
+      owner:meId, kind:'standing', endsOn:null, settledAt:null, created:todayStr(), note:'' }]);
+    s.joined = (s.joined || []).concat([{ group:id, user:meId }]);
+    return id;
   }
 
   /* 跟我同帳本的人。我看得到他們**在共用帳本裡**的紀錄，
@@ -2199,6 +2212,7 @@
         }
         if ('groupId' in p && !p.groupId) throw oops('要選一本帳本', 400);
         if ('groupId' in p && p.groupId !== t.group) {
+          if (visibleGroups(s.me, true).indexOf(p.groupId) < 0) throw oops('你沒有加入這個活動', 403);
           next.group = groupFor(s.me, p.groupId);      // 看不到的帳本、結算過的帳本在這裡擋
           if (next.group !== p.groupId) throw oops('你沒有加入這本帳', 403);
         }

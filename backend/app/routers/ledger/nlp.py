@@ -33,6 +33,7 @@ from app.toolkit import crud, errors, ledger, money, notify
 from app.toolkit.config import settings
 from app.toolkit.db import get_db
 from app.services.ledger import transaction_amount, confidence
+from app.services.transaction_destination import write_group
 
 router = APIRouter(tags=["段落記帳"])
 OWNER = "記帳"
@@ -120,6 +121,7 @@ def parse_one(body: ParseIn, me: User, db: Session = Depends(get_db)):
             from app.toolkit.config import settings
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
 
         第二步：目前函式主體已採用以下寫法。
 
@@ -321,6 +323,7 @@ def parse_batch(body: ParseIn, me: User, db: Session = Depends(get_db)):
             from app.toolkit.config import settings
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
 
         第二步：目前函式主體已採用以下寫法。
 
@@ -534,7 +537,7 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
         400     分類找不到、或收支對不上                          找不到這個分類／「薪資」是收入分類，跟這筆的收支對不上
         404     groupId 不存在、移除、或我不在裡面                找不到這本帳
         409     groupId 那本已經結算                              這本帳已經結算，不能再記新的帳。請換一本帳本
-        409     沒帶 groupId，也沒有能記的帳本                    你還沒有可以記帳的帳本，先到「帳本」開一本
+        201     未指定 groupId                                  使用本人私人收支，無須先建立活動
         422     date 格式不對                                     日期要是 YYYY-MM-DD
         422     amount ≤ 0、kind 不對、orig.by 不是 model／rules／hybrid  （FastAPI 自動回）
 
@@ -581,6 +584,7 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
             from app.toolkit.config import settings
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
 
         第二步：目前函式主體已採用以下寫法。
 
@@ -590,24 +594,8 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
             except ValueError:
                 raise errors.unprocessable("日期要是 YYYY-MM-DD") from None
 
-            # 2. 決定這筆記在哪本帳（規則跟 POST /api/transactions 一樣）
-            my_groups = crud.find(GroupMember, {"user_id": me.id}, fields="group_id", db=db)
-            if body.groupId:
-                group_id = int(body.groupId) if body.groupId.isdigit() else 0
-                group = crud.get(Group, where={"id": group_id, "id__in": my_groups,
-                                               "removed_at__isnull": True}, db=db, for_update=True)
-                if group is None:
-                    raise errors.not_found("找不到這本帳")
-                try:
-                    ledger.require_open(group.settled_at)
-                except ValueError as exc:
-                    raise errors.conflict(str(exc) + "。請換一本帳本") from None
-            else:
-                group = crud.get(Group, where={"id__in": my_groups, "removed_at__isnull": True,
-                                               "archived_at__isnull": True, "settled_at__isnull": True},
-                                 order_by="id", db=db, for_update=True)
-                if group is None:
-                    raise errors.conflict("你還沒有可以記帳的帳本，先到「帳本」開一本")
+            # 2. 決定活動或本人私人收支（規則跟 POST /api/transactions 一樣）
+            group = write_group(db, me, body.groupId, create=True, lock=True)
 
             # 3. 檢查分類
             category_id = int(body.cat) if body.cat.isdigit() else 0
@@ -706,24 +694,8 @@ def confirm_one(body: ConfirmIn, me: User, db: Session = Depends(get_db)):
     except ValueError:
         raise errors.unprocessable("日期要是 YYYY-MM-DD") from None
 
-    # 2. 決定這筆記在哪本帳（規則跟 POST /api/transactions 一樣）
-    my_groups = crud.find(GroupMember, {"user_id": me.id}, fields="group_id", db=db)
-    if body.groupId:
-        group_id = int(body.groupId) if body.groupId.isdigit() else 0
-        group = crud.get(Group, where={"id": group_id, "id__in": my_groups,
-                                       "removed_at__isnull": True}, db=db, for_update=True)
-        if group is None:
-            raise errors.not_found("找不到這本帳")
-        try:
-            ledger.require_open(group.settled_at)
-        except ValueError as exc:
-            raise errors.conflict(str(exc) + "。請換一本帳本") from None
-    else:
-        group = crud.get(Group, where={"id__in": my_groups, "removed_at__isnull": True,
-                                       "archived_at__isnull": True, "settled_at__isnull": True},
-                         order_by="id", db=db, for_update=True)
-        if group is None:
-            raise errors.conflict("你還沒有可以記帳的帳本，先到「帳本」開一本")
+    # 2. 決定活動或本人私人收支（規則跟 POST /api/transactions 一樣）
+    group = write_group(db, me, body.groupId, create=True, lock=True)
 
     # 3. 檢查分類
     category_id = int(body.cat) if body.cat.isdigit() else 0
@@ -828,7 +800,7 @@ def confirm_batch(body: ConfirmBatchIn, me: User, db: Session = Depends(get_db))
         span                                     字串  否    原句裡對應的那一段，寫進 nlp_parses.raw_text
         date／amount／kind／cat／merchant／note  |     使用者確認後的值，規則同 POST /api/transactions
         conf                                     物件  否    {date, amount, kind, cat} 各欄信心度
-        groupId                                  字串  否    **只看第一筆的**：整批記進同一本帳；沒帶就記進第一本還能記的
+        groupId                                  字串  否    **只看第一筆的**：整批記進同一本帳；未指定就記入本人私人收支，缺少時安全建立
         orig                                     物件  否    解析當下的原始結果，by 是 "model"、"rules" 或 "hybrid"
         範例：
             {"items": [{"span": "早上買早餐55", "date": "2026-09-17", "amount": 55, "kind": "expense", "cat": "1",
@@ -893,28 +865,12 @@ def confirm_batch(body: ConfirmBatchIn, me: User, db: Session = Depends(get_db))
             from app.toolkit.config import settings
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
 
         第二步：目前函式主體已採用以下寫法。
 
-            # 1. 決定整批記在哪本帳：只看第一筆的 groupId
-            wanted = body.items[0].groupId
-            my_groups = crud.find(GroupMember, {"user_id": me.id}, fields="group_id", db=db)
-            if wanted:
-                group_id = int(wanted) if wanted.isdigit() else 0
-                group = crud.get(Group, where={"id": group_id, "id__in": my_groups,
-                                               "removed_at__isnull": True}, db=db, for_update=True)
-                if group is None:
-                    raise errors.not_found("找不到這本帳")
-                try:
-                    ledger.require_open(group.settled_at)
-                except ValueError as exc:
-                    raise errors.conflict(str(exc) + "。請換一本帳本") from None
-            else:
-                group = crud.get(Group, where={"id__in": my_groups, "removed_at__isnull": True,
-                                               "archived_at__isnull": True, "settled_at__isnull": True},
-                                 order_by="id", db=db, for_update=True)
-                if group is None:
-                    raise errors.conflict("你還沒有可以記帳的帳本，先到「帳本」開一本")
+            # 1. 決定整批目的地：只看第一筆的 groupId；未指定則為本人私人收支
+            group = write_group(db, me, body.items[0].groupId, create=True, lock=True)
 
             # 2. 每一筆先檢查完；有一筆不對，整批一筆都不寫
             cats = {c.id: c for c in crud.find(Category, {
@@ -1008,25 +964,8 @@ def confirm_batch(body: ConfirmBatchIn, me: User, db: Session = Depends(get_db))
 
 
 
-    # 1. 決定整批記在哪本帳：只看第一筆的 groupId
-    wanted = body.items[0].groupId
-    my_groups = crud.find(GroupMember, {"user_id": me.id}, fields="group_id", db=db)
-    if wanted:
-        group_id = int(wanted) if wanted.isdigit() else 0
-        group = crud.get(Group, where={"id": group_id, "id__in": my_groups,
-                                       "removed_at__isnull": True}, db=db, for_update=True)
-        if group is None:
-            raise errors.not_found("找不到這本帳")
-        try:
-            ledger.require_open(group.settled_at)
-        except ValueError as exc:
-            raise errors.conflict(str(exc) + "。請換一本帳本") from None
-    else:
-        group = crud.get(Group, where={"id__in": my_groups, "removed_at__isnull": True,
-                                       "archived_at__isnull": True, "settled_at__isnull": True},
-                         order_by="id", db=db, for_update=True)
-        if group is None:
-            raise errors.conflict("你還沒有可以記帳的帳本，先到「帳本」開一本")
+    # 1. 決定整批目的地：只看第一筆的 groupId；未指定則為本人私人收支
+    group = write_group(db, me, body.items[0].groupId, create=True, lock=True)
 
     # 2. 每一筆先檢查完；有一筆不對，整批一筆都不寫
     cats = {c.id: c for c in crud.find(Category, {

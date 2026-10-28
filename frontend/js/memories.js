@@ -7,22 +7,28 @@
   function esc(value) { return tools().esc(value); }
   function t(key, fallback) { return tools().t(key, fallback); }
   function json(path, opt) { return tools().json(path, opt); }
+  function current(ctx) {
+    if(active!==ctx||!ctx.root.isConnected)return false;
+    if(!ctx.owner||!global.LifeFeatures||typeof global.LifeFeatures.user!=='function')return true;
+    var owner=global.LifeFeatures.user();return String(owner&&owner.id!=null?owner.id:'')===ctx.owner;
+  }
   function date(value, zone) { if (!value) return '—'; var d = new Date(value), options = {dateStyle:'medium'}; if (zone) options.timeZone = zone; return Number.isNaN(d.getTime()) ? String(value).slice(0,10) : (global.I18n && global.I18n.date ? global.I18n.date(d, options) : d.toLocaleDateString(undefined, options)); }
   function option(value, label, current) { return '<option value="' + esc(value) + '"' + (String(value) === String(current) ? ' selected' : '') + '>' + esc(label) + '</option>'; }
   function status(ctx, text, error) {
-    if (active !== ctx || !ctx.root.isConnected) return;
+    if (!current(ctx)) return;
     var node = ctx.root.querySelector('[data-mem-status]');
     if (node) { node.textContent = text || ''; node.classList.toggle('is-error', !!error); }
   }
   function keepURL(ctx, promise, wallRequest) {
     var generation = ctx.generation;
     return promise.then(function (url) {
-      if (active !== ctx || !ctx.root.isConnected || generation !== ctx.generation || (wallRequest != null && wallRequest !== ctx.wallRequest)) { URL.revokeObjectURL(url); return null; }
+      if (!current(ctx) || generation !== ctx.generation || (wallRequest != null && wallRequest !== ctx.wallRequest)) { URL.revokeObjectURL(url); return null; }
       (wallRequest == null ? ctx.urls : ctx.wallUrls).push(url); return url;
     });
   }
   function dispose() {
     if (!active) return;
+    if (active.jigsaw) { active.jigsaw.dispose(); active.jigsaw = null; }
     active.abort.abort();
     active.urls.forEach(function (url) { URL.revokeObjectURL(url); }); active.urls = [];
     active.wallUrls.forEach(function (url) { URL.revokeObjectURL(url); }); active.wallUrls = [];
@@ -47,7 +53,7 @@
     var count = game ? game.pieceCount : data.settings.pieceCount;
     var earned = game ? game.earnedPieces : 0;
     var cols = Math.sqrt(count), percent = Math.min(100, Math.round(earned / count * 100));
-    var h = '<section class="card memories-current"><div class="card__h"><div><p class="media-eyebrow">' + esc(t('memories.personalWorld', '每一筆，拼出生活')) + '</p><h2 class="card__t">' + esc(game ? (complete ? t('memories.completed', '這張拼圖已完成！') : t('memories.currentPuzzle', '正在收集的拼圖')) : t('memories.startFirst', '選一張照片，開始你的第一張拼圖')) + '</h2></div></div>' +
+    var h = '<section class="card memories-current"><div class="card__h"><div><p class="media-eyebrow">' + esc(t('memories.personalWorld', '每一筆，拼出生活')) + '</p><h2 class="card__t">' + esc(game ? (complete ? t('memories.collectionComplete', '拼圖片已集滿！') : t('memories.currentPuzzle', '正在收集的拼圖')) : t('memories.startFirst', '選一張照片，開始你的第一張拼圖')) + '</h2></div></div>' +
       '<div class="memories-current__body"><div><div class="memories-puzzle" data-mem-puzzle style="--puzzle-cols:' + cols + '" role="img" aria-label="' + esc(t('memories.puzzleProgress', '拼圖收集進度')) + ' ' + earned + '/' + count + '">';
     for (var i = 0; i < count; i++) h += '<div class="memories-tile' + (game && i < earned ? ' is-earned' : '') + '" data-piece="' + i + '"><span>' + (i < earned ? '✓' : String(i + 1)) + '</span></div>';
     h += '</div>' + (game ? '<p class="memories-help">' + esc(t('memories.startedAt', '開始日期')) + ' ' + esc(date(game.createdAt, game.timezone)) + (complete ? ' · ' + esc(t('memories.completedAt', '完成日期')) + ' ' + esc(date(game.completedAt, game.timezone)) : '') + '</p>' : '') + '</div>' +
@@ -74,7 +80,23 @@
         tile.style.backgroundImage = 'url("' + url + '")'; tile.style.backgroundSize = cols * 100 + '% ' + cols * 100 + '%';
         tile.style.backgroundPosition = (cols === 1 ? 0 : x / (cols - 1) * 100) + '% ' + (cols === 1 ? 0 : y / (cols - 1) * 100) + '%';
       });
+      if (game.completed && global.MemoriesJigsaw) {
+        var host=ctx.root.querySelector('[data-mem-jigsaw]');
+        ctx.jigsaw=global.MemoriesJigsaw.mount(host,{owner:ctx.owner,gameId:game.id,pieceCount:game.pieceCount,imageURL:url,
+          isCurrent:function(){return current(ctx);},
+          onState:function(state){if(!current(ctx))return;ctx.jigsawSolved=state.solved;gateNextPuzzle(ctx);}
+        });
+        if(ctx.jigsaw)ctx.root.querySelector('[data-mem-puzzle]').hidden=true;
+      }
     } catch (error) { status(ctx, tools().message(error), true); }
+  }
+  function gateNextPuzzle(ctx) {
+    var form=ctx.root.querySelector('[data-mem-start]');if(!form)return;
+    var complete=ctx.data&&ctx.data.current&&ctx.data.current.completed,blocked=complete&&!ctx.jigsawSolved;
+    var input=form.querySelector('[data-mem-file]'),button=form.querySelector('[data-mem-start-button]'),notice=form.querySelector('[data-mem-jigsaw-lock]');
+    if(input)input.disabled=!!ctx.saving||ctx.data.period.remaining<1||blocked;
+    if(button)button.disabled=!!ctx.saving||!ctx.selectedFile||ctx.data.period.remaining<1||blocked;
+    if(notice){var words=global.MemoriesJigsaw&&global.MemoriesJigsaw.words();notice.textContent=words?(blocked?words.lock:words.ready):t('memories.rearrangeUnavailable','請重新整理頁面，載入手動拼圖功能後再開始下一張。');notice.classList.toggle('is-complete',!blocked);}
   }
   async function applyWallBackground(ctx) {
     if (!ctx.data.settings.wallBackgroundUrl) return;
@@ -95,7 +117,7 @@
     var request = ++ctx.wallRequest;
     try {
       var data = await json('/api/memories/achievements?' + query.toString());
-      if (active !== ctx || request !== ctx.wallRequest) return;
+      if (!current(ctx) || request !== ctx.wallRequest) return;
       var games = data.achievements || [];
       area.innerHTML = games.length ? '' : '<p class="memories-empty">' + esc(t('memories.noAchievements', '這個年月還沒有完成的拼圖。每筆記帳，都會讓下一張成就更接近。')) + '</p>';
       games.forEach(function (game) {
@@ -103,7 +125,7 @@
         card.innerHTML = '<div class="memories-achievement__photo"><span>' + esc(t('media.loading', '正在讀取相片…')) + '</span></div><div class="memories-achievement__info"><h3>' + esc(game.year) + ' / ' + esc(String(game.month).padStart(2,'0')) + '</h3><p>' + esc(t('memories.completedAt', '完成日期')) + ' ' + esc(date(game.completedAt, game.timezone)) + '</p><span class="memories-badge">' + esc(game.pieceCount) + ' ' + esc(t('memories.pieceUnit', '片')) + ' · ' + esc(t('memories.completedBadge', '完成收藏')) + '</span></div>';
         area.appendChild(card);
         keepURL(ctx, tools().imageURL(game.imageUrl), request).then(function (url) {
-          if (url && active === ctx && request === ctx.wallRequest && card.isConnected) card.querySelector('.memories-achievement__photo').innerHTML = '<a href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" alt="' + esc(t('memories.completedPuzzle', '已完成的回憶拼圖')) + '"></a>';
+          if (url && current(ctx) && request === ctx.wallRequest && card.isConnected) card.querySelector('.memories-achievement__photo').innerHTML = '<a href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" alt="' + esc(t('memories.completedPuzzle', '已完成的回憶拼圖')) + '"></a>';
         }).catch(function (error) { if (card.isConnected) card.querySelector('.memories-achievement__photo').textContent = tools().message(error); });
       });
       var pagination = ctx.root.querySelector('[data-mem-pagination]');
@@ -118,15 +140,22 @@
     finally { if (active === ctx && request === ctx.wallRequest) area.setAttribute('aria-busy', 'false'); }
   }
   function paint(ctx) {
+    if (ctx.jigsaw) { ctx.jigsaw.dispose(); ctx.jigsaw = null; }
+    ctx.jigsawSolved=false;
     ctx.generation++;
     ctx.root.innerHTML = '<div class="page memories"><div class="memories-intro"><span class="memories-intro__icon" aria-hidden="true">✦</span><div><h2>' + esc(t('memories.title', '我的小天地')) + '</h2><p>' + esc(t('memories.intro', '把每天的記帳，拼成值得收藏的生活。')) + '</p></div><button class="btn btn--sm" data-mem-refresh>' + esc(t('memories.refresh', '更新進度')) + '</button></div><p class="media-status" data-mem-status role="status" aria-live="polite"></p>' + puzzleHTML(ctx.data) + settingsHTML(ctx.data) +
       '<details class="memories-rules"><summary>' + esc(t('memories.collectionRules', '收集與保存規則')) + '</summary><ul><li>' + esc(t('memories.ruleActivation', '系統更新後的每筆新記帳都會自動累積；即使還沒選拼圖照片，也會先保留片數。')) + '</li><li>' + esc(t('memories.ruleUnique', '每筆有效記帳僅獎勵一次；刪除未完成拼圖所用的記帳會扣回片數，相同內容刪除再建不會重複獎勵。')) + '</li><li>' + esc(t('memories.ruleCompletion', '集滿會自動加入成就牆；多出的片數保留給下一張。完成的成就永久保留。')) + '</li><li>' + esc(t('memories.rulePeriod', '每週／每月的換圖額度依設定的時區計算；未完成的照片與片數會延續，不因週期重置而遺失。')) + '</li><li>' + esc(t('memories.rulePhotos', '拼圖照片與牆面背景會儲存到你的帳號，僅供你本人查看；系統保存適合瀏覽的壓縮版本。')) + '</li></ul></details>' + wallHTML(ctx.data, ctx.wallYears) + '</div>';
     ctx.root.querySelector('[data-mem-year]').value = ctx.wallYear || '';
     ctx.root.querySelector('[data-mem-month]').value = ctx.wallMonth || '';
+    if(ctx.data.current&&ctx.data.current.completed){
+      var puzzle=ctx.root.querySelector('[data-mem-puzzle]');puzzle.insertAdjacentHTML('afterend','<div data-mem-jigsaw></div>');
+      var start=ctx.root.querySelector('[data-mem-start]');if(start)start.insertAdjacentHTML('afterbegin','<p class="memories-help memories-jigsaw-lock" data-mem-jigsaw-lock role="status"></p>');
+      gateNextPuzzle(ctx);
+    }
     applyGamePhoto(ctx); applyWallBackground(ctx); loadAchievements(ctx, 1);
   }
   function applyState(ctx, data, success) {
-    if (active !== ctx || !ctx.root.isConnected) return;
+    if (!current(ctx)) return;
     ctx.loadRequest++; ctx.fileRequest++;
     ctx.urls.forEach(function (url) { URL.revokeObjectURL(url); }); ctx.urls = [];
     ctx.wallUrls.forEach(function (url) { URL.revokeObjectURL(url); }); ctx.wallUrls = [];
@@ -137,7 +166,7 @@
     var request = ++ctx.loadRequest;
     status(ctx, t('memories.loading', '正在同步你的拼圖…'));
     var data = await json('/api/memories');
-    if (active !== ctx || request !== ctx.loadRequest) return;
+    if (!current(ctx) || request !== ctx.loadRequest) return;
     applyState(ctx, data, success);
   }
   async function selectFile(ctx, input) {
@@ -150,14 +179,14 @@
     status(ctx, t('media.preparing', '正在整理相片，請稍候…'));
     try {
       var prepared = await tools().prepareSquarePhoto(file);
-      if (active !== ctx || request !== ctx.fileRequest || !input.isConnected) return;
+      if (!current(ctx) || request !== ctx.fileRequest || !input.isConnected) return;
       ctx.selectedFile = prepared;
       ctx.previewURL = URL.createObjectURL(prepared);
       preview.hidden = false;
       preview.innerHTML = '<img src="' + esc(ctx.previewURL) + '" alt="' + esc(t('memories.preview', '下一張拼圖預覽')) + '">';
       status(ctx, t('memories.previewReady', '請先查看方形預覽，喜歡這張照片再按「開始這張拼圖」。'));
     } catch (error) { if (active === ctx && request === ctx.fileRequest) { status(ctx, tools().message(error), true); input.value = ''; } }
-    finally { if (active === ctx && request === ctx.fileRequest && submit.isConnected) submit.disabled = ctx.saving || !ctx.selectedFile || ctx.data.period.remaining < 1; }
+    finally { if (active === ctx && request === ctx.fileRequest && submit.isConnected) gateNextPuzzle(ctx); }
   }
   function setSaving(ctx, saving) {
     ctx.saving = saving;
@@ -167,11 +196,11 @@
       if (saving) { node.dataset.memDisabled = node.disabled ? '1' : '0'; node.disabled = true; }
       else if (node.hasAttribute('data-mem-disabled')) { node.disabled = node.dataset.memDisabled === '1'; delete node.dataset.memDisabled; }
     });
-    if (!saving) { var start = ctx.root.querySelector('[data-mem-start-button]'); if (start) start.disabled = !ctx.selectedFile || ctx.data.period.remaining < 1; }
+    gateNextPuzzle(ctx);
   }
   function bind(ctx) {
     ctx.root.addEventListener('click', async function (event) {
-      if (active !== ctx) return;
+      if (!current(ctx)) return;
       var target = event.target.closest('button'); if (!target) return;
       if (ctx.saving || target.disabled) return;
       if (target.hasAttribute('data-mem-page')) { loadAchievements(ctx, Number(target.dataset.memPage)); return; }
@@ -190,7 +219,7 @@
       }
     }, {signal:ctx.abort.signal});
     ctx.root.addEventListener('change', async function (event) {
-      if (active !== ctx || ctx.saving) return;
+      if (!current(ctx) || ctx.saving) return;
       var input = event.target;
       if (input.hasAttribute('data-mem-file')) { selectFile(ctx, input); return; }
       if (input.hasAttribute('data-mem-year') || input.hasAttribute('data-mem-month')) { loadAchievements(ctx, 1); return; }
@@ -200,7 +229,7 @@
         status(ctx, t('media.saving', '正在整理並儲存相片…'));
         try {
           var prepared = await tools().preparePhoto(file);
-          if (active !== ctx || !input.isConnected) return;
+          if (!current(ctx) || !input.isConnected) return;
           var body = new FormData(); body.append('file', prepared);
           var result = await json('/api/memories/wall-background', {method:'PUT', body:body});
           applyState(ctx, Object.assign({}, ctx.data, result), t('memories.wallBackgroundSaved', '成就牆背景已儲存。'));
@@ -210,7 +239,7 @@
       }
     }, {signal:ctx.abort.signal});
     ctx.root.addEventListener('submit', async function (event) {
-      if (active !== ctx) return;
+      if (!current(ctx)) return;
       var form = event.target; if (!form.hasAttribute('data-mem-settings') && !form.hasAttribute('data-mem-start')) return;
       event.preventDefault(); var button = form.querySelector('button[type="submit"]'); if (button.disabled || ctx.saving) return;
       setSaving(ctx, true);
@@ -221,6 +250,7 @@
           var result = await json('/api/memories/settings', {method:'PATCH', body:JSON.stringify({wallName:name,period:values.get('period'),timezone:values.get('timezone'),pieceCount:Number(values.get('pieceCount')),changesPerPeriod:Number(values.get('changesPerPeriod'))}),headers:{'Content-Type':'application/json'}});
           applyState(ctx, result, t('memories.settingsSaved', '收集設定已儲存。'));
         } else {
+          if(ctx.data.current&&ctx.data.current.completed&&!ctx.jigsawSolved)throw new Error(global.MemoriesJigsaw?global.MemoriesJigsaw.words().lock:'請先完成手動拼圖。');
           if (!ctx.selectedFile) throw new Error(t('memories.photoRequired', '請先選擇照片並查看預覽。'));
           var body = new FormData(); body.append('file', ctx.selectedFile);
           var result = await json('/api/memories/puzzles', {method:'POST', body:body});
@@ -230,9 +260,10 @@
       finally { if (active === ctx) setSaving(ctx, false); }
     }, {signal:ctx.abort.signal});
   }
-  async function render(root) {
+  async function render(root, owner) {
     dispose();
-    var ctx = {root:root, urls:[], wallUrls:[], wallYears:[], data:null, selectedFile:null, previewURL:null, wallRequest:0, loadRequest:0, fileRequest:0, generation:0, saving:false, abort:new AbortController()}; active = ctx;
+    owner=owner||(global.LifeFeatures&&global.LifeFeatures.user?global.LifeFeatures.user():null);
+    var ctx = {root:root, owner:owner&&owner.id!=null?String(owner.id):null,jigsaw:null,jigsawSolved:false, urls:[], wallUrls:[], wallYears:[], data:null, selectedFile:null, previewURL:null, wallRequest:0, loadRequest:0, fileRequest:0, generation:0, saving:false, abort:new AbortController()}; active = ctx;
     root.innerHTML = '<p class="memories-empty" role="status">' + esc(t('memories.loading', '正在同步你的拼圖…')) + '</p>';
     bind(ctx);
     try { await refresh(ctx); }

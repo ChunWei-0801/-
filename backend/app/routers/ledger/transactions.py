@@ -31,6 +31,7 @@ from app.schemas.transaction import TransactionIn, TransactionPatchIn
 from app.toolkit import crud, errors, ledger, money, notify
 from app.toolkit.db import get_db
 from app.services.ledger import transaction_amount, confidence
+from app.services.transaction_destination import write_group
 from app.services.statement_import import save_transaction_details, transaction_metadata
 from app.models.transaction_details import TransactionDetails
 
@@ -255,6 +256,7 @@ def list_transactions(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
             from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
@@ -392,6 +394,7 @@ def transaction_archives(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
             from app.models.transaction_details import TransactionDetails
 
         第二步：由共同篩選與年月統計函式回傳
@@ -443,7 +446,7 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
         cat       字串  是    分類 id。要是系統分類或自己家的分類，而且收支要跟 kind 一樣
         merchant  字串  否    店家，沒填是空字串
         note      字串  否    備註，沒填是空字串
-        groupId   字串  否    記在哪一本帳。沒填 = 自己加入的帳本裡，第一本還能記的
+        groupId   字串  否    記在哪一本帳。未指定活動 = 本人的私人收支；缺少時安全建立
         範例：
             {"date": "2026-09-17", "amount": 120, "kind": "expense", "cat": "1", "merchant": "全家", "groupId": "5"}
 
@@ -460,7 +463,7 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
         400     分類的收支跟 kind 不一樣（支出選了薪資）      「薪資」是收入分類，跟這筆的收支對不上
         404     groupId 不存在、已經移除、或自己不在那本帳裡  找不到這本帳
         409     groupId 那本帳已經結算                        這本帳已經結算，不能再記新的帳。請換一本帳本
-        409     沒填 groupId，而且一本能記的帳都沒有          你還沒有可以記帳的帳本，先到「帳本」開一本
+        201     未指定 groupId                              使用本人私人收支，無須先建立活動
         422     date 格式不對                                 日期要是 YYYY-MM-DD
         422     amount 小於等於 0、kind 不對                  （FastAPI 自動回，不用自己寫）
         ⚠️ 別人的帳本要回 404，不要回 403：回 403 等於告訴對方「這本帳存在」。
@@ -480,7 +483,7 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
                       errors.unprocessable("…")                              回 422
         2 決定帳本    crud.find(GroupMember, {"user_id": me.id}, fields="group_id", db=db)  查我加入的帳本 id，回傳 [5, 8, …]
                       crud.get(Group, where={"id": …, "id__in": …, "removed_at__isnull": True}, db=db)  查那一本；找不到回 None
-                      crud.get(Group, where={…, "settled_at__isnull": True}, order_by="id", db=db)  沒填 groupId 時，找 id 最小、還能記的那本
+                      crud.get(Group, where={…, "settled_at__isnull": True}, order_by="id", db=db)  未指定活動時，取得或安全建立本人私人收支
                       ledger.require_open(group.settled_at)                  結算過就丟 ValueError
                       errors.not_found("…")／errors.conflict("…")            回 404／409
         3 檢查分類    crud.get(Category, where={"id": …, "or": [{"family_id__isnull": True}, {"family_id": me.family_id}]}, db=db)  查分類：系統的（family_id 是 NULL）或我家的，兩個條件用 "or" 串起來
@@ -498,9 +501,9 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
 
     【寫法步驟】
         1. 檢查日期格式
-        2. 決定這筆記在哪本帳
+        2. 決定活動或本人私人收支
            · 有填 groupId：找「我加入的、還沒移除的」那本 → 找不到回 404 → 結算過回 409
-           · 沒填 groupId：找「我加入的、沒移除、沒封存、沒結算」裡 id 最小的那本 → 一本都沒有回 409
+           · 未指定 groupId：取得或安全建立本人專用私人收支，不會默選活動
         3. 檢查分類：要存在、要是系統分類（family_id 是 NULL）或我家的、收支要跟 kind 一樣 → 不對回 400
         4. 新增一列 transactions：source 一定是 "manual"，金額用 money.quantize，店家與備註是空的就存 NULL
         5. 新增通知：照看我的家長 type 記 "ward_transaction"，這本帳有開通知的人記 "group_transaction"
@@ -522,6 +525,7 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
             from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
@@ -532,24 +536,8 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
             except ValueError:
                 raise errors.unprocessable("日期要是 YYYY-MM-DD") from None
 
-            # 2. 決定這筆記在哪本帳
-            my_groups = crud.find(GroupMember, {"user_id": me.id}, fields="group_id", db=db)
-            if body.groupId:
-                group_id = int(body.groupId) if body.groupId.isdigit() else 0
-                group = crud.get(Group, where={"id": group_id, "id__in": my_groups,
-                                               "removed_at__isnull": True}, db=db, for_update=True)
-                if group is None:
-                    raise errors.not_found("找不到這本帳")
-                try:
-                    ledger.require_open(group.settled_at)
-                except ValueError as exc:
-                    raise errors.conflict(str(exc) + "。請換一本帳本") from None
-            else:
-                group = crud.get(Group, where={"id__in": my_groups, "removed_at__isnull": True,
-                                               "archived_at__isnull": True, "settled_at__isnull": True},
-                                 order_by="id", db=db, for_update=True)
-                if group is None:
-                    raise errors.conflict("你還沒有可以記帳的帳本，先到「帳本」開一本")
+            # 2. 決定活動或本人私人收支
+            group = write_group(db, me, body.groupId, create=True, lock=True)
 
             # 3. 檢查分類
             category_id = int(body.cat) if body.cat.isdigit() else 0
@@ -627,24 +615,8 @@ def create_transaction(body: TransactionIn, me: User, db: Session = Depends(get_
     except ValueError:
         raise errors.unprocessable("日期要是 YYYY-MM-DD") from None
 
-    # 2. 決定這筆記在哪本帳
-    my_groups = crud.find(GroupMember, {"user_id": me.id}, fields="group_id", db=db)
-    if body.groupId:
-        group_id = int(body.groupId) if body.groupId.isdigit() else 0
-        group = crud.get(Group, where={"id": group_id, "id__in": my_groups,
-                                       "removed_at__isnull": True}, db=db, for_update=True)
-        if group is None:
-            raise errors.not_found("找不到這本帳")
-        try:
-            ledger.require_open(group.settled_at)
-        except ValueError as exc:
-            raise errors.conflict(str(exc) + "。請換一本帳本") from None
-    else:
-        group = crud.get(Group, where={"id__in": my_groups, "removed_at__isnull": True,
-                                       "archived_at__isnull": True, "settled_at__isnull": True},
-                         order_by="id", db=db, for_update=True)
-        if group is None:
-            raise errors.conflict("你還沒有可以記帳的帳本，先到「帳本」開一本")
+    # 2. 決定活動或本人私人收支
+    group = write_group(db, me, body.groupId, create=True, lock=True)
 
     # 3. 檢查分類
     category_id = int(body.cat) if body.cat.isdigit() else 0
@@ -812,6 +784,7 @@ def update_transaction(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
             from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
@@ -1097,6 +1070,7 @@ def delete_transaction(row=Depends(own(Transaction, "tx_id")), db: Session = Dep
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
             from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。
@@ -1239,6 +1213,7 @@ def delete_transactions(me: User, ids: str | None = None, db: Session = Depends(
             from app.toolkit import crud, errors, ledger, money, notify
             from app.toolkit.db import get_db
             from app.services.ledger import transaction_amount, confidence
+            from app.services.transaction_destination import write_group
             from app.models.transaction_details import TransactionDetails
 
         第二步：目前函式主體已採用以下寫法。

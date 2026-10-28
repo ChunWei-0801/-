@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.models import Category, GroupMember, NlpParse, Notification, Transaction
+from app.models import Category, Group, GroupMember, NlpParse, Notification, Transaction
 from app.toolkit import crud
 from tests.routes.conftest import (
     categories, family_of, guard, ledger_of, login, now, spend, today, user,
@@ -89,7 +89,7 @@ def test_create_transaction_記一筆_回傳前端要的形狀(api):
     g = ledger_of(me)
     cat = categories(fam)["餐飲"]
     r = api.post("/api/transactions", headers=login(me), json={
-        "date": "2026-09-17", "amount": 120.5, "kind": "expense", "cat": str(cat.id), "merchant": " 全家 ", "note": ""})
+        "date": "2026-09-17", "amount": 120.5, "kind": "expense", "cat": str(cat.id), "merchant": " 全家 ", "note": "", "groupId": str(g.id)})
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["id"] and isinstance(body["id"], str)
@@ -101,7 +101,7 @@ def test_create_transaction_記一筆_回傳前端要的形狀(api):
 
 
 @pytest.mark.route(*TX)
-def test_create_transaction_沒帶帳本_記進第一本還能記的(api):
+def test_create_transaction_沒帶活動_建立私人收支而非第一個活動(api):
     me = user("dad@x.tw", "王大明")
     ledger_of(me, name="已結算", kind="temp", settled_at=now())
     ledger_of(me, name="已封存", archived_at=now())
@@ -109,7 +109,9 @@ def test_create_transaction_沒帶帳本_記進第一本還能記的(api):
     cat = categories()["餐飲"]
     r = api.post("/api/transactions", headers=login(me), json={"date": "2026-09-17", "amount": 1, "kind": "expense", "cat": str(cat.id)})
     assert r.status_code == 201, r.text
-    assert r.json()["group"] == str(ok.id)
+    assert r.json()["group"] != str(ok.id)
+    private = crud.get(Group, int(r.json()["group"]))
+    assert private.name == "收支明細" and private.created_by == me.id and private.family_id is None
 
 
 @pytest.mark.route(*TX)
@@ -119,14 +121,15 @@ def test_create_transaction_帳本不對的三種情況(api):
     cat = categories()["餐飲"]
     base = {"date": "2026-09-17", "amount": 1, "kind": "expense", "cat": str(cat.id)}
 
-    r = api.post("/api/transactions", headers=login(me), json=base)                  # 一本帳都沒有
-    assert r.status_code == 409 and "帳本" in r.json()["detail"]
     theirs = ledger_of(other)                                                        # 別人的帳本：不透露它存在
     r = api.post("/api/transactions", headers=login(me), json={**base, "groupId": str(theirs.id)})
     assert r.status_code == 404
     done = ledger_of(me, kind="temp", settled_at=now())                              # 結算過的
     r = api.post("/api/transactions", headers=login(me), json={**base, "groupId": str(done.id)})
     assert r.status_code == 409 and "結算" in r.json()["detail"]
+    archived = ledger_of(me, archived_at=now())
+    r = api.post("/api/transactions", headers=login(me), json={**base, "groupId": str(archived.id)})
+    assert r.status_code == 409 and "封存" in r.json()["detail"]
     assert crud.count(Transaction) == 0
 
 
@@ -173,7 +176,7 @@ def test_create_transaction_通知監管我的人與開了通知的帳本成員_
     # 媽媽：監管＋開了通知 → 只收一則（監管優先）；爸爸：沒監管、沒開 → 不收；阿姨：開了通知 → 收
     crud.save(GroupMember, {"notify": True}, where={"group_id": g.id, "user_id__in": [mom.id, aunt.id]})
     cat = categories(fam)["餐飲"]
-    r = api.post("/api/transactions", headers=login(kid), json={"date": "2026-09-17", "amount": 80, "kind": "expense", "cat": str(cat.id)})
+    r = api.post("/api/transactions", headers=login(kid), json={"date": "2026-09-17", "amount": 80, "kind": "expense", "cat": str(cat.id), "groupId": str(g.id)})
     assert r.status_code == 201, r.text
     got = {n.recipient_id: n.type for n in crud.find(Notification)}
     assert got == {mom.id: "ward_transaction", aunt.id: "group_transaction"}

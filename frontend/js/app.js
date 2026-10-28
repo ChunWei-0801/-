@@ -1102,7 +1102,7 @@
       '</div>' +
     '</div>';
 
-    h += '<div id="entryBox"></div>';
+    h += '<div id="entryDestination" class="entry-destination">' + entryDestinationHTML() + '</div><div id="entryBox"></div>';
     wrap.innerHTML = h;
     renderMode();
   };
@@ -1112,6 +1112,14 @@
       '" data-mode="' + id + '">' +
       '<span class="mbar__t">' + esc(title) + '</span>' +
       '<span class="mbar__d">' + esc(desc) + '</span></button>';
+  }
+
+  function entryDestinationHTML() {
+    return '<p class="flow-help" role="status">' + (GROUP === 'all'
+      ? '這筆會記在自己的收支明細，不必先建立活動。'
+      : '這筆會記入目前選擇的活動。') + '</p>' +
+      (GROUP === 'all' ? '' : '<button type="button" class="btn btn--sm" data-personal-entry>改記個人收支</button>') +
+      '<a class="btn btn--sm" href="#/groups">管理活動</a>';
   }
 
   function renderMode() {
@@ -3884,7 +3892,7 @@
   }
   function vMemories() {
     head('記帳小天地', '一筆一片，收集生活裡的好風景。');
-    if (global.Memories && global.Memories.render) global.Memories.render($view);
+    if (global.Memories && global.Memories.render) global.Memories.render($view, ME && ME.user);
     else $view.innerHTML = '<div class="page"><div class="card">暫時無法載入小天地，請重新整理後再試。</div></div>';
   }
   function vFraud() {
@@ -4087,6 +4095,19 @@
         var writable=(d.groups||[]).filter(function(g){return !g.archived&&!g.archivedAt&&!g.settledAt&&(String(g.owner)===receiptActor||Array.isArray(g.members)&&g.members.some(function(id){return String(id)===receiptActor;}));});
         global.ReceiptEntry.open({api:API,owner:ME.user,categories:cats(),groups:writable,groupId:GROUP==='all'?null:GROUP,onSaved:function(){receiptSaved=true;if(/^#\/entry(?:\/|$)/.test(location.hash))loadTx();},onClose:function(){if(receiptSaved&&location.hash===receiptRoute&&!/^#\/entry(?:\/|$)/.test(location.hash))paint();}});
       }).catch(function(err){toast(err.message||'無法取得可寫入活動，請稍後重試','err');});
+      return;
+    }
+    if (t.closest('[data-personal-entry]')) {
+      setGroup('all');
+      paintGroups();
+      var destination = document.getElementById('entryDestination');
+      if (destination) destination.innerHTML = entryDestinationHTML();
+      var confirmSingle = document.getElementById('singleSave');
+      if (confirmSingle && confirmSingle.dataset.pending !== '1') {
+        confirmSingle.dataset.sure = '0'; confirmSingle.textContent = '寫入這一筆';
+        confirmSingle.classList.remove('btn--sure');
+      }
+      loadTx();
       return;
     }
     if (t.closest('[data-manual-entry]') || t.closest('[data-paragraph-entry]')) {
@@ -4784,7 +4805,7 @@
       saveControls.forEach(function (control) { control.disabled = true; });
       saveButton.innerHTML = '<span class="btn__sp"></span>寫入中…';
       // 記進目前正在看的那一個活動
-      if (GROUP !== 'all' && batch.length) batch[0].groupId = GROUP;
+      if (batch.length) batch[0].groupId = GROUP === 'all' ? null : GROUP;
       API.nlpConfirmBatch(batch).then(function () {
         var out = document.getElementById('paraOut');
         var text = document.getElementById('paraText');

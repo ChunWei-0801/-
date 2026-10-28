@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-28",
+  "stage": "prepared-for-ci",
+  "resourceVersion": 186,
+  "changes": [
+    "Owner private destination on omitted activity for manual/NLP/import",
+    "Source form destination notice and switch to personal without clearing input",
+    "Collected-photo browser-local jigsaw challenge before next photo"
+  ],
+  "databaseMigrationRequired": false,
+  "productionWriteTested": false,
+  "physicalPhoneTested": false,
+  "jigsawLocalState": [
+    "numeric tile order",
+    "move count"
+  ],
+  "serverCreditsPhotosAchievementsUnchanged": true,
+  "checks": {
+    "personalEntryBrowserMobile": 3,
+    "entryActivityPaymentReceiptBrowserDesktop": 11,
+    "apiAndNlpUnits": 17,
+    "jigsawBrowserDesktop": 6,
+    "jigsawBrowserMobile": 6,
+    "personalFirstUsePostgres18": {
+      "localOnly": true,
+      "randomSchemaOnly": true,
+      "productionConnected": false,
+      "postgresMajor": 18,
+      "manualNlpBatchImportAllQueueOnOwner": true,
+      "requestsCompleted": 3,
+      "privateGroupsCreated": 1,
+      "privateMembershipsCreated": 1,
+      "transactionsCreated": 4,
+      "verified": true,
+      "temporarySchemaRemoved": true
+    }
+  }
+}

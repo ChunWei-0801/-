@@ -1596,7 +1596,12 @@
     "aiTest.classificationScore": "{profile}: clasificación de candidatos correcta {passed}/{total} (solo ingresos/gastos y categoría; no mide la precisión de extracción de campos).",
     "aiTest.previewPending": "Los borradores del texto están listos; la IA está clasificando. Revisa cada entrada.",
     "aiTest.previewFailed": "Se conservan los borradores del texto. La clasificación IA no terminó y esta ejecución no cuenta como éxito del modelo. Revisa y elige las categorías manualmente.",
-    "aiTest.noSafeCandidates": "No se encontró una transacción que pudiera crearse de forma segura. Comprueba el importe o introdúcelo manualmente. No se ejecutó la clasificación del modelo."
+    "aiTest.noSafeCandidates": "No se encontró una transacción que pudiera crearse de forma segura. Comprueba el importe o introdúcelo manualmente. No se ejecutó la clasificación del modelo.",
+    "entry.personalDestination": "Este registro se guarda en tus movimientos personales; no necesitas crear una actividad.",
+    "entry.activityDestination": "Este registro se guarda en la actividad seleccionada.",
+    "entry.usePersonal": "Usar movimientos personales",
+    "entry.manageActivities": "Administrar actividades",
+    "memories.collectionComplete": "¡Todas las piezas reunidas!"
   },
   "sources": {
     "選擇活動": "activity.ui.select",
@@ -1621,6 +1626,11 @@
     "請登入並重新整理後再使用發票辨識": "accessibility.receiptLogin",
     "無法取得可寫入活動，請稍後重試": "accessibility.receiptGroupsError",
     "理財教練與操作幫手，理解需求並查看有來源的資料。": "accessibility.assistantHeadHelp",
-    "備註：": "accessibility.noteLabel"
+    "備註：": "accessibility.noteLabel",
+    "這筆會記在自己的收支明細，不必先建立活動。": "entry.personalDestination",
+    "這筆會記入目前選擇的活動。": "entry.activityDestination",
+    "改記個人收支": "entry.usePersonal",
+    "管理活動": "entry.manageActivities",
+    "拼圖片已集滿！": "memories.collectionComplete"
   }
 }

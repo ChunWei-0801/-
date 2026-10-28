@@ -1596,7 +1596,12 @@
     "aiTest.classificationScore": "{profile}：候選分類符合 {passed}／{total}（只比收支與分類，不能當作欄位擷取準確率）。",
     "aiTest.previewPending": "原文草稿已就緒；AI分類中，仍請逐筆核對。",
     "aiTest.previewFailed": "原文草稿已保留；AI分類未完成，這次不計模型成功。請核對並手動選擇分類。",
-    "aiTest.noSafeCandidates": "原文解析未找到可安全建立的交易；請確認是否有金額，或改用手動輸入。這次未執行模型分類。"
+    "aiTest.noSafeCandidates": "原文解析未找到可安全建立的交易；請確認是否有金額，或改用手動輸入。這次未執行模型分類。",
+    "entry.personalDestination": "這筆會記在自己的收支明細，不必先建立活動。",
+    "entry.activityDestination": "這筆會記入目前選擇的活動。",
+    "entry.usePersonal": "改記個人收支",
+    "entry.manageActivities": "管理活動",
+    "memories.collectionComplete": "拼圖片已集滿！"
   },
   "sources": {
     "家庭記帳": "ui.737fc85046ed",
@@ -2658,6 +2663,11 @@
     "請登入並重新整理後再使用發票辨識": "accessibility.receiptLogin",
     "無法取得可寫入活動，請稍後重試": "accessibility.receiptGroupsError",
     "理財教練與操作幫手，理解需求並查看有來源的資料。": "accessibility.assistantHeadHelp",
-    "備註：": "accessibility.noteLabel"
+    "備註：": "accessibility.noteLabel",
+    "這筆會記在自己的收支明細，不必先建立活動。": "entry.personalDestination",
+    "這筆會記入目前選擇的活動。": "entry.activityDestination",
+    "改記個人收支": "entry.usePersonal",
+    "管理活動": "entry.manageActivities",
+    "拼圖片已集滿！": "memories.collectionComplete"
   }
 }

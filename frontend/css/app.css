@@ -48,6 +48,9 @@
 .err__details summary { cursor: pointer; color: var(--ink-soft); font-size: 12px; }
 .err__details code { overflow-wrap: anywhere; }
 .entry-access { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.entry-destination { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:8px 0 14px; }
+.entry-destination .flow-help { flex:1 1 240px; margin:0; }
+.entry-destination .btn { min-height:44px; white-space:normal; }
 .manual-import-note { color: var(--ink); padding: 13px 16px; border: 1px solid var(--accent-line); background: var(--accent-wash); border-radius: var(--r-card); line-height: 1.8; font-size: 13px; margin-bottom: 14px; }
 .verification-result { padding: 16px 0; color: var(--ink); line-height: 1.8; overflow-wrap: anywhere; }
 .verification-result .btn { white-space: normal; }

@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from app.models import Category, Group, GroupMember, Guardianship, Notification, Transaction, User
 from app.models.transaction_details import BillingProfile, StatementImportBatch, TransactionDetails
 from app.schemas.statement_import import StatementConfirmIn, StatementPreviewIn
+from app.services.transaction_destination import write_group as _group
 from app.toolkit import errors, notify
 from app.models._types import utcnow
 
@@ -83,39 +84,6 @@ def billing_profile(db, me):
     value = db.get(BillingProfile, me.id)
     return {'buyerTaxId': value.buyer_tax_id if value else None,
             'companyName': value.company_name or '' if value else ''}
-
-
-def _private_group(db, me, *, create=False, lock=False):
-    other_member = select(GroupMember.group_id).where(GroupMember.user_id != me.id)
-    query = select(Group).where(
-        Group.created_by == me.id, Group.name.in_(('個人帳本', '收支明細')),
-        Group.id.in_(select(GroupMember.group_id).where(GroupMember.user_id == me.id)),
-        Group.removed_at.is_(None), Group.archived_at.is_(None), Group.settled_at.is_(None),
-        ~Group.id.in_(other_member)).order_by(Group.id)
-    if lock:
-        query = query.with_for_update()
-    group = db.scalars(query).first()
-    if group is None and create:
-        group = Group(name='收支明細', kind='standing', created_by=me.id, family_id=None)
-        db.add(group)
-        db.flush()
-        db.add(GroupMember(group_id=group.id, user_id=me.id))
-    return group
-
-
-def _group(db, me, group_id, *, create=False, lock=False):
-    if not group_id:
-        return _private_group(db, me, create=create, lock=lock)
-    query = select(Group).join(GroupMember, GroupMember.group_id == Group.id).where(
-        Group.id == int(group_id), GroupMember.user_id == me.id, Group.removed_at.is_(None))
-    if lock:
-        query = query.with_for_update()
-    group = db.scalar(query)
-    if group is None:
-        raise errors.not_found('找不到這個活動')
-    if group.settled_at is not None or group.archived_at is not None:
-        raise errors.conflict('活動已結算或封存，請選擇可記帳的活動')
-    return group
 
 
 def _category(db, me, item, *, required):
