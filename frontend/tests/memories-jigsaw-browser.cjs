@@ -9,7 +9,10 @@ async function fixture(t,n=9){
  t.after(()=>browser.close());
  const context=await browser.newContext({...(!mobile?{viewport:{width:1280,height:900}}:engine==='chromium'?playwright.devices['Pixel 7']:engine==='webkit'?playwright.devices['iPhone 13']:{viewport:{width:390,height:844}}),reducedMotion:'reduce'});
  const page=await context.newPage(),errors=[],requests=[];page.on('pageerror',error=>errors.push(error.message));page.setDefaultTimeout(8000);
- await page.route('**/*',route=>{if(route.request().url()==='http://jigsaw-fixture.test/')return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="zh-TW" data-theme="paper"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><main id="view"></main></body></html>'});requests.push(route.request().url());return route.abort();});
+ await page.route('**/*',route=>{const url=route.request().url();if(url==='http://jigsaw-fixture.test/')return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="zh-TW" data-theme="paper"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><main id="view"></main></body></html>'});
+  // WebKit exposes local Blob image loads to routing; these are not HTTP egress.
+  if(url.startsWith('blob:http://jigsaw-fixture.test/'))return route.continue();
+  requests.push(url);return route.abort();});
  await page.goto('http://jigsaw-fixture.test/');
  async function install(){
   for(const file of ['tokens','app','memories'])await page.addStyleTag({path:path.join(frontend,'css',file+'.css')});
@@ -39,6 +42,7 @@ test('completed collection starts shuffled; keyboard swap, undo, reference and c
  const changed=await order(page);assert.equal(changed[0],first[1]);assert.equal(changed[1],first[0]);assert.match(await page.locator('[data-jigsaw-summary]').innerText(),/交換次數 1/);
  await page.locator('[data-jigsaw-action="undo"]').click();assert.deepEqual(await order(page),first);assert.match(await page.locator('[data-jigsaw-summary]').innerText(),/交換次數 0/);
  await page.locator('[data-jigsaw-action="reference"]').click();assert.equal(await page.locator('.memories-jigsaw__reference').isVisible(),true);assert.equal(await page.locator('[data-jigsaw-board]').isVisible(),false);
+ await page.waitForFunction(()=>{const image=document.querySelector('.memories-jigsaw__reference');return image.complete&&image.naturalWidth>0;});
  await page.keyboard.press('Escape');assert.equal(await page.locator('[data-jigsaw-board]').isVisible(),true);assert.deepEqual(await order(page),first);
  await page.locator('[data-jigsaw-action="shuffle"]').click();await page.locator('[data-jigsaw-action="cancel"]').click();assert.deepEqual(await order(page),first);
  await page.locator('[data-jigsaw-position="1"]').click();await page.keyboard.press('Escape');assert.equal(await page.locator('[aria-pressed="true"]').count(),0);
