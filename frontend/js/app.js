@@ -1006,6 +1006,7 @@
   var BATCH_META = null;
   var BATCH_SAVING = false;
   var MANUAL_IMPORT = null;
+  var SINGLE_CONFIRM_SEQUENCE = 0;
 
   /* 記帳頁：明細先出來。
 
@@ -4105,6 +4106,7 @@
       var confirmSingle = document.getElementById('singleSave');
       if (confirmSingle && confirmSingle.dataset.pending !== '1') {
         confirmSingle.dataset.sure = '0'; confirmSingle.textContent = '寫入這一筆';
+        confirmSingle.dataset.confirmToken = '';
         confirmSingle.classList.remove('btn--sure');
       }
       loadTx();
@@ -4852,15 +4854,18 @@
       /* 存進去之後要刪掉得驗密碼，所以寫入前先讓人看一眼。
          把要寫的內容放在按鈕上，再按一次才真的寫——
          段落記活動來就有確認步驟，單筆手動不該比它更容易出錯。 */
-      if (btn.dataset.sure !== '1' || btn.dataset.confirmation !== JSON.stringify(v)) {
+      var confirmation = JSON.stringify({ fields:v, groupId:GROUP === 'all' ? null : GROUP });
+      if (btn.dataset.sure !== '1' || btn.dataset.confirmation !== confirmation) {
         var cn = (DATA_CATS[v.cat] || v.cat);
+        var confirmToken = String(++SINGLE_CONFIRM_SEQUENCE);
         btn.dataset.sure = '1';
-        btn.dataset.confirmation = JSON.stringify(v);
+        btn.dataset.confirmation = confirmation;
+        btn.dataset.confirmToken = confirmToken;
         btn.textContent = '再按一次寫入　' +
           (v.kind === 'income' ? '+' : '−') + money(Number(v.amount)) + '・' + cn;
         btn.classList.add('btn--sure');
         setTimeout(function () {
-          if (!btn.isConnected || btn.dataset.pending === '1') return;
+          if (!btn.isConnected || btn.dataset.pending === '1' || btn.dataset.confirmToken !== confirmToken) return;
           btn.dataset.sure = '0';
           btn.textContent = '寫入這一筆';
           btn.classList.remove('btn--sure');

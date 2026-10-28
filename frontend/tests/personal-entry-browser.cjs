@@ -40,10 +40,14 @@ test('explicit activity stays explicit and switching to personal preserves the u
  const activity=await page.evaluate(async()=>{const g=await API.createGroup({name:'朋友聚餐活動',kind:'standing'});location.hash='#/entry';return g;});
  await page.reload();await page.locator('#gswBtn').click();await page.locator('[data-group="'+activity.id+'"]').click();
  await page.locator('[data-manual-entry]').click();await page.locator('#singleAmount').fill('230');await page.locator('#singleMerchant').fill('先選活動後改私人');
+ await page.evaluate(()=>{window.__confirmationTimers=[];window.__realSetTimeout=window.setTimeout;window.setTimeout=function(fn,ms,...args){if(ms===4000){__confirmationTimers.push(fn);return 0;}return __realSetTimeout(fn,ms,...args);};});
  await page.locator('#singleSave').click();await page.locator('[data-personal-entry]').click();
  assert.equal(await page.locator('#singleAmount').inputValue(),'230');assert.equal(await page.locator('#singleMerchant').inputValue(),'先選活動後改私人');
  assert.equal(await page.locator('#singleSave').getAttribute('data-sure'),'0');
- await page.locator('#singleSave').click();await page.locator('#singleSave').click();await page.locator('#txList').getByText('先選活動後改私人',{exact:true}).waitFor();
+ await page.locator('#singleSave').click();
+ await page.evaluate(()=>{__confirmationTimers[0]();window.setTimeout=__realSetTimeout;});
+ assert.equal(await page.locator('#singleSave').getAttribute('data-sure'),'1','old destination timer cannot clear a newer confirmation');
+ await page.locator('#singleSave').click();await page.locator('#txList').getByText('先選活動後改私人',{exact:true}).waitFor();
  const result=await page.evaluate(async()=>({groups:(await API.groups()).groups,items:(await API.transactions({})).transactions}));
  const personal=result.groups.find(g=>g.name==='收支明細');assert.equal(result.items[0].group,personal.id);assert.notEqual(result.items[0].group,activity.id);
  await page.locator('#gswBtn').click();await page.locator('[data-group="'+activity.id+'"]').click();await page.locator('[data-manual-entry]').click();
