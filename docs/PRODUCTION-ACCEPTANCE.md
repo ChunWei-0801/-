@@ -1,6 +1,18 @@
 # Production acceptance handoff
 
-## Current v185 smoking stock release
+## Current v186 personal-entry and jigsaw release
+
+Source `b53b7a2e525e0400b0e7fb6dd76270cadb4d20ab` / tree `56ea069994a0b3201d1f3a471cc81c82813f9787` is **live** on Render `dep-dbgv0snlk1mc739hifd0`, finished **2026-10-28 20:55:38 Asia/Taipei**. Main application, API adapter, memories, jigsaw and locale-loading resources are186; smoking remains185 and LLM remains180. The service staysFree, DATABASE_URL digest matches the previously deployed database, maintenance remainsoff and no schema migration was introduced.
+
+Manual entries, NLP single/batch confirmation and statement imports now resolve an omitted activity to the owner's usable private underlying ledger, creating one safely inside the same transaction when needed. They never choose the first shared activity. Explicit activities retain membership/closed-state checks and do not silently fall back. The form explains its destination and can switch to personal without discarding input. Destination-bound confirmation tokens prevent an older timeout from clearing a newer review.
+
+Collected photos now open a shuffled browser-local rearranging challenge. Select or drag two tiles, use keyboard controls, undo, view the original or confirm a reshuffle; the next-photo control unlocks after restoration. Only numeric arrangement/move state is stored per owner/puzzle in this browser. Server credits, photos, weekly/monthly quotas and historical achievements are preserved; this is not a new server-side achievement certification or cross-device game-state sync.
+
+[Application checks40690973108](https://github.com/ChunWei-0801/-/actions/runs/40690973108) passed all4jobs: backend1366, frontend unit173, browser98 plus the standalone lifestyle contract, Windows checks and isolated PostgreSQL18 stock concurrency. Nine browser-only Node cases are deferred to the actual browser job. [Browser compatibility40690973049](https://github.com/ChunWei-0801/-/actions/runs/40690973049) passed all3engines, desktop and mobile/narrow contexts,102 actual tests with zero skips. A separate isolated PostgreSQL18 first-use race proved manual, NLP batch and import all wait for the owner's row lock, create one private group/membership and share that destination. The random schema was removed.
+
+Tests use fixtures and device configurations, not real phones or production-account writes. Direct deployedHTTP/resource-hash verification remains excluded by executor policy; deployment/plan/database continuity were checked through Render. Actual account/phone acceptance remains pending. [Behavior and storage](PERSONAL-ENTRY-AND-JIGSAW.md) · [evidence](evidence/20261028-personal-entry-jigsaw.json).
+
+## Previous v185 smoking stock release
 
 Source `e0a9acb01248f4549afad70e8799b960f6a4c361` / tree `4b21ce3667178b8a61c37d5f73a8550fd2172144` is **live** on Render `dep-dbfok8qfngtc73du3e3g`, finished **2026-10-27 01:14:37 Asia/Taipei**. Smoking JS/CSS and locale-loading resources are185; the main application remains184. The existing service remainsFree, the private DATABASE_URL digest is unchanged, maintenance isoff, and no schema migration was introduced. Original recorded counts are preserved until the owner explicitly corrects them.
 

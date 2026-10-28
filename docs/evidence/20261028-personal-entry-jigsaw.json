@@ -1,6 +1,6 @@
 {
   "date": "2026-10-28",
-  "stage": "prepared-for-ci",
+  "stage": "deployed-awaiting-user-device-acceptance",
   "resourceVersion": 186,
   "changes": [
     "Owner private destination on omitted activity for manual/NLP/import",
@@ -33,6 +33,35 @@
       "transactionsCreated": 4,
       "verified": true,
       "temporarySchemaRemoved": true
-    }
-  }
+    },
+    "backendPassed": 1366,
+    "frontendUnitsPassed": 173,
+    "applicationBrowserPassed": 98,
+    "applicationRun": 40690973108,
+    "browserCompatibilityPassed": 102,
+    "browserCompatibilitySkipped": 0,
+    "browserCompatibilityRun": 40690973049,
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "profilesPerEngine": 2,
+    "confirmationOldTimerRegression": "passed"
+  },
+  "testedSource": "b53b7a2e525e0400b0e7fb6dd76270cadb4d20ab",
+  "testedTree": "56ea069994a0b3201d1f3a471cc81c82813f9787",
+  "productionDeploymentPerformed": true,
+  "deployment": {
+    "id": "dep-dbgv0snlk1mc739hifd0",
+    "status": "live",
+    "startedAt": "2026-10-28T12:54:10.409215Z",
+    "finishedAt": "2026-10-28T12:55:38.204346Z",
+    "commit": "b53b7a2e525e0400b0e7fb6dd76270cadb4d20ab",
+    "plan": "free",
+    "databaseUnchanged": true,
+    "maintenanceEnabled": false
+  },
+  "finishedAtAsiaTaipei": "2026-10-28 20:55:38",
+  "directProductionHttpSmokePerformed": false
 }
