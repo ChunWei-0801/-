@@ -51,3 +51,54 @@ test('cancelled or cleared late OCR responses cannot replace a newer source',asy
  assert.equal(await page.locator('[data-rl-raw]').inputValue(),'小松咖啡\n電子發票證明聯\n115/10/24 09:30\n早餐三明治 65\n拿鐵 45\n折扣 -10\n總計 NT$100');assert.match(await page.locator('[data-rl-origin]').innerText(),/示範文字/);assert.equal(await page.locator('[name="amount"]').inputValue(),'100');assert.equal(await page.evaluate(()=>__ocrFixture.terminated),1);
  await page.locator('[data-rl-action="clear"]').click();assert.equal(await page.locator('[data-rl-raw]').inputValue(),'');assert.equal(await page.locator('[data-rl-image]').getAttribute('src'),null);assert.equal(await page.locator('[data-rl-json]').count(),0);assert.equal(await page.evaluate(()=>localStorage.getItem('fambudget.token')),'fixture-formal-token-must-not-change');
 });
+test('whole-unit warnings explain TWD and JPY totals without items while USD and EUR retain valid decimals',async t=>{
+ const {page}=await fixture(t);
+ for(const currency of ['TWD','JPY','USD','EUR']){
+  await page.locator('[data-rl-raw]').fill('小松咖啡\n115/10/24\n總計 100.50');
+  await page.locator('[data-rl-action="analyze"]').click();
+  await page.locator('[name="currency"]').selectOption(currency);
+  assert.equal(await page.locator('[data-rl-item]').count(),0);
+  const original=await page.locator('[name="amount"]').inputValue();
+  assert.equal(original,'100.5');
+  if(currency==='TWD'||currency==='JPY'){
+   assert.match(await page.locator('[data-rl-balance]').innerText(),/整元/);
+   await page.locator('[data-rl-accept]').check();
+   await page.locator('[data-rl-action="prepare"]').click();
+   assert.equal(await page.locator('[data-rl-action="download"]').isDisabled(),true);
+   assert.equal(await page.locator('[data-rl-json]').isVisible(),false);
+   assert.equal(await page.locator('[name="amount"]').inputValue(),original,'fractional values must not be silently rounded');
+   await page.locator('[name="amount"]').fill('100');
+   assert.equal(await page.locator('[data-rl-accept]').isChecked(),false);
+   await page.locator('[data-rl-accept]').check();
+   await page.locator('[data-rl-action="prepare"]').click();
+   const value=JSON.parse(await page.locator('[data-rl-json]').inputValue());
+   assert.equal(value.transaction.currency,currency);assert.equal(value.transaction.amount,'100.00');assert.equal(value.itemCheck.status,'not-provided');
+  }else{
+   assert.doesNotMatch(await page.locator('[data-rl-balance]').innerText(),/整元/);
+   await page.locator('[data-rl-accept]').check();
+   await page.locator('[data-rl-action="prepare"]').click();
+   const value=JSON.parse(await page.locator('[data-rl-json]').inputValue());
+   assert.equal(value.transaction.currency,currency);assert.equal(value.transaction.amount,'100.50');assert.equal(value.itemCheck.status,'not-provided');
+  }
+ }
+ assert.equal(await page.evaluate(()=>__ocrFixture.calls),0);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('fambudget.token')),'fixture-formal-token-must-not-change');
+});
+test('fractional whole-unit items take priority over other item errors and preserve values until the reviewer corrects them',async t=>{
+ const {page}=await fixture(t);
+ await page.locator('[data-rl-action="sample"]').click();
+ await page.locator('[data-rl-item-name]').first().fill('');
+ await page.locator('[data-rl-item-amount]').first().fill('64.50');
+ assert.equal(await page.locator('[name="amount"]').inputValue(),'100');
+ assert.match(await page.locator('[data-rl-balance]').innerText(),/整元/);
+ await page.locator('[data-rl-accept]').check();await page.locator('[data-rl-action="prepare"]').click();
+ assert.equal(await page.locator('[data-rl-action="download"]').isDisabled(),true);
+ assert.equal(await page.locator('[data-rl-item-amount]').first().inputValue(),'64.50');
+ await page.locator('[data-rl-item-name]').first().fill('早餐三明治');
+ await page.locator('[data-rl-item-amount]').first().fill('65');
+ assert.equal(await page.locator('[data-rl-accept]').isChecked(),false);
+ assert.match(await page.locator('[data-rl-balance]').innerText(),/與收據總額相符/);
+ await page.locator('[data-rl-accept]').check();await page.locator('[data-rl-action="prepare"]').click();
+ const value=JSON.parse(await page.locator('[data-rl-json]').inputValue());
+ assert.equal(value.transaction.amount,'100.00');assert.equal(value.items[0].amount,'65.00');assert.equal(value.itemCheck.status,'matches');assert.equal(value.writtenToLedger,false);
+});

@@ -80,3 +80,39 @@ test('demo does not treat a monthly assumption as cash available on a same-day d
  assert.doesNotMatch(await page.locator('.fp-plan').first().innerText(),/依目前假設可達成/);
  assert.match(await page.locator('.fp-plan').nth(1).innerText(),/2026-11-29/);assert.deepEqual(errors,[]);
 });
+test('demo parsing rejects whole unsupported money expressions and a mixed batch without extracting numeric tails',{skip:!pw},async t=>{
+ const {page,errors,apiRequests,externalRequests}=await fixture(t);
+ for(const input of ['早餐65.5元','午餐-120元','午餐−120元','午餐+120元','午餐1e3元','午餐65~120元','午餐65至120元','早餐0元','早餐1000001元','早餐9999999999999元','早餐1,200元','午餐美元120元','午餐USD120元','早餐65元，午餐65.5元']){
+  await page.locator('#demo-paragraph').fill(input);await page.getByRole('button',{name:'解析成示範草稿',exact:true}).click();
+  assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0,input);
+  assert.equal((await state(page)).transactions.length,81,input);assert.ok(await page.locator('#demo-message').innerText(),input);
+ }
+ await page.locator('#demo-paragraph').fill('早餐65元，午餐120元');await page.getByRole('button',{name:'解析成示範草稿',exact:true}).click();
+ await page.getByRole('button',{name:'確認新增這 2 筆',exact:true}).click();const items=(await state(page)).transactions.slice(-2);assert.deepEqual(items.map(x=>x.amount),[65,120]);
+ await unchanged(page);assert.deepEqual(errors,[]);assert.deepEqual(apiRequests,[]);assert.deepEqual(externalRequests,[]);
+});
+test('demo rules refuse unoccurred, negated, hypothetical, other-person and unknown intents instead of inventing transactions',{skip:!pw},async t=>{
+ const {page,errors}=await fixture(t);
+ for(const input of ['明天預計午餐120元','如果買午餐120元','我沒有買午餐120元','午餐還沒付120元','朋友午餐120元','小明買午餐120元','別人收到薪資50000元','昨天午餐120元','午餐120元嗎？','預算120元','不明款項120元','早餐65元，朋友午餐120元']){
+  await page.locator('#demo-paragraph').fill(input);await page.getByRole('button',{name:'解析成示範草稿',exact:true}).click();
+  assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0,input);assert.equal((await state(page)).transactions.length,81,input);
+ }
+ await page.locator('#demo-paragraph').fill('我今天收到薪資50000元，買便當120元');await page.getByRole('button',{name:'解析成示範草稿',exact:true}).click();await page.getByRole('button',{name:'確認新增這 2 筆',exact:true}).click();
+ const items=(await state(page)).transactions.slice(-2);assert.deepEqual(items.map(x=>[x.amount,x.kind,x.category]),[[50000,'income','薪資'],[120,'expense','餐飲']]);assert.deepEqual(errors,[]);
+});
+test('source, date, activity and role changes invalidate a demo review; confirmation rechecks programmatic edits and can only commit once',{skip:!pw},async t=>{
+ const {page,errors}=await fixture(t);
+ async function parse(){await page.locator('#demo-paragraph').fill('早餐65元');await page.getByRole('button',{name:'解析成示範草稿',exact:true}).click();await page.locator('[data-demo-action="confirm-parsed"]').waitFor();}
+ await parse();assert.match(await page.locator('.demo-notice').innerText(),/個人收支/);
+ await page.locator('#demo-paragraph').fill('早餐999元');assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0);assert.match(await page.locator('#demo-message').innerText(),/草稿已失效/);
+ await parse();await page.locator('#demo-date').fill('2026-01-01');assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0);
+ await parse();await page.locator('#demo-activity').selectOption('demo-picnic');assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0);
+ await parse();assert.match(await page.locator('.demo-notice').innerText(),/週末野餐/);assert.match(await page.locator('.demo-notice').innerText(),/2026-01-01/);
+ await page.evaluate(()=>{document.querySelector('#demo-paragraph').value='早餐888元';});await page.locator('[data-demo-action="confirm-parsed"]').click();assert.equal((await state(page)).transactions.length,81);assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0);
+ await parse();await page.evaluate(()=>{document.querySelector('#demo-activity').value='';});await page.locator('[data-demo-action="confirm-parsed"]').click();assert.equal((await state(page)).transactions.length,81);assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0);
+ await parse();await page.evaluate(()=>{document.querySelector('#demo-date').value='2026-01-02';});await page.locator('[data-demo-action="confirm-parsed"]').click();assert.equal((await state(page)).transactions.length,81);
+ await parse();await page.locator('[data-demo-role="demo-child"]').click();assert.equal(await page.locator('[data-demo-action="confirm-parsed"]').count(),0);assert.equal((await state(page)).transactions.length,81);
+ await page.locator('[data-demo-role="demo-parent"]').click();await page.locator('#demo-activity').selectOption('demo-picnic');await parse();
+ await page.evaluate(()=>{const button=document.querySelector('[data-demo-action="confirm-parsed"]');button.click();button.click();});const after=await state(page);assert.equal(after.transactions.length,82);assert.equal(after.transactions.at(-1).amount,65);assert.equal(after.transactions.at(-1).activityId,'demo-picnic');assert.equal(after.transactions.at(-1).userId,'demo-parent');
+ await unchanged(page);assert.deepEqual(errors,[]);
+});

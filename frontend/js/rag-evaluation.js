@@ -5,7 +5,7 @@
 (function(g){
   'use strict';
   var s={data:null,current:null,retrieval:null,corpusVersion:null,busy:false,job:0,abort:null,pending:null,records:[],last:{},nextId:0,closed:false,loadMs:null};
-  var labels={targetTwd:'目標金額 TWD',savedTwd:'已存金額 TWD',gapTwd:'資金缺口 TWD',remainingDays:'剩餘天數',contributionMonths:'投入期數（月）',requiredMonthlyTwd:'每月所需 TWD',weeklyAllowanceReserveTwd:'期間零用錢保留 TWD',recordedMonthlyNetTwd:'已記錄月結餘 TWD',availableMonthlyTwd:'每月可投入 TWD',capacitySource:'可投入金額依據',transactionCount:'示範交易筆數'};
+  var labels={targetTwd:'目標金額 TWD',savedTwd:'已存金額 TWD',gapTwd:'資金缺口 TWD',remainingDays:'剩餘天數',contributionMonths:'投入期數（月）',requiredMonthlyTwd:'每月所需 TWD',weeklyAllowanceReserveTwd:'每月零用錢預留 TWD',recordedMonthlyNetTwd:'已記錄月結餘 TWD',availableMonthlyTwd:'每月可投入 TWD',capacitySource:'可投入金額依據',transactionCount:'示範交易筆數'};
   function q(selector){return document.querySelector(selector);}
   function el(tag,text,cls){var node=document.createElement(tag);if(text!=null)node.textContent=String(text);if(cls)node.className=cls;return node;}
   function status(text,error){var node=q('[data-re-model-status]');node.textContent=text;node.classList.toggle('re-error',!!error);}
@@ -90,7 +90,7 @@
   function download(){
     if(s.busy||!s.records.length)return;var data=exportValue(),url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),link=el('a');link.href=url;link.download='fambudget-financial-rag-evaluation.json';document.body.append(link);link.click();link.remove();g.setTimeout(function(){URL.revokeObjectURL(url);},1000);q('[data-re-download-status]').textContent='已準備匿名下載；不包含模型回答或正式帳務。';
   }
-  function clear(){if(s.busy)cancel();s.records=[];s.last={};s.pending=null;renderResult('baseline');renderResult('rag');q('[data-re-download-status]').textContent='本頁評估紀錄已清除；未修改任何帳務。';controls();}
+  function clear(){if(s.records.length&&!g.confirm('確定清除本頁所有評估紀錄與人工評分嗎？這些紀錄只保存在本頁，清除後無法復原；需要保存時請先下載匿名 JSON。'))return;if(s.busy)cancel();s.records=[];s.last={};s.pending=null;renderResult('baseline');renderResult('rag');q('[data-re-download-status]').textContent='本頁評估紀錄已清除；未修改任何帳務。';controls();}
   function validate(data){
     if(!data||typeof data.version!=='string'||!data.scenarios||!Array.isArray(data.cases)||data.cases.length<20||data.cases.length>30)throw error('EVALUATION_DATA_INVALID');
     var ids=new Set();data.cases.forEach(function(item){if(!item||!/^R\d{2}$/.test(item.id)||ids.has(item.id)||typeof item.question!=='string'||item.question.length>500||!data.scenarios[item.scenario]||!Array.isArray(item.rubric))throw error('EVALUATION_DATA_INVALID');ids.add(item.id);});return data;

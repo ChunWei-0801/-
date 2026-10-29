@@ -35,10 +35,11 @@
     var whole=/^(TWD|JPY)$/.test(form.elements.currency.value),fractional=total!==null&&total%100!==0||items.some(function(item){return item.amount!==null&&money(item.amount,true)%100!==0;});
     if(whole&&fractional)valid=false;
     var mismatch=total!==null&&items.length>0&&valid&&sum!==total;
-    var box=q('[data-rl-balance]');box.textContent=!items.length?'目前沒有品項，請核對總額，或自行補上品項。':!valid?'請核對品項名稱及有效金額；TWD、JPY 使用整元。':total===null?'品項合計 '+exact(sum)+'；請填入正確總額。':mismatch?'品項合計 '+exact(sum)+'，收據總額 '+exact(total)+'，相差 '+exact(total-sum)+'。請核對是否漏列品項、稅額或折扣。':'品項合計 '+exact(sum)+' 與收據總額相符；仍需核對原圖。';
-    box.classList.toggle('rl-warning',mismatch||!valid);
+    var validation=whole&&fractional?'TWD、JPY 使用整元，請核對總額與品項金額；系統不會自動四捨五入。':!valid?'請核對品項名稱及有效金額。':total===null?'請填入正數且格式正確的收據總額。':null;
+    var box=q('[data-rl-balance]');box.textContent=validation?validation:!items.length?'目前沒有品項，請核對總額，或自行補上品項。':mismatch?'品項合計 '+exact(sum)+'，收據總額 '+exact(total)+'，相差 '+exact(total-sum)+'。請核對是否漏列品項、稅額或折扣。':'品項合計 '+exact(sum)+' 與收據總額相符；仍需核對原圖。';
+    box.classList.toggle('rl-warning',mismatch||!!validation);
     var mismatchWrap=q('[data-rl-mismatch-wrap]');mismatchWrap.hidden=!mismatch;if(!mismatch)q('[data-rl-mismatch]').checked=false;
-    return {total:total,sum:sum,items:items,valid:valid,mismatch:mismatch};
+    return {total:total,sum:sum,items:items,valid:valid,mismatch:mismatch,validation:validation};
   }
   function addItem(item){
     var row=el('div',null,'rl-item');row.dataset.rlItem='';
@@ -74,7 +75,7 @@
   function reviewMessage(text,error){var node=q('[data-rl-review-status]');if(node){node.textContent=text;node.classList.toggle('is-error',!!error);}}
   function prepareDraft(){
     var form=fields();if(!form)return;var result=summary();
-    if(!result||result.total===null||!result.valid||!dateValid(form.elements.date.value)||!q('[data-rl-accept]').checked||result.mismatch&&!q('[data-rl-mismatch]').checked){reviewMessage('請填入有效日期、正數總額與品項金額，完成核對勾選；合計不一致時需另行確認差額。',true);return;}
+    if(!result||result.total===null||!result.valid||!dateValid(form.elements.date.value)||!q('[data-rl-accept]').checked||result.mismatch&&!q('[data-rl-mismatch]').checked){reviewMessage(result&&result.validation||'請填入有效日期、正數總額與品項金額，完成核對勾選；合計不一致時需另行確認差額。',true);return;}
     var value={version:1,stage:'human-reviewed-draft',source:{mode:state.origin,ocrEngine:state.rawOrigin==='ocr'?'Tesseract.js 7':null,visionModelUsed:false,sourceImageIncluded:false,rawTextIncluded:false},transaction:{kind:'expense',amount:exact(result.total),currency:form.elements.currency.value,date:form.elements.date.value,merchant:form.elements.merchant.value.trim()||null},items:result.items,itemCheck:{status:!result.items.length?'not-provided':result.mismatch?'difference-reviewed':'matches',sum:result.items.length?exact(result.sum):null,difference:result.items.length?exact(result.total-result.sum):null},humanConfirmed:true,writtenToLedger:false};
     state.exported=value;var output=q('[data-rl-json]');output.value=JSON.stringify(value,null,2);output.hidden=false;q('[data-rl-action="download"]').disabled=false;reviewMessage('確認草稿已產生。下載只保存這份 JSON，不包含原圖與辨識全文，也不會新增記帳。');
   }

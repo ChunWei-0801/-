@@ -27,6 +27,27 @@
   function empty(root,text){root.append(node('p','demo-empty',text));}
   function heading(root,title,text){root.append(node('h2','',title),node('p','demo-muted',text));}
   function saveTransaction(body){var amount=validMoney(body.amount,false),day=String(body.date);if(!validDate(day))throw new Error('請選擇有效的記帳日期。');if(!['income','expense'].includes(body.kind))throw new Error('請選擇收入或支出。');var group=body.activityId||null;if(group&&!state.activities.some(function(a){return a.id===group&&a.memberIds.includes(current().id);}))throw new Error('請選擇目前身分已加入的活動。');var note=String(body.note||'').trim();if(note.length>120)throw new Error('備註最多120字。');return {amount:amount,date:day,kind:body.kind,category:String(body.category||'其他').slice(0,20),note:note,activityId:group};}
+  function parseDemoClause(value,day,activityId){
+    // This deliberately small grammar is a teaching rule, not language-model
+    // understanding. A whole unsupported clause rejects the entire batch.
+    var original=value.trim(),normalized=original.normalize('NFKC').replace(/[。.!！]+$/,'').trim();
+    if(/明天|後天|昨天|前天|下(?:週|周|月|年|次)|上(?:週|周|月)|去年|未來|以後|之後|預計|打算|準備|預算|計畫|計劃|想要|想買|將要|如果|假如|假設|要是|可能|大概|預估|估計|大約|約莫|是否|會不會|嗎|[?？]|目標|餘額|總計|合計|累計|上限/.test(normalized))throw new Error('示範文字只支援本人已發生的簡短交易；未來、假設、詢問或總額規劃請改用上方手動記帳。日期請直接選擇，不解讀相對日期。');
+    if(/沒有|還沒|尚未|未付|未買|未花|未消費|未收到|未入帳|未領|不買|不花|不付|不會|不想|不用|不需要|取消|並非|不是|不曾|沒買|沒付|沒花|沒收到|沒領/.test(normalized))throw new Error('這段包含否定或尚未發生的交易，沒有產生示範草稿。');
+    if(/他|她|牠|別人|朋友|同事|同學|家人|爸爸|媽媽|父親|母親|兒子|女兒|孩子|小朋友|哥哥|姊姊|姐姐|弟弟|妹妹|先生|太太|老婆|老公|阿公|阿嬤|幫|替|代付|代墊|給/.test(normalized))throw new Error('示範規則不代替其他人記帳，請改成目前示範身分本人的交易。');
+    if(/[+\-−~～]/.test(normalized)||/USD|JPY|EUR|CNY|RMB|HKD|GBP|KRW|美元|美金|日圓|日元|歐元|人民幣|港幣|英鎊|韓元|外幣|[$€£¥￥]/i.test(normalized))throw new Error('此示範只支援正數台幣整元；不支援正負號、範圍或外幣，請改用上方手動記帳。');
+    var match=normalized.match(/^([^0-9]{1,80}?)([0-9]{1,12})\s*(?:元|塊)$/);
+    if(!match)throw new Error('每段請填一筆完整台幣整元，例如「早餐65元」；小數、指數、千分位、範圍或其他數字不支援，請拆段或改用手動記帳。');
+    var amount=validMoney(match[2],false),label=match[1].replace(/\s+/g,'');
+    if(!validDate(day)||day>data.today())throw new Error('示範文字只記錄已發生交易，請在上方選擇今天或之前的有效日期。');
+    label=label.replace(/^我/,'');
+    if(label.indexOf('今天')===0){if(day!==data.today())throw new Error('原文寫「今天」，與上方日期不同；請先核對日期再解析。');label=label.slice(2);}
+    label=label.replace(/^我/,'').replace(/^(?:剛剛|剛才)/,'');
+    var income=/^(?:(?:收到|收取|領到|領了|領|入帳))?(?:薪資|薪水|工資|獎金|收入|零用錢|稿費|退款|退費|款項)$/.test(label)||/^(?:收到|收款|領到|領了|入帳)$/.test(label);
+    var expense=/^(?:(?:吃了|吃|買了|買|購買|搭了|搭|支付|付了|付|花了|花費|繳了|繳|支出|消費))?(?:早餐|午餐|晚餐|宵夜|餐費|餐飲|飲料|咖啡|便當|三明治|車票|交通|公車|捷運|計程車|火車|高鐵|停車費|油錢|房租|電費|水費|瓦斯費|網路費|電話費|電影|娛樂|生活用品|日用品|雜貨|購物)$/.test(label)||/^(?:支出|消費|花費|花了|支付|付了|付|繳費)$/.test(label);
+    if(income===expense)throw new Error('這個句型無法確認本人收支，沒有產生草稿。請用「早餐65元」「收到薪資50000元」等簡短句型，或改用上方手動記帳。');
+    var category=income?(/薪資|薪水|工資/.test(label)?'薪資':/零用錢/.test(label)?'零用錢':'其他'):/早餐|午餐|晚餐|宵夜|餐費|餐飲|飲料|咖啡|便當|三明治/.test(label)?'餐飲':/車票|交通|公車|捷運|計程車|火車|高鐵|停車費|油錢/.test(label)?'交通':/房租|電費|水費|瓦斯費|網路費|電話費/.test(label)?'居住':/電影|娛樂/.test(label)?'娛樂':/生活用品|日用品|雜貨|購物/.test(label)?'生活':'其他';
+    return saveTransaction({date:day,kind:income?'income':'expense',amount:amount,category:category,note:original,activityId:activityId});
+  }
   function drawEntry(root){
     heading(root,'記一筆，試著留下生活紀錄','目前使用 '+current().name+' 的虛構資料；新增、修改及刪除只影響本頁示範。');
     var form=node('form','demo-form');form.noValidate=true;var grid=node('div','demo-form-grid');form.append(grid);
@@ -40,9 +61,37 @@
     cancel.addEventListener('click',function(){editId=null;drawPanel();message('已取消編輯。');});
     root.append(node('div','demo-divider'));
     var parser=node('form','demo-form');parser.noValidate=true;parser.append(node('h3','','試試一句話記帳'));var text=field(parser,'依逗號或換行分開，每段一筆金額','paragraph','textarea','今天早餐65元，午餐120元');text.maxLength=600;
-    parser.append(node('p','demo-small','本頁使用示範規則解析，未呼叫 LLM。會先顯示草稿，確認後才新增。日期使用上方選擇的日期。'));
+    parser.append(node('p','demo-small','本頁使用示範規則解析，未呼叫 LLM。僅支援本人已發生的簡短台幣整元句型，例如「早餐65元」「收到薪資50000元」；其他描述請用上方手動記帳。先核對上方日期與活動，確認草稿後才新增。'));
     var parseButton=button('解析成示範草稿');parseButton.type='submit';var preview=node('div');parser.append(parseButton,preview);root.append(parser);
-    parser.addEventListener('submit',function(event){event.preventDefault();preview.replaceChildren();try{var clauses=text.value.split(/[，,；;\n]+/).map(function(v){return v.trim().replace(/[。.]$/,'');}).filter(Boolean);if(!clauses.length||clauses.length>10)throw new Error('請輸入1至10段，每段只有一筆消費與整元金額。');var rows=clauses.map(function(value){var matches=Array.from(value.matchAll(/([0-9]+)\s*(?:元|塊)/g));if(matches.length!==1)throw new Error('每段請明確填寫一筆整元金額，例如「早餐65元」。');return saveTransaction({date:day.value,kind:/薪資|薪水|收入|獎金/.test(value)?'income':'expense',amount:matches[0][1],category:/薪資|薪水/.test(value)?'薪資':/早餐|午餐|晚餐|餐|便當|咖啡/.test(value)?'餐飲':/捷運|公車|交通|車票/.test(value)?'交通':'其他',note:value,activityId:group.value});});var box=node('div','demo-notice');box.append(node('h3','','請核對 '+rows.length+' 筆草稿'));rows.forEach(function(row){box.append(node('p','',row.date+' · '+(row.kind==='income'?'收入':'支出')+' · '+money(row.amount)+' · '+row.category+' · '+row.note));});var confirm=button('確認新增這 '+rows.length+' 筆','confirm-parsed');box.append(confirm);preview.append(box);confirm.addEventListener('click',function(){if(state.transactions.length+rows.length>2000)return message('本次示範已達2000筆上限。',true);rows.forEach(function(row){state.transactions.push(Object.assign({id:id(),userId:current().id},row));});finish('entry');persist();drawPanel();message('已新增 '+rows.length+' 筆示範記帳。這是規則解析結果。');});message('請核對草稿的金額、收支及分類。');}catch(error){message(error.message,true);}});
+    var review=null;
+    function signature(){return JSON.stringify({owner:current().id,source:text.value,date:day.value,activityId:group.value||null});}
+    function invalidateReview(notify){if(!review)return;review=null;preview.replaceChildren();if(notify)message('原文、日期或活動已變更，先前草稿已失效；請重新解析後核對。');}
+    [text,day,group].forEach(function(input){['input','change'].forEach(function(event){input.addEventListener(event,function(){invalidateReview(true);});});});
+    parser.addEventListener('submit',function(event){
+      event.preventDefault();invalidateReview(false);preview.replaceChildren();
+      try{
+        if(text.value.length>600)throw new Error('示範文字最多600字，請分段處理。');
+        var clauses=text.value.split(/[，,；;\n]+/).map(function(v){return v.trim();}).filter(Boolean);
+        if(!clauses.length||clauses.length>10)throw new Error('請輸入1至10段，每段一筆本人已發生的簡短台幣整元交易。');
+        var rows=clauses.map(function(value){return parseDemoClause(value,day.value,group.value);});
+        var prepared={signature:signature(),owner:current().id,rows:rows,used:false};review=prepared;
+        var box=node('div','demo-notice');box.append(node('h3','','請核對 '+rows.length+' 筆草稿'),node('p','demo-small','記入：'+activityName({activityId:group.value||null})+' · 示範身分：'+current().name));
+        rows.forEach(function(row){box.append(node('p','',row.date+' · '+(row.kind==='income'?'收入':'支出')+' · '+money(row.amount)+' · '+row.category+' · '+row.note));});
+        var confirm=button('確認新增這 '+rows.length+' 筆','confirm-parsed');box.append(confirm);preview.append(box);
+        confirm.addEventListener('click',function(){
+          if(review!==prepared||prepared.used||!parser.isConnected||!confirm.isConnected)return;
+          if(prepared.signature!==signature()||prepared.owner!==current().id){invalidateReview(true);return;}
+          if(state.transactions.length+rows.length>2000)return message('本次示範已達2000筆上限。',true);
+          try{
+            var checked=rows.map(function(row){return saveTransaction(row);});
+            prepared.used=true;confirm.disabled=true;review=null;
+            checked.forEach(function(row){state.transactions.push(Object.assign({id:id(),userId:prepared.owner},row));});
+            finish('entry');persist();drawPanel();message('已新增 '+checked.length+' 筆示範記帳。這是規則解析結果。');
+          }catch(error){invalidateReview(false);preview.replaceChildren();message(error.message,true);}
+        });
+        message('請核對草稿的日期、目的地、金額、收支及分類。');
+      }catch(error){review=null;preview.replaceChildren();message(error.message,true);}
+    });
     root.append(node('div','demo-divider'),node('h3','','最近的示範明細'));
     renderTransactions(root,ownTransactions().sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,global.matchMedia('(max-width:600px)').matches?6:12),true,function(item){editId=item.id;day.value=item.date;kind.value=item.kind;amount.value=String(item.amount);category.value=item.category;note.value=item.note;group.value=item.activityId||'';submit.textContent='保存編輯';cancel.hidden=false;amount.focus();message('正在編輯示範記帳；取消編輯可保留原紀錄。');});
   }
