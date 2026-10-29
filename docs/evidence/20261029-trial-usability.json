@@ -1,0 +1,169 @@
+{
+  "version": 188,
+  "stage": "deployed-awaiting-physical-device-acceptance",
+  "testedSource": "f2d2cffdd6adaf1d67c6ab046a38e8786149e513",
+  "testedTree": "bc8968a1b7ccbe668b61fe6d70b6738c32b4b978",
+  "deployment": {
+    "id": "dep-dbhmlv7b9u1s73f8f86g",
+    "status": "live",
+    "startedAt": "2026-10-29T15:49:16.754133Z",
+    "finishedAt": "2026-10-29T15:51:13.994828Z",
+    "commit": "f2d2cffdd6adaf1d67c6ab046a38e8786149e513",
+    "plan": "free",
+    "databaseUnchanged": true,
+    "maintenanceEnabled": false,
+    "schemaChanged": false
+  },
+  "finishedAtAsiaTaipei": "2026-10-29 23:51:13",
+  "checks": {
+    "source": "f2d2cffdd6adaf1d67c6ab046a38e8786149e513",
+    "applicationRun": 40904571926,
+    "browserRun": 40904571790,
+    "allPassed": true,
+    "jobs": [
+      {
+        "id": 123555708656,
+        "name": "smoking-stock-postgres",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123555708935,
+        "name": "windows-backup",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123555709008,
+        "name": "browser",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123555709052,
+        "name": "checks",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123555707568,
+        "name": "firefox desktop and mobile",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123555708108,
+        "name": "webkit desktop and mobile",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123555708450,
+        "name": "chromium desktop and mobile",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "metrics": {
+      "backendPassed": 1440,
+      "frontendUnitsPassed": 178,
+      "frontendBrowserOnlyDeferred": 9,
+      "applicationBrowserChecksPassed": 133,
+      "browserCompatibilityExecutionsPassed": 312,
+      "browserCompatibilityBrowserCases": 306,
+      "browserCompatibilityWorkerContracts": 6,
+      "browserCompatibilitySkipped": 0
+    },
+    "newModelQualityMeasured": false,
+    "physicalDevicesTested": false,
+    "validatedRuns": {
+      "application": {
+        "id": 40904571926,
+        "source": "f2d2cffdd6adaf1d67c6ab046a38e8786149e513",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ChunWei-0801/-/actions/runs/40904571926"
+      },
+      "compatibility": {
+        "id": 40904571790,
+        "source": "f2d2cffdd6adaf1d67c6ab046a38e8786149e513",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ChunWei-0801/-/actions/runs/40904571790"
+      },
+      "log_123555707568": [
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 35",
+        "ℹ pass 35",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 35",
+        "ℹ pass 35",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ],
+      "log_123555708108": [
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 35",
+        "ℹ pass 35",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 35",
+        "ℹ pass 35",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ],
+      "log_123555708450": [
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 35",
+        "ℹ pass 35",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 35",
+        "ℹ pass 35",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    }
+  },
+  "resources": {
+    "trialJs": 188,
+    "ragEvaluationJs": 188,
+    "receiptLabJs": 188,
+    "mainApp": 187,
+    "localAiWorker": 187
+  },
+  "schemaChanged": false,
+  "productionDataTestWrites": false,
+  "newModelQualityMeasured": false,
+  "physicalDevicesMeasured": false,
+  "directProductionHttpSmokePerformed": false,
+  "fixes": [
+    "whole-clause positive TWD integer demo parsing; unsupported mixed batches are rejected",
+    "draft signature rechecked across source, date, activity and owner; one confirmation only",
+    "confirm before deleting in-memory RAG records and ratings; cancelling preserves pending inference",
+    "monthly allowance unit label clarified",
+    "receipt whole-unit and invalid-input guidance; no automatic rounding"
+  ]
+}

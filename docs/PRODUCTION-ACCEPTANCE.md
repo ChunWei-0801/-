@@ -1,6 +1,16 @@
 # Production acceptance handoff
 
-## Current v187 classroom trials and grounded family planning
+## Current v188 trial usability release
+
+Source `f2d2cffdd6adaf1d67c6ab046a38e8786149e513` / tree `bc8968a1b7ccbe668b61fe6d70b6738c32b4b978` is **live** on Render `dep-dbhmlv7b9u1s73f8f86g`, finished **2026-10-29 23:51:13 Asia/Taipei**. Only the demo, RAG evaluation and receipt-lab script versions advance to188; main application and local-AI worker remain187. The free plan, database continuity and maintenance-off state were verified through Render; no schema migration or production-account test write occurred.
+
+Demo parsing now accepts complete supported positive TWD whole-unit clauses, rejects unsupported mixed batches and binds confirmation to source/date/activity/owner. Changed drafts cannot be confirmed, including programmatic field changes without input events. RAG records require confirmation before clearing; cancelling preserves measurements, ratings and pending generation. Receipt guidance identifies whole-unit or invalid-value errors without altering amounts. These are rule/UI fixes, not measured improvements in LLM quality.
+
+[Application checks 40904571926](https://github.com/ChunWei-0801/-/actions/runs/40904571926) passed four jobs: backend 1440, frontend units 178, browser checks 133, Windows launchers and isolated PostgreSQL18 concurrency. Nine browser-only Node cases are deferred to the browser job. [Three-engine compatibility 40904571790](https://github.com/ChunWei-0801/-/actions/runs/40904571790) passed 312 desktop/mobile executions with zero skips, including repeated worker contracts. Fixtures are not real-model, camera or physical-phone evidence. Direct productionHTTP/resource-hash smoke remains excluded by executor policy.
+
+[Work log](WORKLOG-20261029-TRIAL-USABILITY.md) · [Evidence](evidence/20261029-trial-usability.json).
+
+## Previous v187 classroom trials and grounded family planning
 
 Source `f05484949e766decc4fc463da9243e2e1a399ffc` / tree `840d518fdde65a0f010a85550dd90027a5422f97` is **live** on Render `dep-dbh9adon74is73cn9b4g`, finished **2026-10-29 08:38:51 Asia/Taipei**. Main app, API adapter, shortcut modules, planning, allowance simulation, local-AI controller/worker and new standalone labs use187. Memories/locales remain186; smoking185; system appearance183. Free plan, database continuity and maintenance off were checked through Render. No schema migration or production-account test write was performed.
 
