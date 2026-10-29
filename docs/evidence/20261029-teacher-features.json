@@ -1,0 +1,198 @@
+{
+  "version": 187,
+  "stage": "deployed-awaiting-user-device-acceptance",
+  "testedSource": "f05484949e766decc4fc463da9243e2e1a399ffc",
+  "testedTree": "840d518fdde65a0f010a85550dd90027a5422f97",
+  "productionDeploymentPerformed": true,
+  "deployment": {
+    "id": "dep-dbh9adon74is73cn9b4g",
+    "status": "live",
+    "startedAt": "2026-10-29T00:37:11.319706Z",
+    "finishedAt": "2026-10-29T00:38:51.477024Z",
+    "commit": "f05484949e766decc4fc463da9243e2e1a399ffc",
+    "plan": "free",
+    "databaseUnchanged": true,
+    "maintenanceEnabled": false,
+    "schemaChanged": false
+  },
+  "finishedAtAsiaTaipei": "2026-10-29 08:38:51",
+  "checks": {
+    "source": "f05484949e766decc4fc463da9243e2e1a399ffc",
+    "applicationRun": 40794617848,
+    "browserRun": 40794617844,
+    "allPassed": true,
+    "jobs": [
+      {
+        "id": 123187925311,
+        "name": "smoking-stock-postgres",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123187925571,
+        "name": "browser",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123187925592,
+        "name": "windows-backup",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123187925865,
+        "name": "checks",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123187925394,
+        "name": "chromium desktop and mobile",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123187925594,
+        "name": "firefox desktop and mobile",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 123187925751,
+        "name": "webkit desktop and mobile",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "metrics": {
+      "backendPassed": 1440,
+      "frontendUnitsPassed": 178,
+      "frontendBrowserOnlyDeferred": 9,
+      "applicationBrowserChecksPassed": 126,
+      "browserCompatibilityExecutionsPassed": 270,
+      "browserCompatibilityBrowserCases": 264,
+      "browserCompatibilityWorkerContracts": 6,
+      "browserCompatibilitySkipped": 0
+    },
+    "observations": {
+      "physicalPhone": false,
+      "newModelInferenceQuality": false,
+      "liveExternalFxIsolated": true,
+      "allowancePostgres18Concurrent": true
+    },
+    "validatedRuns": {
+      "application": {
+        "id": 40794617848,
+        "source": "f05484949e766decc4fc463da9243e2e1a399ffc",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ChunWei-0801/-/actions/runs/40794617848"
+      },
+      "compatibility": {
+        "id": 40794617844,
+        "source": "f05484949e766decc4fc463da9243e2e1a399ffc",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ChunWei-0801/-/actions/runs/40794617844"
+      },
+      "log_123187925865": [
+        "1440 passed, 1 warning in 114.87s (0:01:54)",
+        "ℹ tests 24",
+        "ℹ pass 24",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 5",
+        "ℹ pass 5",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 141",
+        "ℹ pass 132",
+        "ℹ fail 0",
+        "ℹ skipped 9"
+      ],
+      "log_123187925571": [
+        "ℹ tests 28",
+        "ℹ pass 28",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 35",
+        "ℹ pass 35",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 63",
+        "ℹ pass 63",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ],
+      "log_123187925394": [
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 28",
+        "ℹ pass 28",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 28",
+        "ℹ pass 28",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ],
+      "log_123187925594": [
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 28",
+        "ℹ pass 28",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 28",
+        "ℹ pass 28",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ],
+      "log_123187925751": [
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 28",
+        "ℹ pass 28",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 17",
+        "ℹ pass 17",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ tests 28",
+        "ℹ pass 28",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    }
+  },
+  "schemaChanged": false,
+  "realMoneyTransfers": false,
+  "newModelQualityMeasured": false,
+  "physicalPhonesTested": false,
+  "directProductionHttpSmokePerformed": false,
+  "demoStorage": "browser-local, fictional identities; no production session or cross-device sync",
+  "rag": "authored financial summaries + BM25 + explicitly requested Qwen explanation; program calculates money",
+  "multimodal": "OCR plus source rules and human review; vision LLM is a documented future direction",
+  "externalFxProof": "real provider, isolated SQLite, synthetic target; provider data not bank execution price",
+  "allowanceConcurrency": "isolated PostgreSQL18: serialized replay/conflict and revoked relationship; no real ledger writes"
+}

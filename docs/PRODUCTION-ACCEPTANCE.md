@@ -1,6 +1,18 @@
 # Production acceptance handoff
 
-## Current v186 personal-entry and jigsaw release
+## Current v187 classroom trials and grounded family planning
+
+Source `f05484949e766decc4fc463da9243e2e1a399ffc` / tree `840d518fdde65a0f010a85550dd90027a5422f97` is **live** on Render `dep-dbh9adon74is73cn9b4g`, finished **2026-10-29 08:38:51 Asia/Taipei**. Main app, API adapter, shortcut modules, planning, allowance simulation, local-AI controller/worker and new standalone labs use187. Memories/locales remain186; smoking185; system appearance183. Free plan, database continuity and maintenance off were checked through Render. No schema migration or production-account test write was performed.
+
+The public demo has three fictional identities and81 local records. Authenticated planning combines authorized ledger totals, Decimal arithmetic, actual FX references and16 authored BM25 financial-education summaries; the optional model explains precomputed plans. Only complete months contribute monthly capacity; a shorter deadline requires verified immediate funds. Goals require user confirmation. Simulated allowances are participant-only append-only records with idempotent issuance and guardianship checks; no bank transfer or real ledger change occurs.
+
+The24-case RAG evaluation uses fixed fictional facts, explicit local inference, observed timings/tokens and manual ratings. The receipt lab uses on-device OCR, source/line-item checks and human-confirmed JSON; it is not a vision LLM. No new real-model quality score or physical-camera acceptance is claimed.
+
+[Application checks 40794617848](https://github.com/ChunWei-0801/-/actions/runs/40794617848) passed all four jobs, including backend1440, frontend unit178, browser checks126 and isolated PostgreSQL18 simulation/stock races. Nine browser-only Node cases are deferred to the browser job. [Browser compatibility 40794617844](https://github.com/ChunWei-0801/-/actions/runs/40794617844) passed Chromium/Firefox/WebKit desktop and mobile/narrow profiles:270 executions, zero skips (264 browser cases and6 repeated worker-contract checks). Test fixtures do not measure Qwen quality or real phones. Direct productionHTTP/resource-hash smoke remains excluded by executor policy; deployment status and pinned source were verified through Render.
+
+[Teacher demonstration guide](TEACHER-DEMO-GUIDE.md) · [Work log](WORKLOG-20261029-TEACHER-FEATURES.md) · [Evidence](evidence/20261029-teacher-features.json).
+
+## Previous v186 personal-entry and jigsaw release
 
 Source `b53b7a2e525e0400b0e7fb6dd76270cadb4d20ab` / tree `56ea069994a0b3201d1f3a471cc81c82813f9787` is **live** on Render `dep-dbgv0snlk1mc739hifd0`, finished **2026-10-28 20:55:38 Asia/Taipei**. Main application, API adapter, memories, jigsaw and locale-loading resources are186; smoking remains185 and LLM remains180. The service staysFree, DATABASE_URL digest matches the previously deployed database, maintenance remainsoff and no schema migration was introduced.
 
