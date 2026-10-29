@@ -195,11 +195,40 @@ def test_extension_is_provisional_and_over_ten_years_has_no_promised_date(planni
 
 @pytest.mark.parametrize("today,deadline,expected", [
     (date(2026, 1, 31), date(2026, 4, 30), ["2026-02-28", "2026-03-31", "2026-04-30"]),
-    (date(2028, 1, 31), date(2028, 3, 1), ["2028-02-29", "2028-03-01"]),
+    (date(2028, 1, 31), date(2028, 3, 1), ["2028-02-29"]),
+    (date(2026, 10, 29), date(2027, 1, 31), ["2026-11-29", "2026-12-29", "2027-01-29"]),
     (date(2026, 10, 29), date(2026, 10, 29), ["2026-10-29"]),
 ])
 def test_month_end_leap_year_and_immediate_deadline_installments(today, deadline, expected):
     assert financial_planning._contribution_dates(today, deadline) == expected
+
+
+def test_partial_final_month_does_not_create_another_month_of_capacity(planning_api):
+    client, state = planning_api
+    body = request(client, state, deadline="2027-01-31", monthlyContributionTwd="2500").json()
+    assert body["facts"]["contributionDates"] == ["2026-11-29", "2026-12-29", "2027-01-29"]
+    assert body["facts"]["fullMonthlyInstallments"] == body["facts"]["contributionMonths"] == 3
+    assert not body["facts"]["shortDeadlineRequiresFunds"]
+    assert body["facts"]["requiredMonthlyTwd"] == "2667"
+    assert body["plans"][0]["feasible"] is False
+    assert body["plans"][1]["deadline"] == "2027-02-28"
+    assert body["plans"][1]["feasible"] is None
+
+
+@pytest.mark.parametrize("deadline", ["2026-10-29", "2026-11-12"])
+def test_short_deadline_cannot_treat_monthly_contribution_as_immediate_funds(planning_api, deadline):
+    client, state = planning_api
+    body = request(client, state, targetAmount="1000", deadline=deadline, monthlyContributionTwd="10000").json()
+    assert body["facts"]["contributionDates"] == [deadline]
+    assert body["facts"]["fullMonthlyInstallments"] == 0
+    assert body["facts"]["shortDeadlineRequiresFunds"]
+    assert body["facts"]["requiredMonthlyTwd"] == "1000"
+    assert body["plans"][0]["feasible"] is None
+    assert body["plans"][1]["feasible"] is None
+    assert body["plans"][1]["deadline"] == "2026-11-29"
+    assert any("即時資金" in text for text in body["warnings"])
+    already_funded = request(client, state, targetAmount="1000", savedTwd="1000", deadline=deadline, monthlyContributionTwd="0").json()
+    assert already_funded["plans"][0]["feasible"] is True
 
 
 def test_foreign_goal_rounds_exact_rate_up_not_pre_rounded_quote(planning_api, monkeypatch):

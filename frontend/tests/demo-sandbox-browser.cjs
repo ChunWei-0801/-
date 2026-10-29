@@ -60,3 +60,23 @@ test('funded demo goal still needs allowance capacity and accepts the same sixty
  await page.getByText('示範目標已建立。 未產生銀行交易。',{exact:true}).waitFor();
  assert.ok((await state(page)).goals.some(g=>g.name===name));assert.deepEqual(errors,[]);
 });
+test('demo ignores a final partial month when checking monthly savings capacity',{skip:!pw},async t=>{
+ const {page,errors}=await fixture(t);await page.clock.setFixedTime(new Date('2026-10-29T04:00:00Z'));
+ await page.locator('[data-demo-tab="planning"]').click();
+ for(const [key,value] of Object.entries({targetAmount:'8000',savedTwd:'0',monthlyContributionTwd:'2500',weeklyAllowanceTwd:'0',deadline:'2027-01-31'}))await page.locator('[data-fp-field="'+key+'"]').fill(value);
+ await page.getByRole('button',{name:'試算並檢索資料',exact:true}).click();await page.locator('.fp-plan').first().waitFor();
+ assert.match(await page.locator('.fp-results').innerText(),/3 期/);
+ assert.match(await page.locator('.fp-plan').first().innerText(),/2,667/);
+ assert.match(await page.locator('.fp-plan').first().innerText(),/目前投入金額不足/);
+ assert.match(await page.locator('.fp-plan').nth(1).innerText(),/調整期限後須重新試算/);assert.deepEqual(errors,[]);
+});
+test('demo does not treat a monthly assumption as cash available on a same-day deadline',{skip:!pw},async t=>{
+ const {page,errors}=await fixture(t);await page.clock.setFixedTime(new Date('2026-10-29T04:00:00Z'));
+ await page.locator('[data-demo-tab="planning"]').click();
+ for(const [key,value] of Object.entries({targetAmount:'1000',savedTwd:'0',monthlyContributionTwd:'10000',weeklyAllowanceTwd:'0',deadline:'2026-10-29'}))await page.locator('[data-fp-field="'+key+'"]').fill(value);
+ await page.getByRole('button',{name:'試算並檢索資料',exact:true}).click();await page.locator('.fp-plan').first().waitFor();
+ assert.match(await page.locator('.fp-results').innerText(),/不足一個完整月/);
+ assert.match(await page.locator('.fp-plan').first().innerText(),/尚待補足資料/);
+ assert.doesNotMatch(await page.locator('.fp-plan').first().innerText(),/依目前假設可達成/);
+ assert.match(await page.locator('.fp-plan').nth(1).innerText(),/2026-11-29/);assert.deepEqual(errors,[]);
+});

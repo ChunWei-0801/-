@@ -43,15 +43,15 @@ def _monthly_date(anchor: date, offset: int) -> date:
 
 
 def _contribution_dates(today: date, deadline: date) -> list[str]:
-    # First payment is one month from today, or the deadline if sooner. Last
-    # partial month ends exactly at the deadline rather than after it.
+    # Monthly capacity is earned once per complete calendar month, never again
+    # for a few remaining days. A short deadline is a display-only one-off need.
     dates = []
-    for offset in range(1, 123):
+    for offset in range(1, 121):
         candidate = _monthly_date(today, offset)
-        dates.append(min(candidate, deadline).isoformat())
-        if candidate >= deadline:
+        if candidate > deadline:
             break
-    return dates
+        dates.append(candidate.isoformat())
+    return dates or [deadline.isoformat()]
 
 
 def preview(db: Session, me: User, body: PlanningIn) -> dict:
@@ -61,9 +61,13 @@ def preview(db: Session, me: User, body: PlanningIn) -> dict:
         raise PlanningError("截止日須為今天起十年內的日期")
     dates = _contribution_dates(today, body.deadline)
     months = len(dates)
+    full_monthly_installments = months if _monthly_date(today, 1) <= body.deadline else 0
+    short_deadline_requires_funds = full_monthly_installments == 0
     grounded = ai_local.context(db, me, ContextQuery(period=body.period, scope=body.scope, limit=1))
     current = grounded["current"]
     warnings = ["試算只使用已記錄的收支及你填寫的假設，不代表銀行可用餘額，也不保證未來收入；請先保留必要生活支出與緊急預備金。"]
+    if short_deadline_requires_funds:
+        warnings.append("距截止日不足一個完整月；截止日所列為一次性需備妥金額，不能把每月結餘或每月投入假設當作期限前已有的即時資金。請另行確認已備妥資金，否則原期限可行性仍待確認。")
     quote = None
     with localcontext() as decimal_context:
         decimal_context.prec = 50
@@ -104,6 +108,8 @@ def preview(db: Session, me: User, body: PlanningIn) -> dict:
         target_feasible = None if available is None else required <= available and gross_capacity >= allowance_reserve
         if gap == 0 and allowance_reserve == 0:
             target_feasible = True
+        if short_deadline_requires_funds and gap > 0 and target_feasible is True:
+            target_feasible = None
         comfortable_amount = None if available is None else min(required, available)
         comfortable_months = None if comfortable_amount is None or comfortable_amount <= 0 else max(1, int((gap / comfortable_amount).to_integral_value(rounding=ROUND_CEILING)))
         if gap == 0:
@@ -112,9 +118,9 @@ def preview(db: Session, me: User, body: PlanningIn) -> dict:
         # small contribution. Unknown extension remains visible to the user.
         extended_date = None
         if comfortable_months is not None and 0 < comfortable_months <= 120:
-            extended_date = dates[comfortable_months - 1] if comfortable_months <= months else _monthly_date(today, comfortable_months).isoformat()
+            extended_date = dates[comfortable_months - 1] if full_monthly_installments and comfortable_months <= months else _monthly_date(today, comfortable_months).isoformat()
         comfortable_feasible = None if available is None else (gap == 0 or comfortable_amount > 0) and gross_capacity >= allowance_reserve
-        if comfortable_months is not None and comfortable_months > months:
+        if comfortable_months is not None and (comfortable_months > months or short_deadline_requires_funds and comfortable_months > 0):
             comfortable_feasible = None
         if comfortable_months is not None and comfortable_months > 120:
             warnings.append("保留現金流方案推估超過十年，不提供完成日期；請調整目標或投入金額後重新試算。")
@@ -122,6 +128,8 @@ def preview(db: Session, me: User, body: PlanningIn) -> dict:
         facts = {
             "targetTwd": _money(target_twd), "savedTwd": _money(body.savedTwd), "gapTwd": _money(gap),
             "remainingDays": remaining_days, "contributionMonths": months,
+            "fullMonthlyInstallments": full_monthly_installments,
+            "shortDeadlineRequiresFunds": short_deadline_requires_funds,
             "contributionDates": dates, "requiredMonthlyTwd": _money(required),
             "weeklyAllowanceReserveTwd": _money(allowance_reserve),
             "allowanceMonthlyReserveTwd": _money(allowance_reserve),
@@ -140,7 +148,7 @@ def preview(db: Session, me: User, body: PlanningIn) -> dict:
         elif target_feasible is False:
             deadline_description = "依目前已記錄結餘或自行填寫的投入假設，無法在期限內達成；請調整金額、期限或確認額外可投入資金。"
         else:
-            deadline_description = "已算出期限內每月應存金額，但沒有足夠資料判斷負擔能力；請先確認固定支出及每月可投入金額。"
+            deadline_description = "已算出截止日一次性需備妥金額，但每月投入不代表已有即時資金；請確認期限前實際可用資金。" if short_deadline_requires_funds else "已算出期限內每月應存金額，但沒有足夠資料判斷負擔能力；請先確認固定支出及每月可投入金額。"
         plans = [
             {"id": "deadline", "title": "依原期限達標", "monthlyTwd": _money(required), "months": months,
              "deadline": body.deadline.isoformat(), "feasible": target_feasible, "description": deadline_description,
@@ -172,7 +180,7 @@ def preview(db: Session, me: User, body: PlanningIn) -> dict:
             "inferencePerformed": False, "bankBalanceAccessed": False,
             "feasibilityMeaning": "是否依本次投入假設支應目標及額外零用錢；需延長期限的方案僅估算期數，須重新試算才能確認。",
             "scopeDefinition": grounded["scopeInfo"]["definition"],
-            "installmentRule": "第一期為今天的一個月後；不足一個月或最後一期不足一個月時，以截止日為該期日期。金額向上取台幣整元。",
+            "installmentRule": "只計入今天起每滿一個月且不晚於截止日的投入日期；最後不足一個月不另增加整月投入能力。完全沒有完整月時，截止日僅展示一次性需備妥金額，不推定已有即時資金。金額向上取台幣整元。",
             "allowanceRule": "從今天七天後起，每七天一次，直到截止日（含）；總額按存款期數均攤並向上取整元。延長方案需重新計算。",
             "statement": "程式試算與知識檢索已執行，尚未執行模型推論；規劃是假設，不是投資建議、轉帳或保證。建立目標需另外由使用者確認。",
         },

@@ -74,7 +74,8 @@ function compactPlanning(value) {
   for (const key of ['targetTwd','savedTwd','gapTwd','requiredMonthlyTwd','weeklyAllowanceReserveTwd','allowanceTotalTwd','recordedMonthlyNetTwd','availableMonthlyTwd']) {
     if (typeof facts[key] === 'string' && /^-?[0-9]{1,13}(?:\.[0-9]{1,2})?$/.test(facts[key])) result.facts[key] = facts[key];
   }
-  for (const key of ['remainingDays','contributionMonths','transactionCount','allowancePaymentCount']) if (Number.isInteger(facts[key]) && facts[key] >= 0 && facts[key] <= 1000000) result.facts[key] = facts[key];
+  for (const key of ['remainingDays','contributionMonths','transactionCount','allowancePaymentCount','fullMonthlyInstallments']) if (Number.isInteger(facts[key]) && facts[key] >= 0 && facts[key] <= 1000000) result.facts[key] = facts[key];
+  if (typeof facts.shortDeadlineRequiresFunds === 'boolean') result.facts.shortDeadlineRequiresFunds = facts.shortDeadlineRequiresFunds;
   if (['ledger','user-assumption','unknown'].includes(facts.capacitySource)) result.facts.capacitySource = facts.capacitySource;
   for (const row of (Array.isArray(value.plans) ? value.plans : []).slice(0,2)) {
     if (!row || typeof row.id !== 'string' || !/^[A-Za-z0-9_-]{1,40}$/.test(row.id)) continue;
