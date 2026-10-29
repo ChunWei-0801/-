@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="以本機 OCR 與來源規則核對收據，體驗圖片到記帳草稿的研究流程。">
+  <title>圖片記帳研究室｜家庭記帳</title>
+  <link rel="stylesheet" href="css/receipt-lab.css?v=187">
+  <script defer src="js/receipt-ocr.js?v=180"></script>
+  <script defer src="js/receipt-entry.js?v=180"></script>
+  <script defer src="js/receipt-lab.js?v=187"></script>
+</head>
+<body>
+  <a class="rl-skip" href="#receiptLab">跳到主要內容</a>
+  <header class="rl-header">
+    <a href="index.html#/">← 家庭記帳</a>
+    <a href="demo.html">專題試用</a>
+  </header>
+  <main id="receiptLab" class="rl-main">
+    <section class="rl-hero" aria-labelledby="labTitle">
+      <p class="rl-eyebrow">圖片記帳研究室</p>
+      <h1 id="labTitle">從一張收據，整理出可核對的草稿</h1>
+      <p>現階段使用 <strong>OCR＋規則</strong>，尚未使用視覺語言模型。辨識圖片中的文字後，逐項核對來源、金額與總額。</p>
+      <p class="rl-privacy">圖片與辨識內容只留在本頁；不會上傳照片、登入帳號或寫入正式帳務。首次辨識需下載免費 OCR 程式與語言檔，可能需要較長時間。</p>
+      <ol class="rl-steps" aria-label="研究流程"><li>選擇圖片</li><li>辨識文字</li><li>核對欄位與品項</li><li>下載確認草稿</li></ol>
+    </section>
+    <div class="rl-layout">
+      <section class="rl-card" aria-labelledby="sourceTitle">
+        <h2 id="sourceTitle">1. 圖片與來源文字</h2>
+        <div class="rl-files">
+          <label class="rl-file">選擇收據照片<input type="file" accept="image/jpeg,image/png,image/webp" data-rl-file="choose"></label>
+          <label class="rl-file">使用相機拍攝<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" data-rl-file="camera"></label>
+        </div>
+        <p class="rl-help">支援 JPG、PNG、WebP，最大 12 MB。請保留清楚的日期、品項與總額；HEIC 可先轉成 JPG。</p>
+        <figure class="rl-image" hidden data-rl-image-wrap><img alt="本機選取的收據照片" data-rl-image><figcaption data-rl-image-name></figcaption></figure>
+        <div class="rl-actions"><button type="button" class="rl-primary" disabled data-rl-action="ocr">辨識圖片文字</button><button type="button" hidden data-rl-action="cancel">取消辨識</button><button type="button" data-rl-action="sample">先用示範文字試試</button><button type="button" data-rl-action="clear">清除本頁資料</button></div>
+        <progress max="1" hidden aria-label="文字辨識進度" data-rl-progress></progress>
+        <p class="rl-status" role="status" aria-live="polite" data-rl-status>尚未選擇圖片，也可以先使用示範文字。</p>
+        <p class="rl-source" data-rl-origin>來源：尚未提供</p>
+        <label class="rl-field">辨識原文／手動核對文字<textarea rows="10" maxlength="30000" spellcheck="false" placeholder="可以貼上收據文字，或先選圖辨識。" data-rl-raw></textarea></label>
+        <p class="rl-help">若手動修改原文，請再按「整理文字草稿」。本頁沒有 OCR 字元信心分數，欄位完整不代表辨識正確。</p>
+        <button type="button" class="rl-primary" data-rl-action="analyze">整理文字草稿</button>
+      </section>
+      <section class="rl-card" aria-labelledby="reviewTitle">
+        <h2 id="reviewTitle">2. 核對草稿</h2>
+        <p class="rl-help">總額與日期沿用正式記帳的來源規則。品項僅從「名稱＋行尾金額」提出候選，可能漏列稅額、數量與其他項目。</p>
+        <div data-rl-review><p class="rl-empty">整理文字後，會在這裡顯示待核對欄位。</p></div>
+      </section>
+    </div>
+    <section class="rl-card rl-roadmap" aria-labelledby="roadmapTitle">
+      <h2 id="roadmapTitle">多模態的下一步</h2>
+      <p>後續可研究開源視覺語言模型，同時理解圖片版面與文字，辨識品項、折扣、付款方式並核對總額。這項視覺模型整合尚未實作；本頁展示的是現有 OCR、規則與人工確認流程。</p>
+      <p>課程評估可比較同一批收據的「OCR 原文」「規則草稿」「人工核對結果」，分別記錄欄位正確率、漏列品項、總額不一致與耗時。本頁的示範與自動化測試不代表真實發票辨識準確率。</p>
+    </section>
+    <noscript><p>請啟用 JavaScript，才能在本機辨識及整理收據。</p></noscript>
+  </main>
+</body>
+</html>

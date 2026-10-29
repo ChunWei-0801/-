@@ -18,6 +18,7 @@ ShortcutId = Literal[
     "quick-entry", "entry", "manual-entry", "exchange", "groups", "stats", "advice",
     "members", "profile", "memories", "settings", "appearance", "logout",
     "savings-game", "health", "smoking", "calculator", "ai", "fraud", "calendar",
+    "financial-planning", "allowance-simulation",
 ]
 JarShape = Literal["pig", "dinosaur", "heart", "photo"]
 HabitId = Annotated[str, Field(min_length=1, max_length=80, pattern=r"^[a-z][a-z0-9-]*$")]
@@ -66,7 +67,7 @@ class PreferencesPatch(LifestyleSchema):
     timezone: str | None = Field(None, min_length=1, max_length=80)
     smokingEnabled: bool | None = Field(None, strict=True)
     calculatorEnabled: bool | None = Field(None, strict=True)
-    shortcuts: list[ShortcutPreference] | None = Field(None, max_length=20)
+    shortcuts: list[ShortcutPreference] | None = Field(None, max_length=22)
     customHabits: list[CustomHabit] | None = Field(None, max_length=100)
     hiddenHabitIds: list[HabitId] | None = Field(None, max_length=200)
 

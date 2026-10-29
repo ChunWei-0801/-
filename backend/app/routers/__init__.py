@@ -23,6 +23,8 @@ from app.routers.ledger import categories, groups, group_invites, nlp, transacti
 from app.routers import appearance, memories, lifestyle, ai_local, resources, calendar
 from app.routers.ledger import statement_import
 from app.routers import monthly_reports  # noqa: F401
+from app.routers import financial_planning, allowance_simulation
 
 #: main.py 依序掛上（prefix 一律是 /api）
 ALL = [auth, admin, transactions, nlp, categories, groups, group_invites, stats, budgets, alerts, advices, family, notifications, exchange, memories, appearance, lifestyle, ai_local, resources, calendar, statement_import, monthly_reports]
+ALL += [financial_planning, allowance_simulation]

@@ -71,7 +71,7 @@
         <div class="mchip"><span>線上原型</span><b><a href="https://fambudget-web.onrender.com" target="_blank" rel="noopener">fambudget-web</a></b></div>
         <div class="mchip"><span>原始碼</span><b class="mono">ChunWei-0801/-</b></div>
         <div class="mchip"><span>技術棧</span><b>FastAPI · PostgreSQL · 純靜態前端</b></div>
-        <div class="mchip"><span>API</span><b>145 支路由</b></div>
+        <div class="mchip"><span>API</span><b>149 支路由</b></div>
         <div class="mchip"><span>資料表</span><b>38 張</b></div>
       </div>
     </header>
@@ -546,7 +546,7 @@
         <div class="card">
           <h4 class="sub2" style="margin-top:0;color:var(--ink)">React / Vue</h4>
           <p style="font-size:13px;color:var(--ink-soft)">
-            二十七個畫面已經寫完（含登入、註冊、個人化設定、忘記密碼、個人資料、成員紀錄、帳本、平台管理），重寫是純成本。三個沒有專案經驗的人要同時學 React、Vite、hooks，
+            二十九個畫面已經寫完（含登入、註冊、個人化設定、忘記密碼、個人資料、成員紀錄、帳本、平台管理），重寫是純成本。三個沒有專案經驗的人要同時學 React、Vite、hooks，
             再加上後端與模型，一個月做不完。<br><br>
             <b>這是有意識的取捨，不是能力不足</b>——要寫進報告。有時間該升級的是<b>打包</b>（Vite），
             不是框架，因為那只影響建置流程，不必重寫畫面。
@@ -576,7 +576,7 @@
     <section class="sec" id="api">
       <div class="sec__h"><span class="sec__n">05</span><h2>API 目錄：按人員分類</h2></div>
       <p class="sec__lead">
-        共 <b>145 支路由</b>。權限標示：公開 / 登入 / 本人 / 家長 / 監管者 / 建立者 / 平台管理員。
+        共 <b>149 支路由</b>。權限標示：公開 / 登入 / 本人 / 家長 / 監管者 / 建立者 / 平台管理員。
         <span class="tag tag--llm">★</span> 代表與 LLM 直接相關。
       </p>
 
@@ -593,12 +593,12 @@
         </div>
         <div class="card" style="border-top:2px solid var(--m3)">
           <div class="mvc__k" style="color:var(--m3)">數字</div>
-          <div class="mvc__t">數字 · 24 支</div>
+          <div class="mvc__t">數字 · 26 支</div>
           <p style="font-size:13px;color:var(--ink-soft)"><b>整個系統只有這裡加總錢</b>——前端只補衍生值（結餘、比例）。財務建議的 prompt 與邊界規則也在這裡。</p>
         </div>
         <div class="card" style="border-top:2px solid var(--m4)">
           <div class="mvc__k" style="color:var(--m4)">家庭</div>
-          <div class="mvc__t">家庭 · 21 支</div>
+          <div class="mvc__t">家庭 · 23 支</div>
           <p style="font-size:13px;color:var(--ink-soft)">回答「你能看到什麼」。可見範圍的規則（<code>toolkit/scope.py</code>）已經寫好，他負責家庭、監管、通知與模型評測。</p>
         </div>
       </div>
@@ -760,6 +760,8 @@
 <tr><td class="num">143</td><td class="tight">POST</td><td class="rt">/api/monthly-reports/authorize</td><td class="tight">本人</td><td>建立或輪替12個月有效的月報唯讀金鑰；只顯示一次，資料庫只存雜湊，需明確同意。</td></tr>
 <tr><td class="num">144</td><td class="tight">DELETE</td><td class="rt">/api/monthly-reports/authorization</td><td class="tight">本人</td><td>撤銷月報讀取授權；Google端觸發條件仍需自行移除。</td></tr>
 <tr><td class="num">145</td><td class="tight">GET</td><td class="rt">/api/monthly-reports/export</td><td class="tight">月報唯讀授權</td><td>專用Bearer金鑰，period=YYYY-MM，只讀本人最近24個已結束月份。提供PDF用HTML及CSV，不接受登入JWT或查詢字串金鑰。</td></tr>
+<tr><td class="num">146</td><td class="tight">POST</td><td class="rt">/api/financial-planning/preview</td><td class="tight">登入</td><td>依本人或有權限的家庭收支、目標及參考匯率進行 Decimal 儲蓄試算，附兩個方案與檢索來源；唯讀、不執行模型、不查銀行餘額。</td></tr>
+<tr><td class="num">147</td><td class="tight">GET</td><td class="rt">/api/financial-planning/knowledge</td><td class="tight">登入</td><td>q=1..500字、limit=1..8；以 BM25 檢索16則有來源、核對日期與權利說明的繁中理財摘要；未涵蓋的問題回空，不是即時網路搜尋。</td></tr>
 </tbody>
         </table>
       </div>
@@ -790,7 +792,9 @@
             <tr><td class="num">58</td><td class="tight">GET</td><td class="rt">/api/allowances</td><td class="tight">登入</td><td>我每月給每個照看的人多少零用金，對照他這個月花了多少</td></tr>
             <tr><td class="num">59</td><td class="tight">PUT</td><td class="rt">/api/allowance</td><td class="tight">監管者</td><td>設定零用金。body: { wardId, amount }</td></tr>
             <tr><td class="num">65</td><td class="tight">GET</td><td class="rt">/api/audit</td><td class="tight">平台管理員</td><td>稽核紀錄：誰做了什麼。⚠️ 只記動作，不記金額</td></tr>
-          </tbody>
+          <tr><td class="num">148</td><td class="tight">GET</td><td class="rt">/api/allowance-simulation</td><td class="tight">本人</td><td>只列本人發放或收到的模擬零用錢與目前可發放對象；每頁50筆，可用beforeId讀取較舊紀錄。關係結束後仍可讀本人歷史。</td></tr>
+<tr><td class="num">149</td><td class="tight">POST</td><td class="rt">/api/allowance-simulation</td><td class="tight">監管者</td><td>有效監管者確認後發放1..1000000元整元模擬零用錢；UUID操作編號防重送，同編號不同內容回409。只記教學模擬，不新增銀行或正式收支交易。</td></tr>
+</tbody>
         </table>
       </div>
 
@@ -818,7 +822,7 @@
           <div class="layer__h"><span class="layer__t">瀏覽器</span><span class="layer__s">frontend/ · 純靜態，無建置步驟</span></div>
           <div class="boxes">
             <div class="box"><b>index.html</b> 單頁 · hash 路由</div>
-            <div class="box"><b>app.js</b> 二十七個畫面的繪製與互動</div>
+            <div class="box"><b>app.js</b> 二十九個畫面的繪製與互動</div>
             <div class="box"><b>stars.js</b> canvas 星空</div>
             <div class="box"><b>tokens.css</b> 設計權杖</div>
             <div class="box"><b>themes.css</b> 八套主題</div>
@@ -841,7 +845,7 @@
             真實後端以契約驗證資料形狀與權限。模型服務暫時無法使用（503）時可用規則協助，<b>寫入仍須後端成功</b>；匯率錯誤會明示，不填入假行情。
           </p>
           <p style="margin-top:8px;font-size:13px;color:var(--ink-soft)">
-            後端那 145 支的說明字串就是<b>那一支的規格書</b>：做什麼、誰能打、收什麼、吐什麼、錯誤怎麼回、
+            後端那 149 支的說明字串就是<b>那一支的規格書</b>：做什麼、誰能打、收什麼、吐什麼、錯誤怎麼回、
             用到哪幾張表與哪些工具、<b>可以直接貼上去的完整寫法</b>、做完怎麼自己驗。
             說明裡的程式有測試在跑（<code>pytest tests/routes</code>），所以它不會跟實作走散。
           </p>
@@ -852,7 +856,7 @@
         <div class="layer">
           <div class="layer__h"><span class="layer__t">FastAPI</span><span class="layer__s">backend/app/</span></div>
           <div class="boxes" style="margin-bottom:10px">
-            <div class="box"><b>routers/</b> 145 支路由，只做接收與回傳</div>
+            <div class="box"><b>routers/</b> 149 支路由，只做接收與回傳</div>
             <div class="box"><b>guards.py</b> 路由守衛：登入 · 角色 · 本人 · 帳本成員</div>
             <div class="box"><b>schemas/</b> Pydantic 驗證</div>
             <div class="box"><b>toolkit/</b> 設定 · 資料庫 · 增刪改查 · 密碼 · JWT · 規則</div>
@@ -903,7 +907,7 @@
           <div class="mvc__k">View</div>
           <div class="mvc__t">frontend/ 前端</div>
           <ul class="mvc__l">
-            <li><code>app.js</code> 二十七個畫面的繪製</li>
+            <li><code>app.js</code> 二十九個畫面的繪製</li>
             <li><code>api.js</code> 唯一的資料入口</li>
             <li>不做金額加總（只補結餘、比例這類衍生值）</li>
             <li>只負責顯示與收集輸入</li>
@@ -1072,7 +1076,7 @@
 
     <footer class="foot">
       <div>家庭記帳與財務控管系統 · 四人 × 一個月專題</div>
-      <div class="mono">145 API · 38 TABLES · 27 SCREENS</div>
+      <div class="mono">149 API · 38 TABLES · 29 SCREENS</div>
     </footer>
 
   </div>

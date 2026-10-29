@@ -1009,6 +1009,10 @@
       years: Object.keys(years).map(function (year) { return years[year]; }).sort(function (a, b) { return b.year - a.year; }) };
   }
   var mock = {
+    financialPlanningPreview: function () { return Promise.reject(oops('請開啟專題試用頁操作示範規劃，或連接後端使用自己的帳務。', 400)); },
+    financialPlanningKnowledge: function () { return Promise.reject(oops('此本機開發模式未連接理財知識服務，請使用專題試用頁。', 400)); },
+    allowanceSimulation: function () { return Promise.reject(oops('請開啟專題試用頁體驗親子零用錢，或連接後端。', 400)); },
+    issueAllowanceSimulation: function () { return Promise.reject(oops('此本機開發模式不建立模擬發放，請使用專題試用頁。', 400)); },
     fraudUpdates: function (options) { return fraudUpdates(options); },
     financialReferences: function (options) { return financialReferences(options); },
     lookupGroupUser: function () { return mockActivityInviteUnavailable(); },
@@ -3101,6 +3105,10 @@
   }
 
   var http = {
+    financialPlanningPreview: function (p) { return req('/api/financial-planning/preview', { method: 'POST', body: p }); },
+    financialPlanningKnowledge: function (f) { return req('/api/financial-planning/knowledge' + qs(f || {})); },
+    allowanceSimulation: function (f) { return req('/api/allowance-simulation' + qs(f || {})); },
+    issueAllowanceSimulation: function (p) { return req('/api/allowance-simulation', { method: 'POST', body: p }); },
     fraudUpdates: function (options) { return fraudUpdates(options); },
     financialReferences: function (options) { return financialReferences(options); },
     me:                function ()      { return req('/api/auth/me'); },
@@ -3254,6 +3262,10 @@
         路由與負責人跟 backend/app/ownership.py 對齊，有測試擋。
      ============================================================ */
   var FN = {
+    financialPlanningPreview: ['POST /api/financial-planning/preview', '數字'],
+    financialPlanningKnowledge: ['GET /api/financial-planning/knowledge', '數字'],
+    allowanceSimulation: ['GET /api/allowance-simulation', '家庭'],
+    issueAllowanceSimulation: ['POST /api/allowance-simulation', '家庭'],
     billingProfile: ['GET /api/billing/profile', '記帳'],
     setBillingProfile: ['PUT /api/billing/profile', '記帳'],
     previewStatementImport: ['POST /api/statement-import/preview', '記帳'],
@@ -3421,6 +3433,10 @@
   /* 畫面一定會讀的欄位。少了任何一個，畫面會在很後面的地方壞掉（讀不到 undefined 的 map），
      看不出是哪一支回錯——所以在這裡先檢查，直接指出是哪一支。 */
   var SHAPE = {
+    financialPlanningPreview: ['version', 'facts', 'plans', 'knowledge', 'sources', 'warnings', 'dataPolicy'],
+    financialPlanningKnowledge: ['query', 'method', 'items', 'totalMatches', 'truncated'],
+    allowanceSimulation: ['simulation', 'recipients', 'items', 'truncated'],
+    issueAllowanceSimulation: ['simulation', 'item', 'replayed'],
     transactionArchives: ['timezone', 'currentPeriod', 'asOf', 'total', 'years'],
     lookupGroupUser: ['user', 'status'],
     groupInvites: ['sent'], receivedGroupInvites: ['received'],

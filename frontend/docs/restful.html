@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RESTful API 說明書</title>
-<meta name="description" content="從零開始講 REST：網址是名詞、動作是方法、狀態碼是回應的一部分，並且誠實檢查本專案 145 支路由哪裡符合、哪裡故意不符合。">
+<meta name="description" content="從零開始講 REST：網址是名詞、動作是方法、狀態碼是回應的一部分，並且誠實檢查本專案 149 支路由哪裡符合、哪裡故意不符合。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -100,12 +100,12 @@ td.verdict-fix { color: var(--down); white-space: nowrap; }
         REST 不是技術，是一套<b>取名字的約定</b>。約定好之後，
         別人看到你的網址就猜得出它會做什麼——不用問你、不用翻文件。<br>
         這份文件會先用<b>圖書館</b>把概念講完，再回頭誠實檢查
-        我們自己的 145 支路由：哪些符合、哪些故意不符合、哪些可以改。
+        我們自己的 149 支路由：哪些符合、哪些故意不符合、哪些可以改。
       </p>
       <div class="hero__meta">
         <div class="mchip"><span>預計閱讀</span><b>25 分鐘</b></div>
         <div class="mchip"><span>前置知識</span><b>看過 FastAPI 說明書</b></div>
-        <div class="mchip"><span>本專案</span><b>145 支路由</b></div>
+        <div class="mchip"><span>本專案</span><b>149 支路由</b></div>
       </div>
     </header>
     <!-- 這一頁的重點：先講結論，細節在下面每一節 -->
@@ -520,19 +520,18 @@ DELETE /books/5
 
     <!-- ============ 08 ============ -->
     <section class="sec" id="ours">
-      <div class="sec__h"><span class="sec__n">08</span><h2>誠實檢查我們自己的 145 支</h2></div>
+      <div class="sec__h"><span class="sec__n">08</span><h2>誠實檢查我們自己的 149 支</h2></div>
       <p class="sec__lead">
         我把本專案的每一支路由都對上面的規則檢查過（清單跟 <code>backend/app/ownership.py</code> 一致，有測試對）。
-        結果是：<b>118 支裡有 69 支完全符合，49 支採用通用寫法或動作接口。</b>
+        結果是：<b>149 支中，96 支列入資源操作，其餘 53 支採通用寫法、動作接口或保留可改善的設計。</b>
       </p>
 
       <div class="note">
         <div class="note__k">這個數字不代表設計很差</div>
-        <p>其他 49 支裡，<b>20 支是業界通用做法、13 支是刻意的動作</b>，
-        真的可以改得更一致的是 18 支。下面逐類講。</p>
+        <p>以下分類中，21 支採通用寫法、14 支為刻意的動作接口，另有 18 支保留相容性並列出可改善方式。這些分類不代表資安或功能驗收結果。</p>
       </div>
 
-      <h3 class="sub">完全符合（74 支）</h3>
+      <h3 class="sub">完全符合（96 支）</h3>
       <p style="color:var(--ink-soft);max-width:64ch">網址是名詞、集合用複數、動作靠方法表達，照第 2～4 節寫的就是這些：</p>
       <div class="tw">
         <table>
@@ -576,11 +575,13 @@ DELETE /books/5
 <tr><td class="rt">POST /api/monthly-reports/authorize</td><td>建立或輪替12個月有效的月報唯讀金鑰；只顯示一次，資料庫只存雜湊，需明確同意。</td></tr>
 <tr><td class="rt">DELETE /api/monthly-reports/authorization</td><td>撤銷月報讀取授權；Google端觸發條件仍需自行移除。</td></tr>
 <tr><td class="rt">GET /api/monthly-reports/export</td><td>專用Bearer金鑰，period=YYYY-MM，只讀本人最近24個已結束月份。提供PDF用HTML及CSV，不接受登入JWT或查詢字串金鑰。</td></tr>
+<tr><td class="rt">GET /api/financial-planning/knowledge</td></tr>
+<tr><td class="rt">GET /api/allowance-simulation</td></tr>
 </tbody>
         </table>
       </div>
 
-      <h3 class="sub">第一類：業界通用，不用改（20 支）</h3>
+      <h3 class="sub">第一類：業界通用，不用改（21 支）</h3>
       <div class="tw">
         <table>
           <thead><tr><th>路由</th><th>嚴格說的問題</th><th>為什麼不改</th></tr></thead>
@@ -601,11 +602,12 @@ DELETE /books/5
                 <td>網址有動詞</td>
                 <td>查詢類的慣例寫法（跟 <code>/search</code> 一樣）。它只讀、不建立任何東西，而且只收完整 email。</td></tr>
                       <tr><td class="rt">GET /api/groups/lookup</td><td>查詢慣例</td><td>活動建立者依完整email查找朋友，只回最少邀請資料，受登入與速率限制保護。</td></tr>
-          </tbody>
+          <tr><td class="rt">POST /api/allowance-simulation</td><td>目前帳號的教學模擬集合採單數慣例。</td><td>建立不可改寫的模擬紀錄，回201；UUID防重送，並不表示銀行付款或正式收支。</td></tr>
+</tbody>
         </table>
       </div>
 
-      <h3 class="sub">第二類：刻意的動作接口（13 支）</h3>
+      <h3 class="sub">第二類：刻意的動作接口（14 支）</h3>
       <div class="tw">
         <table>
           <thead><tr><th>路由</th><th>為什麼用動作的名字</th></tr></thead>
@@ -625,7 +627,8 @@ DELETE /books/5
             <tr><td class="rt">POST /api/family/invites/{invite_id}/accept</td>
                 <td>接受邀請會同時做兩件事：把邀請標成已接受、把人加進家庭。一個動作動到兩個資源，用動作的名字講最清楚。</td></tr>
                       <tr><td class="rt">POST /api/groups/join<br>POST /api/groups/invites/{invite_id}/accept</td><td>消耗單次活動邀請並增加成員資格，必須由登入本人同意；原子操作清楚區別於直接設定家庭角色。</td></tr>
-          </tbody>
+          <tr><td class="rt">POST /api/financial-planning/preview</td><td>按授權帳務與參考匯率做情境試算及知識檢索；唯讀回傳，不建立目標、不執行模型。使用POST承載結構化輸入，另由使用者確認後建立存錢目標。</td></tr>
+</tbody>
         </table>
       </div>
 
@@ -785,14 +788,14 @@ DELETE /books/5
       <div class="note">
         <div class="note__k">動工前先看這兩份</div>
         <p><a href="fastapi.html">FastAPI 說明書</a> —— 怎麼用程式把這些實作出來<br>
-        <a href="api.html">API 瀏覽</a> —— 本專案 145 支路由的完整清單<br>
+        <a href="api.html">API 瀏覽</a> —— 本專案 149 支路由的完整清單<br>
         還有 <code>docs/02-前後端串接契約.md</code> —— 每一支「我送什麼、你吐什麼」</p>
       </div>
     </section>
 
     <footer class="foot">
       <div>家庭記帳與財務控管系統 · RESTful API 說明書</div>
-      <div class="mono">145 ROUTES · 5 METHODS</div>
+      <div class="mono">149 ROUTES · 5 METHODS</div>
     </footer>
 
   </div>

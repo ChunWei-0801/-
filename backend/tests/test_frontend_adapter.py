@@ -330,6 +330,41 @@ def test_ai_grounding_mock_reports_unavailable_without_fabricated_data(sent):
         assert rows[0]["request"]["url"].startswith(path + "?")
 
 
+def test_financial_planning_and_allowance_use_private_transport_without_fabricated_mock_results(sent):
+    """The dedicated demo is separate; development mock never claims a plan or payment."""
+    from urllib.parse import parse_qs, urlsplit
+
+    expected = {
+        ("POST", "/api/financial-planning/preview"): "financialPlanningPreview",
+        ("GET", "/api/financial-planning/knowledge"): "financialPlanningKnowledge",
+        ("GET", "/api/allowance-simulation"): "allowanceSimulation",
+        ("POST", "/api/allowance-simulation"): "issueAllowanceSimulation",
+    }
+    for (method, path), name in expected.items():
+        rows = sent[method + " " + path]
+        assert len(rows) == 1 and rows[0]["fn"] == name
+        request, response = rows[0]["request"], rows[0]["response"]
+        assert request["method"] == method
+        assert request["headers"].get("Authorization") == "Bearer contract-planning-access"
+        assert request.get("credentials") != "omit"
+        assert response["status"] == 400 and "ERROR" in response
+        assert "fallback" not in response and "simulation" not in response
+        if method == "GET":
+            assert request.get("body") is None
+            query = parse_qs(urlsplit(request["url"]).query)
+            assert query == ({"q": ["家庭儲蓄 緊急預備金"], "limit": ["4"]}
+                             if name == "financialPlanningKnowledge" else {"beforeId": ["501"]})
+        elif name == "issueAllowanceSimulation":
+            assert request["body"] == {
+                "wardId": "102", "amount": 200, "note": "示範每週零用錢",
+                "idempotencyKey": "00000000-0000-4000-8000-000000000187",
+            }
+        else:
+            assert request["body"]["targetCurrency"] == "JPY"
+            assert request["body"]["weeklyAllowanceTwd"] == "200"
+            assert request["body"]["scope"] == "family"
+
+
 def test_public_resource_adapters_omit_authentication_and_report_real_unavailability(sent):
     from urllib.parse import parse_qs, urlsplit
 

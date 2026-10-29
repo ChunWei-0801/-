@@ -153,7 +153,7 @@ final_project/
 │   │   ├── toolkit/         ★   寫好的工具：config、db、crud（增刪改查）、tokens、passwords、scope、family…
 │   │   ├── models/              38 張表（SQLAlchemy），欄位跟 data.js 的 schema 逐欄對齊
 │   │   ├── schemas/             請求主體（Pydantic），欄位名字跟前端送的一樣
-│   │   ├── routers/             145 支路由，一個領域一個資料夾；以測試與 /docs 驗證
+│   │   ├── routers/             149 支路由，一個領域一個資料夾；以測試與 /docs 驗證
 │   │   │   ├── auth/            認證（auth.py、admin.py；services/email_verification.py 處理寄信）　← 每個資料夾裡都有 README.md
 │   │   │   ├── ledger/          記帳（transactions、nlp、categories、groups）
 │   │   │   ├── analytics/       數字（stats、budgets、alerts、advices、exchange）
@@ -186,7 +186,7 @@ final_project/
 
 # 四、API 目錄清單
 
-共 **145 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
+共 **149 條路由**（另有 `/healthz`、`/docs` 兩支系統路由）。標示說明：
 
 - **權限**：`公開` / `登入` / `本人` / `家長` / `監管者` / `建立者` / `平台管理員`
 - ⚠️ `家長` 是**家庭**治理權限；`平台` 是系統管理員，只能停權與查稽核，讀不到任何財務資料。兩者完全分開。
@@ -455,8 +455,8 @@ API 目錄編號保留歷史識別碼，不代表路由總數；總數以 `owner
 |---|---|---|
 | **認證** | `backend/app/routers/auth/` | 55 支 |
 | **記帳** | `backend/app/routers/ledger/` | 45 支 |
-| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py` | 24 支 |
-| **家庭** | `backend/app/routers/access/` | 21 支 |
+| **數字** | `backend/app/routers/analytics/`、`backend/app/routers/ai_local.py`、`backend/app/routers/resources.py`、`backend/app/routers/financial_planning.py` | 26 支 |
+| **家庭** | `backend/app/routers/access/`、`backend/app/routers/allowance_simulation.py` | 23 支 |
 
 路由屬於哪個領域，寫在 `backend/app/ownership.py`（`python -m app.ownership` 會印出各領域的完成度）。
 
@@ -561,6 +561,10 @@ python -m http.server 5174 --directory frontend
 | 143 | POST | `/api/monthly-reports/authorize` | 數字 | 本人 | 建立或輪替12個月有效的月報唯讀金鑰；只顯示一次，資料庫只存雜湊，需明確同意。 |
 | 144 | DELETE | `/api/monthly-reports/authorization` | 數字 | 本人 | 撤銷月報讀取授權；Google端觸發條件仍需自行移除。 |
 | 145 | GET | `/api/monthly-reports/export` | 數字 | 月報唯讀授權 | 專用Bearer金鑰，period=YYYY-MM，只讀本人最近24個已結束月份。提供PDF用HTML及CSV，不接受登入JWT或查詢字串金鑰。 |
+| 146 | POST | `/api/financial-planning/preview` | 數字 | 登入 | 依本人或有權限的家庭收支、目標及參考匯率進行 Decimal 儲蓄試算，附兩個方案與檢索來源；唯讀、不執行模型、不查銀行餘額。 |
+| 147 | GET | `/api/financial-planning/knowledge` | 數字 | 登入 | q=1..500字、limit=1..8；以 BM25 檢索16則有來源、核對日期與權利說明的繁中理財摘要；未涵蓋的問題回空，不是即時網路搜尋。 |
+| 148 | GET | `/api/allowance-simulation` | 家庭 | 本人 | 只列本人發放或收到的模擬零用錢與目前可發放對象；每頁50筆，可用beforeId讀取較舊紀錄。關係結束後仍可讀本人歷史。 |
+| 149 | POST | `/api/allowance-simulation` | 家庭 | 監管者 | 有效監管者確認後發放1..1000000元整元模擬零用錢；UUID操作編號防重送，同編號不同內容回409。只記教學模擬，不新增銀行或正式收支交易。 |
 | 119 | POST | `/api/groups/invites/{invite_id}/accept` | 記帳 | 被邀請的人 | 接受活動帳號邀請。無請求主體，只接受登入本人被邀請的有效帳號邀請。原子地消耗邀請並新增該活動資格；已回覆或活動已關閉時拒絕。 |
 | 120 | DELETE | `/api/groups/invites/{invite_id}` | 記帳 | 被邀請的人 | 婉拒收到的活動帳號邀請。只有被邀請本人可婉拒仍pending的帳號邀請，不改動家庭、既有活動成員或任何交易。 |
 | 121 | GET | `/api/groups/{gid}/invites` | 記帳 | 建立者 | 查看活動待處理邀請。活動建立者查看該活動pending、未過期邀請，最多100項；可在封存／結算後整理邀請。不回原始邀請碼或雜湊。 |

@@ -1,0 +1,27 @@
+.allowance-sim{max-width:920px;margin:auto;padding:clamp(16px,3vw,28px);background:var(--card,#fff);color:var(--ink,#18392d);border:1px solid var(--line,#d7e3da);border-radius:22px;overflow-wrap:anywhere}
+.allowance-sim *{box-sizing:border-box}
+.allowance-sim h2{font-size:clamp(1.25rem,2vw,1.55rem);margin:0 0 12px;line-height:1.45}
+.allowance-sim h3{font-size:1.05rem;margin:24px 0 12px}
+.allowance-sim p{line-height:1.7}
+.allowance-sim__badge{display:inline-block;margin:0;padding:6px 12px;border-radius:99px;background:var(--card-2,#eef3ee);border:1px solid var(--line,#d7e3da);font-size:.9rem;font-weight:600}
+.allowance-sim__intro,.allowance-sim__muted{color:var(--ink-faint,#52685e);font-size:.92rem}
+.allowance-sim__status{min-height:1.7em;margin:12px 0;color:var(--ink,#18392d)}
+.allowance-sim__status.is-error{color:var(--down,#a33b39)}
+.allowance-sim__form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin:20px 0}
+.allowance-sim__field{display:flex;min-width:0;flex-direction:column;gap:8px;font-size:.95rem}
+.allowance-sim__field:has(textarea){grid-column:1/-1}
+.allowance-sim__field input,.allowance-sim__field select,.allowance-sim__field textarea{width:100%;min-width:0;min-height:46px;padding:11px 12px;border:1px solid var(--line,#b6cbbd);border-radius:10px;background:var(--input-bg,var(--card,#fff));color:inherit;font:inherit}
+.allowance-sim__field textarea{resize:vertical}
+.allowance-sim button{min-height:44px;white-space:normal;line-height:1.5;max-width:100%;padding:10px 15px;font:inherit;cursor:pointer}
+.allowance-sim button:disabled{cursor:wait;opacity:.6}
+.allowance-sim button:focus-visible,.allowance-sim input:focus-visible,.allowance-sim select:focus-visible,.allowance-sim textarea:focus-visible,.allowance-sim a:focus-visible{outline:3px solid var(--accent,#29785b);outline-offset:3px}
+.allowance-sim__preview,.allowance-sim__empty{padding:16px;margin:18px 0;background:var(--card-2,#f2f6f0);border:1px solid var(--line,#d7e3da);border-radius:14px}
+.allowance-sim__preview h3{margin-top:0}
+.allowance-sim__preview button{margin:6px 8px 0 0}
+.allowance-sim__record{padding:16px 0;border-bottom:1px solid var(--line,#d7e3da)}
+.allowance-sim__record-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.allowance-sim__amount{font-variant-numeric:tabular-nums;font-weight:700}
+.allowance-sim__record p{margin:6px 0 0}
+.allowance-sim__note{white-space:pre-wrap}
+.allowance-sim [hidden]{display:none!important}
+@media(max-width:560px){.allowance-sim__form{grid-template-columns:minmax(0,1fr)}.allowance-sim__form>button{width:100%}.allowance-sim__preview button{display:block;width:100%;margin:10px 0 0}.allowance-sim__record-head{align-items:flex-start}}

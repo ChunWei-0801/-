@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>API 瀏覽</title>
-<meta name="description" content="家庭記帳系統的 145 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
+<meta name="description" content="家庭記帳系統的 149 支 API 路由，可搜尋、依負責人與方法篩選，展開看參數與請求回應範例。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -40,7 +40,7 @@
     <div class="hero__eyebrow">API REFERENCE</div>
     <h1 style="font-size:clamp(28px,3.6vw,38px)">API 瀏覽</h1>
     <p class="hero__lead">
-      我們寫的 <b>145 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
+      我們寫的 <b>149 支</b>，加上 FastAPI 自動產生的 2 支。依四個功能模組分組。點任一列展開看參數與請求／回應。
       標 <span class="tag tag--llm">★</span> 的是與模型直接相關的路由。
     </p>
     <div class="hero__meta">
@@ -94,7 +94,7 @@
 
   <footer class="foot" style="max-width:none">
     <div>家庭記帳與財務控管系統 · API 目錄</div>
-    <div class="mono">145 ROUTES · 4 MODULES</div>
+    <div class="mono">149 ROUTES · 4 MODULES</div>
   </footer>
 </div>
 
@@ -112,6 +112,10 @@
 
   /* 路由與回應形狀取自 frontend/js/api.js 的契約定義 */
   var ROUTES = [
+    { n: 146, o: 'm3', m: 'POST', p: '/api/financial-planning/preview', a: '登入', d: "依本人或有權限的家庭收支、目標及參考匯率進行 Decimal 儲蓄試算，附兩個方案與檢索來源；唯讀、不執行模型、不查銀行餘額。", req: "{\"targetAmount\": \"300000\", \"targetCurrency\": \"JPY\", \"savedTwd\": \"10000\", \"deadline\": \"2027-02-28\", \"scope\": \"me\", \"weeklyAllowanceTwd\": \"200\"}", res: "{\"version\": 1, \"currency\": \"TWD\", \"facts\": {\"gapTwd\": \"50000\", \"requiredMonthlyTwd\": \"12500\"}, \"plans\": [], \"knowledge\": {\"items\": []}, \"dataPolicy\": {\"readOnly\": true, \"inferencePerformed\": false}}", note: "依本人或有權限的家庭收支、目標及參考匯率進行 Decimal 儲蓄試算，附兩個方案與檢索來源；唯讀、不執行模型、不查銀行餘額。" },
+    { n: 147, o: 'm3', m: 'GET', p: '/api/financial-planning/knowledge', a: '登入', d: "q=1..500字、limit=1..8；以 BM25 檢索16則有來源、核對日期與權利說明的繁中理財摘要；未涵蓋的問題回空，不是即時網路搜尋。", res: "{\"query\": \"儲蓄目標\", \"method\": \"bm25\", \"items\": [], \"totalMatches\": 0, \"truncated\": false}", note: "q=1..500字、limit=1..8；以 BM25 檢索16則有來源、核對日期與權利說明的繁中理財摘要；未涵蓋的問題回空，不是即時網路搜尋。" },
+    { n: 148, o: 'm4', m: 'GET', p: '/api/allowance-simulation', a: '本人', d: "只列本人發放或收到的模擬零用錢與目前可發放對象；每頁50筆，可用beforeId讀取較舊紀錄。關係結束後仍可讀本人歷史。", res: "{\"simulation\": true, \"items\": [], \"recipients\": [], \"truncated\": false}", note: "只列本人發放或收到的模擬零用錢與目前可發放對象；每頁50筆，可用beforeId讀取較舊紀錄。關係結束後仍可讀本人歷史。" },
+    { n: 149, o: 'm4', m: 'POST', p: '/api/allowance-simulation', a: '監管者', d: "有效監管者確認後發放1..1000000元整元模擬零用錢；UUID操作編號防重送，同編號不同內容回409。只記教學模擬，不新增銀行或正式收支交易。", req: "{\"wardId\": \"2\", \"amount\": 200, \"note\": \"本週練習\", \"idempotencyKey\": \"00000000-0000-4000-8000-000000000187\"}", res: "{\"simulation\": true, \"item\": {\"id\": \"1\", \"amount\": \"200\"}, \"replayed\": false}", note: "有效監管者確認後發放1..1000000元整元模擬零用錢；UUID操作編號防重送，同編號不同內容回409。只記教學模擬，不新增銀行或正式收支交易。" },
     { n: 137, o: 'm2', m: 'GET', p: '/api/billing/profile', a: '本人', d: "常用買方統編與單位名稱。只讀本人設定，可留白。", res: '{}', note: "常用買方統編與單位名稱。只讀本人設定，可留白。" },
     { n: 138, o: 'm2', m: 'PUT', p: '/api/billing/profile', a: '本人', d: "保存或清除常用買方統編。buyerTaxId為8碼字串或null；companyName最多80字，未連接政府公司查詢。", res: '{}', note: "保存或清除常用買方統編。buyerTaxId為8碼字串或null；companyName最多80字，未連接政府公司查詢。" },
     { n: 139, o: 'm2', m: 'POST', p: '/api/statement-import/preview', a: '本人', d: "唯讀核對最多500筆TWD草稿、分類、活動權限、已匯入與可能重複的交易，不新增明細。", res: '{}', note: "唯讀核對最多500筆TWD草稿、分類、活動權限、已匯入與可能重複的交易，不新增明細。" },

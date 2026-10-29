@@ -97,6 +97,7 @@ jobs:
           JWT_SECRET: 'isolated-ci-test-secret-at-least-thirty-two-bytes'
           APP_ENV: development
       - run: node --test frontend/tests/statement-parser.test.cjs frontend/tests/monthly-report-setup.test.cjs
+      - run: node --test frontend/tests/planning-grounding.test.cjs
       - run: node --test frontend/tests/api-mode.test.cjs frontend/tests/public-resource-api.test.cjs frontend/tests/nlp-lottery.test.cjs frontend/tests/app-install.test.cjs
       - run: node --test frontend/tests/local-ai-engine.test.cjs frontend/tests/local-ai-stability.test.cjs frontend/tests/local-ai-evaluation.test.cjs frontend/tests/currency-units.test.cjs frontend/tests/page-transitions.test.cjs frontend/tests/receipt-entry.test.cjs frontend/tests/assistant-report-query.test.cjs frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs frontend/tests/ai-draft-replay.test.cjs frontend/tests/ai-bounded-replay.test.cjs
   browser:
@@ -115,6 +116,7 @@ jobs:
       - run: |
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/fambudget-browser/node_modules/playwright"
           node -e 'require(process.env.PLAYWRIGHT_MODULE)'
+          node --test frontend/tests/demo-sandbox-browser.cjs frontend/tests/financial-planning-browser.cjs frontend/tests/allowance-simulation-browser.cjs frontend/tests/receipt-lab-browser.cjs frontend/tests/rag-evaluation-browser.cjs frontend/tests/teacher-features-app-browser.cjs
           node --test frontend/tests/personal-entry-browser.cjs frontend/tests/memories-jigsaw-browser.cjs frontend/tests/smoking-inventory-browser.cjs frontend/tests/payment-report-app-browser.cjs frontend/tests/statement-import-browser.cjs frontend/tests/monthly-report-setup-browser.cjs frontend/tests/billing-profile-browser.cjs
           node --test frontend/tests/ai-assistant.test.cjs frontend/tests/ai-model-test.test.cjs frontend/tests/ai-draft-replay.test.cjs frontend/tests/ai-bounded-replay.test.cjs frontend/tests/safety-center-browser.cjs frontend/tests/transaction-archive-browser.cjs frontend/tests/activity-ui-browser.cjs frontend/tests/direct-shortcuts-browser.cjs frontend/tests/shortcut-labels-browser.cjs frontend/tests/system-appearance-browser.cjs frontend/tests/dashboard-extras-browser.test.cjs frontend/tests/receipt-entry.test.cjs frontend/tests/savings-units-browser.test.cjs frontend/tests/voice-accessibility-browser.cjs frontend/tests/assistant-report-query.test.cjs
           node frontend/tests/lifestyle-modules-browser.cjs
@@ -149,3 +151,11 @@ jobs:
           JWT_SECRET: 'isolated-ci-test-secret-at-least-thirty-two-bytes'
           APP_ENV: development
           SMOKING_TEST_DATABASE_URL: 'postgresql+psycopg://fixture:fixture-only-password@127.0.0.1:5432/smoking_stock_fixture'
+      - name: Verify simulated allowance idempotency and revoked relationship under real row locks
+        working-directory: backend
+        run: python -m tests.check_allowance_postgres
+        env:
+          DATABASE_URL: 'sqlite://'
+          JWT_SECRET: 'isolated-ci-test-secret-at-least-thirty-two-bytes'
+          APP_ENV: development
+          ALLOWANCE_TEST_DATABASE_URL: 'postgresql+psycopg://fixture:fixture-only-password@127.0.0.1:5432/smoking_stock_fixture'

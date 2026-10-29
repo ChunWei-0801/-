@@ -482,6 +482,8 @@
       { nav: 'advice', label: '財務建議', icon: 'advice', tone: o.warn ? 'warn' : '',
         badge: o.warn ? o.warn + ' 則要注意' : '' },
       { nav: 'ai', label: '免費 AI 試用', icon: 'advice' },
+      { nav: 'financial-planning', label: '家庭理財規劃', icon: 'goal' },
+      { nav: 'allowance-simulation', label: '親子零用錢模擬', icon: 'members' },
       { nav: 'fraud', label: global.SafetyCenter ? global.SafetyCenter.label('title') : '防詐提醒', icon: 'guide' },
       /* ⚠️ 家庭那一支問不到（famOff）時一律寫「家庭成員」：寫「加入家庭」
          等於斷定他沒有家庭，而我們根本沒問到。 */
@@ -3070,7 +3072,7 @@
               'stroke-width="1.8"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>' +
           '</button>' +
           '<p class="lp__n">第一次來？下一步可以建立帳號</p>' +
-          '<nav class="learning-links" aria-label="使用協助"><a href="#/appearance">瀏覽主題與背景</a><a href="#/tutorial">使用教學</a></nav>' + languageSelector() +
+          '<nav class="learning-links" aria-label="使用協助"><a href="#/appearance">瀏覽主題與背景</a><a href="#/tutorial">使用教學</a><a href="demo.html">免註冊專題試用</a></nav>' + languageSelector() +
         '</div>' +
         '<div class="lp__r">' + ledgerArt() + '<p class="illustration-note">畫面示意 · 上方數字為範例，實際記帳從你的帳號開始</p></div>' +
       '</div>';
@@ -3102,7 +3104,7 @@
         '<h1 class="gate__t">' + title + '</h1>' +
         '<p class="gate__s">' + sub + '</p>' +
         inner + '<p class="gate__feedback" id="gateFeedback" role="alert" hidden></p>' +
-        '<nav class="learning-links learning-links--center" aria-label="使用協助"><a href="#/appearance">瀏覽主題與背景</a><a href="#/tutorial">使用教學</a></nav>' + languageSelector() +
+        '<nav class="learning-links learning-links--center" aria-label="使用協助"><a href="#/appearance">瀏覽主題與背景</a><a href="#/tutorial">使用教學</a><a href="demo.html">免註冊專題試用</a></nav>' + languageSelector() +
       '</div></div>';
     mountLoginBackground();
   }
@@ -3865,6 +3867,9 @@
       '<a class="card settings-link" href="#/appearance"><span>🎨</span><h2>主題與背景</h2><p>先瀏覽預覽，再套用配色、照片與顯示樣式。</p></a>' +
       '<a class="card settings-link" href="#/tutorial"><span>🧭</span><h2>使用教學與導覽</h2><p>了解各項功能，隨時重新開啟逐步操作導覽。</p></a>' +
       '<a class="card settings-link" href="#/ai"><span>✨</span><h2>免費 AI 試用</h2><p>先試用裝置端模型、照片記帳與有依據的帳務問答。</p></a>' +
+      '<a class="card settings-link" href="#/financial-planning"><span>◎</span><h2>家庭理財規劃</h2><p>結合帳務、理財知識與匯率，試算並比較儲蓄方案。</p></a>' +
+      '<a class="card settings-link" href="#/allowance-simulation"><span>◇</span><h2>親子零用錢模擬</h2><p>練習發放及查看紀錄，不涉及銀行轉帳。</p></a>' +
+      '<a class="card settings-link" href="demo.html"><span>▣</span><h2>專題試用與評估</h2><p>使用虛構資料體驗記帳、規劃與零用錢，並前往 RAG 比較和圖片研究室。</p></a>' +
       '<a class="card settings-link" href="#/memories"><span>🧩</span><h2>記帳小天地</h2><p>設定拼圖照片、目標片數與自己的成就牆。</p></a></nav>' +
       '<section class="card"><h2>資料匯入與保存</h2><p class="flow-help">匯入 CSV／TSV 付款紀錄，先核對再記帳。月報可選已驗證信箱、個人 Google Drive 或兩者。</p><div class="entry-access"><button class="btn" data-statement-import>匯入付款紀錄</button><button class="btn" data-monthly-report-setup>每月報表與雲端保存</button><button class="btn" data-billing-profile>常用買方統編</button></div></section>' +
       '<section class="card"><h2>語言 Language</h2><p class="flow-help">選擇你習慣的語言。你輸入的備註和活動名稱會保留原文。</p>' + languageSelector() + '</section>' +
@@ -3906,6 +3911,16 @@
     if (global.AIAssistant) global.AIAssistant.render($view, { user: ME && ME.user });
     else $view.innerHTML = '<div class="page"><div class="card">頁面正在更新，請重新整理。</div></div>';
   }
+  function vFinancialPlanning() {
+    head('家庭理財規劃', '依帳務、目標與有來源的知識，比較適合自己的儲蓄方案。');
+    if (global.FinancialPlanning) global.FinancialPlanning.render($view, {api:API,user:ME && ME.user,getAccountId:function(){return ME && ME.user && ME.user.id;}});
+    else $view.innerHTML = '<div class="page"><p>頁面正在更新，請重新整理。</p></div>';
+  }
+  function vAllowanceSimulation() {
+    head('親子零用錢模擬', '一起練習分配與記錄零用錢；不涉及銀行轉帳。');
+    if (global.AllowanceSimulation) global.AllowanceSimulation.render($view, {api:API,user:ME && ME.user,getAccountId:function(){return ME && ME.user && ME.user.id;}});
+    else $view.innerHTML = '<div class="page"><p>頁面正在更新，請重新整理。</p></div>';
+  }
   function enhanceMedia() {
     if (!global.TransactionMedia) return;
     global.TransactionMedia.mountRecordButtons($view);
@@ -3924,6 +3939,7 @@
 
   /* ---------- 路由 ---------- */
   var ROUTES = { '': vHome, entry: vEntry, stats: vStats,
+                 'financial-planning':vFinancialPlanning, 'allowance-simulation':vAllowanceSimulation,
                  advice: vAdvice, ai: vAI, fraud: vFraud, members: vMembers,
                  login: vLogin, register: vRegister, profile: vProfile,
                  member: vMember, groups: vGroups, admin: vAdmin,
@@ -3935,6 +3951,8 @@
   var ANY = ['reset', 'verify-email', 'appearance', 'tutorial', 'fraud'];
 
   function paint() {
+    if (global.FinancialPlanning) global.FinancialPlanning.cleanup();
+    if (global.AllowanceSimulation) global.AllowanceSimulation.cleanup();
     if (global.ReceiptEntry) global.ReceiptEntry.close(true);
     if (global.StatementImport) global.StatementImport.close(true);
     if (global.MonthlyReportSetup) global.MonthlyReportSetup.close(true);

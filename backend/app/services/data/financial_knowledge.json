@@ -1,0 +1,178 @@
+[
+  {
+    "id": "finance:budget-basics",
+    "title": "先整理收支，再安排家庭預算",
+    "text": "家庭預算先列出每月收入、帳單與生活支出，再確認差額能否支應儲蓄目標。房租、飲食、交通等必要項目應由使用者確認，不宜由系統直接刪減。帳本只反映已記錄的交易；若漏記現金消費、尚未入帳的帳單或收入，畫面上的結餘就不能直接當作可自由使用的存款。規劃時應把資料不足的部分另列為待確認假設。",
+    "keywords": ["家庭", "預算", "收支", "結餘", "必要支出", "生活費", "漏記"],
+    "sourceLink": "https://consumer.gov/your-money/making-budget",
+    "sourceTitle": "Making a Budget — consumer.gov",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:variable-income",
+    "title": "收入不固定時，使用可持續的儲蓄假設",
+    "text": "接案、輪班或季節性收入可能每月不同，不能只用最高收入月份安排之後的固定存款。可先整理較長期間的收入及必要支出，設定自己能持續負擔的基本金額，再把額外收入視為可選的加碼。若系統只有單月紀錄，應顯示資料期間，讓使用者另填每月可投入金額，並清楚標示那是使用者的假設，尚非已驗證的未來收入。",
+    "keywords": ["變動收入", "接案", "輪班", "收入不固定", "平均", "假設", "可投入"],
+    "sourceLink": "https://consumer.gov/your-money/making-budget",
+    "sourceTitle": "Making a Budget — consumer.gov",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:smart-goal",
+    "title": "把願望寫成有金額及期限的目標",
+    "text": "儲蓄目標需要說明用途、所需金額、完成日期與目前已準備的資金，才有辦法比較進度。專題試算可用目標金額扣除已存金額，依剩餘投入期數估算每期需求；這是明列假設的算術結果，不是保證達成的預測。使用者也需要確認存入日期是否早於付款期限，並保留購買前重新核對實際價格與家庭狀況的空間。",
+    "keywords": ["SMART", "目標", "金額", "期限", "存款", "已存", "每月", "期數"],
+    "sourceLink": "https://www.consumerfinance.gov/consumer-tools/educator-tool/your-money-your-goals/toolkit/",
+    "sourceTitle": "Your Money, Your Goals toolkit — CFPB",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:revise-goal",
+    "title": "資金不足時，調整期限或目標範圍",
+    "text": "如果每期需要的存款超過自己可負擔的金額，可以比較延後日期、降低目標範圍，或在確認可行後增加投入。系統應列出各方案的差額與時間代價，交由使用者選擇；不能把尚未發生的加薪、投資收益或借款當作已確定資金。當目前可投入金額為零或未知時，應先補齊收支與必要支出資訊，而不是產生看似精確的完成日期。",
+    "keywords": ["不足", "不可行", "延長", "延後", "期限", "方案", "降低預算", "缺口"],
+    "sourceLink": "https://www.consumerfinance.gov/consumer-tools/educator-tool/your-money-your-goals/toolkit/",
+    "sourceTitle": "Your Money, Your Goals toolkit — CFPB",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:emergency-separation",
+    "title": "緊急預備金與旅遊存款分開看待",
+    "text": "緊急預備金是用來面對臨時修繕、醫療或收入中斷等未預期需求，與已知的旅遊、購物目標用途不同。所需金額應依家庭收入穩定程度、必要生活費與可用支援評估，沒有適用所有人的固定答案。專題提出儲蓄方案時，應請使用者確認已填的存款能否用於該目標，避免把另有用途的安全準備金一併算成可花用資金。",
+    "keywords": ["緊急預備金", "備用金", "醫療", "修繕", "收入中斷", "旅遊", "存款"],
+    "sourceLink": "https://www.consumerfinance.gov/an-essential-guide-to-building-an-emergency-fund/",
+    "sourceTitle": "An essential guide to building an emergency fund — CFPB",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:rebuild-emergency",
+    "title": "遇到突發支出後，重新檢查可投入金額",
+    "text": "預備金可以在真正需要時使用，使用後再逐步補回。若家庭剛支付未預期的必要費用，原本的旅遊或購物存款計畫可能需要暫緩或調整。專題應保留重新試算與修改假設的方式，並將更新後的存款餘額和每期投入能力帶入新方案。不要因為原計畫已建立，就繼續假定家庭仍有相同資金，也不要把重新調整視為理財失敗。",
+    "keywords": ["緊急", "突發支出", "補回", "修改", "重新試算", "暫緩", "必要費用"],
+    "sourceLink": "https://www.consumerfinance.gov/an-essential-guide-to-building-an-emergency-fund/",
+    "sourceTitle": "An essential guide to building an emergency fund — CFPB",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:travel-budget",
+    "title": "家庭旅行先列完整費用範圍",
+    "text": "旅行目標除了當地消費，也可能包含交通、住宿、保險、網路與出發前用品。設定外幣目標時，應確認輸入金額是否已涵蓋這些項目，以及哪些費用另以新臺幣支付。專題可把外幣金額換算成參考臺幣需求，讓使用者核對範圍後再規劃存款。若費用未齊全，試算只能代表目前輸入的預算，不能宣稱已足夠支付整趟旅行。",
+    "keywords": ["旅行", "旅遊", "日本", "日圓", "外幣", "住宿", "交通", "預算"],
+    "sourceLink": "https://www.moneyhelper.org.uk/en/savings/types-of-savings/saving-money-for-a-holiday",
+    "sourceTitle": "Saving money for a holiday — MoneyHelper",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:travel-options",
+    "title": "旅行方案要能在日常生活中持續",
+    "text": "旅行儲蓄可以從固定且可負擔的小額開始，配合實際收入安排存入時間。若每月要求過高，可以比較縮小旅行範圍與延後出發的差別，不應自動刪除家庭必要生活費。專題可列出維持原日期需要多少投入，以及維持可負擔投入時需要多少期，讓使用者看見取捨。目標名稱與進度紀錄能協助檢查，但不代表系統已自動向銀行存款。",
+    "keywords": ["旅行", "每月", "存款", "可負擔", "縮小", "延後", "取捨", "方案"],
+    "sourceLink": "https://www.moneyhelper.org.uk/en/savings/types-of-savings/saving-money-for-a-holiday",
+    "sourceTitle": "Saving money for a holiday — MoneyHelper",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:child-dialogue",
+    "title": "用日常選擇陪孩子建立金錢觀念",
+    "text": "親子理財可以從買東西、比較選項與等待目標等日常情境開始，依孩子的理解程度討論金錢從哪裡來、有哪些選擇，以及選擇後的結果。專題的零用錢模擬可讓家長與孩子一起查看發放及使用紀錄，再談保留多少給未來的願望。模擬紀錄是學習工具，應清楚區分實際現金與銀行餘額，不應把畫面數字當成真實收付款證明。",
+    "keywords": ["親子", "孩子", "小朋友", "零用錢", "模擬", "學習", "選擇"],
+    "sourceLink": "https://www.consumerfinance.gov/consumer-tools/money-as-you-grow/",
+    "sourceTitle": "Money as You Grow — CFPB",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:child-age",
+    "title": "依孩子年齡調整理財練習",
+    "text": "不同年齡的孩子適合不同的金錢練習，家長可從簡單比較、存下部分零用錢，到安排較長期目標逐步增加難度。專題提供圖示、紀錄和存錢目標時，應讓孩子能理解每個動作的意思，並由家長協助討論。系統不應因年齡而推定孩子能承擔借貸或投資風險，也不應把同一套固定比例強加給所有家庭；規則應能由家庭共同確認。",
+    "keywords": ["年齡", "孩子", "親子", "圖示", "零用錢", "比例", "家庭規則"],
+    "sourceLink": "https://www.consumerfinance.gov/consumer-tools/money-as-you-grow/",
+    "sourceTitle": "Money as You Grow — CFPB",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:allowance-agreement",
+    "title": "發放零用錢前，先約定用途與頻率",
+    "text": "零用錢可以用來練習管理金額與選擇，發放前可先討論頻率、用途，以及哪些必要費用仍由家長另外支付。金額要依家庭能力與孩子需求決定，沒有所有家庭都適用的標準。專題若把每週零用錢納入旅遊儲蓄試算，應確認它是額外需要保留的支出，還是已包含在既有帳務，避免同一筆金額被重複扣除而高估資金缺口。",
+    "keywords": ["零用錢", "每週", "頻率", "發放", "用途", "額外", "重複計算"],
+    "sourceLink": "https://www.canada.ca/en/financial-consumer-agency/services/teaching-children-money.html",
+    "sourceTitle": "Teaching children about money — Financial Consumer Agency of Canada",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:needs-wants",
+    "title": "分辨需要與想要，保留共同討論",
+    "text": "和孩子一起討論購買選擇時，可以先分辨生活需要與想要，再思考是否值得等待或先存一部分。每個家庭對必要支出的判斷可能不同，應由成員說明，不宜只憑商品名稱或消費分類就批評花費。專題可以指出記錄中的支出項目並提出討論問題，讓使用者自行決定是否調整；模型的建議應保留選擇，而非把某項支出直接標成浪費。",
+    "keywords": ["需要", "想要", "必要支出", "孩子", "購物", "等待", "討論"],
+    "sourceLink": "https://www.canada.ca/en/financial-consumer-agency/services/teaching-children-money.html",
+    "sourceTitle": "Teaching children about money — Financial Consumer Agency of Canada",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:small-steps",
+    "title": "從可持續的小額存款開始",
+    "text": "開始儲蓄可以先確認收支，再選擇能持續的小額投入；金額較小也能用來建立檢查進度的習慣。專題可以協助記錄計畫與提醒，但建立目標不等於銀行已完成轉帳。若要設定實際銀行自動存款，仍須使用者在銀行服務內確認授權與可用餘額。試算不應預先加上未知利息或投資收益，讓預計存入本金與實際存入紀錄能清楚對照。",
+    "keywords": ["小額", "習慣", "存款", "自動", "提醒", "本金", "轉帳"],
+    "sourceLink": "https://moneysmart.gov.au/saving/how-to-start-saving",
+    "sourceTitle": "How to start saving — ASIC Moneysmart",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:progress-review",
+    "title": "定期核對實際存款與計畫進度",
+    "text": "儲蓄過程可以定期比較已存金額、剩餘缺口與可負擔投入，收入或支出改變時再調整。專題應讓使用者看見資料更新日期，以及哪些數字來自帳務、哪些是自行填入的假設。若本月尚未結束，已記錄結餘只能作為目前情況的參考，不能直接預測月底一定剩多少。重新試算時也應避免把原先規劃的存款當成已經實際存入。",
+    "keywords": ["進度", "檢查", "重新試算", "實際", "每月", "更新", "月底"],
+    "sourceLink": "https://moneysmart.gov.au/saving/how-to-start-saving",
+    "sourceTitle": "How to start saving — ASIC Moneysmart",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:necessary-reserves",
+    "title": "儲蓄安排要保留已知帳單及家庭承諾",
+    "text": "安排存款時，應一併保留已知帳單、家人生活費與已約定的扶養支出，再決定目標能投入多少。若還有年度保費、學費或其他不定期費用，可以先列出付款時間，由使用者確認需預留的金額。專題不能只因某個月帳面結餘較多，就假設全部都能拿去旅行；應明示已知資料的範圍，並讓使用者確認每期投入不影響必要生活。",
+    "keywords": ["必要", "保留", "帳單", "學費", "保費", "扶養", "家庭", "不定期"],
+    "sourceLink": "https://www.moneysense.gov.sg/managing-your-money/",
+    "sourceTitle": "Managing your money — MoneySense",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  },
+  {
+    "id": "finance:reference-exchange",
+    "title": "外幣目標使用參考匯率並保留更新時間",
+    "text": "外幣目標換算需要顯示幣別、匯率來源與資料更新時間，讓使用者知道試算使用哪一份行情。公開匯率服務可能每日更新並有呼叫限制，不能稱作銀行即時成交價。旅行實際付款金額還可能受銀行牌價、手續費或匯率變動影響；專題應將換算結果標為參考估算，來源失效時明示狀態，不以虛構匯率補上，也不保證未來換匯價格。",
+    "keywords": ["匯率", "日圓", "JPY", "USD", "EUR", "外幣", "來源", "過期", "更新"],
+    "sourceLink": "https://www.exchangerate-api.com/docs/free",
+    "sourceTitle": "Open Access Endpoint — ExchangeRate-API",
+    "reviewedAt": "2026-10-29",
+    "sourcePublishedAt": null,
+    "license": "本段為專題自行撰寫摘要；原網頁權利歸原提供者，僅附連結供核對。"
+  }
+]

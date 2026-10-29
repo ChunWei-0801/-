@@ -98,6 +98,18 @@ async function rec(name, ...args) {
   await rec('createGuardianship', { wardId: kid.user.id });
   await rec('guardianships');
   await rec('me');
+  // The general development mock deliberately does not create financial plans
+  // or simulated payments. Exercise their authenticated HTTP transports with
+  // valid backend-shaped arguments, while retaining the explicit mock refusal.
+  sessionStorage.setItem('fambudget.auth', JSON.stringify({accessToken:'contract-planning-access',refreshToken:'contract-planning-refresh'}));
+  await rec('financialPlanningPreview', {targetAmount:'300000',targetCurrency:'JPY',savedTwd:'10000',
+    deadline:'2027-02-28',period:'2026-09',scope:'family',weeklyAllowanceTwd:'200',
+    monthlyContributionTwd:'12000',question:'安排家庭旅行並保留孩子零用錢'});
+  await rec('financialPlanningKnowledge', {q:'家庭儲蓄 緊急預備金',limit:4});
+  await rec('allowanceSimulation', {beforeId:'501'});
+  await rec('issueAllowanceSimulation', {wardId:'102',amount:200,note:'示範每週零用錢',
+    idempotencyKey:'00000000-0000-4000-8000-000000000187'});
+  sessionStorage.removeItem('fambudget.auth');
   await rec('createCategory', { name: '寵物', kind: 'expense' });
   const g = await rec('createGroup', { name: '家用', color: 'book-indigo', note: '日常開銷' });
   // Cross-account invitations deliberately have no mock implementation. Record

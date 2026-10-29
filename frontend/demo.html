@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="家庭記帳專題試用：使用獨立虛構資料體驗記帳、報表、理財規劃及親子零用錢模擬。">
+  <title>家庭記帳｜專題試用</title>
+  <link rel="stylesheet" href="css/demo-sandbox.css?v=187">
+  <link rel="stylesheet" href="css/financial-planning.css?v=187">
+  <link rel="stylesheet" href="css/allowance-simulation.css?v=187">
+  <script src="js/financial-knowledge-browser.js?v=187" defer></script>
+  <script src="js/demo-data.js?v=187" defer></script>
+  <script src="js/local-ai-engine.js?v=187" defer></script>
+  <script src="js/financial-planning.js?v=187" defer></script>
+  <script src="js/allowance-simulation.js?v=187" defer></script>
+  <script src="js/demo-sandbox.js?v=187" defer></script>
+</head>
+<body>
+  <a class="demo-skip" href="#demo-main">跳到試用內容</a>
+  <header class="demo-header">
+    <div><a class="demo-brand" href="index.html">家庭記帳 <span>FamBudget</span></a><p>專題試用</p></div>
+    <nav aria-label="試用與研究"><a class="demo-link" href="rag-evaluation.html">RAG 比較</a> <a class="demo-link" href="receipt-lab.html">圖片記帳研究室</a> <a class="demo-link" href="index.html">前往正式網站</a></nav>
+  </header>
+  <main id="demo-main" class="demo-shell">
+    <section class="demo-intro" aria-labelledby="demo-title">
+      <div><p class="demo-eyebrow">不必註冊，不使用真實帳務</p><h1 id="demo-title">先試著，安排一家人的生活。</h1><p>切換示範身分，從記一筆開始，再試試看家庭目標與親子零用錢。</p></div>
+      <div class="demo-isolation"><strong>本機獨立試用</strong><p>所有帳號與資料均為虛構，只保存在目前瀏覽器。不同裝置不會同步；不會讀取或修改正式帳務、登入或信箱。</p></div>
+    </section>
+    <p id="demo-storage-warning" class="demo-warning" role="status" hidden></p>
+    <section class="demo-card demo-role-card" aria-labelledby="demo-role-heading"><div class="demo-section-head"><h2 id="demo-role-heading">選擇示範身分</h2><span id="demo-active-role" class="demo-badge"></span></div><div id="demo-roles" class="demo-roles"></div></section>
+    <div class="demo-layout">
+      <aside class="demo-sidebar">
+        <section class="demo-card"><h2>試用任務</h2><p id="demo-progress" class="demo-muted" aria-live="polite"></p><ol id="demo-tasks" class="demo-tasks"></ol><button type="button" id="demo-download-experience" class="demo-button demo-button-secondary">下載匿名體驗紀錄</button><p class="demo-small">只包含任務完成狀態與經過時間，不包含帳務、輸入文字或身分資料。</p></section>
+        <section class="demo-card"><h2>管理這次試用</h2><button type="button" id="demo-reset" class="demo-button demo-button-secondary">重設示範資料</button><p class="demo-small">僅重設這個瀏覽器的試用資料。正式網站資料不受影響。</p></section>
+      </aside>
+      <div class="demo-content">
+        <nav class="demo-tabs" aria-label="試用功能"><button type="button" data-demo-tab="entry">記一筆</button><button type="button" data-demo-tab="report">查報表</button><button type="button" data-demo-tab="activity">活動邀請</button><button type="button" data-demo-tab="planning">理財規劃</button><button type="button" data-demo-tab="allowance">親子零用錢</button><button type="button" data-demo-tab="feedback">體驗回饋</button></nav>
+        <p id="demo-message" class="demo-message" role="status" aria-live="polite"></p>
+        <section id="demo-panel" class="demo-card demo-panel" tabindex="-1" aria-label="目前試用功能"></section>
+      </div>
+    </div>
+    <section class="demo-boundary"><h2>這個頁面能驗證什麼？</h2><p>可以體驗操作、資料顯示與本機儲存。本頁文字解析是示範規則；本頁模擬發放不會進行銀行轉帳。正式帳號的跨裝置同步、寄信、外部 API 與真實 LLM 效果，須在對應環境另外測試。</p></section>
+  </main>
+  <noscript><p class="demo-shell">請開啟 JavaScript 使用專題試用；正式網站與操作手冊仍可另行開啟。</p></noscript>
+</body>
+</html>

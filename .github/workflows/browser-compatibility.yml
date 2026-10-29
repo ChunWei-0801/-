@@ -50,6 +50,7 @@ jobs:
           export PLAYWRIGHT_MODULE="$RUNNER_TEMP/fambudget-browser/node_modules/playwright"
           for profile in desktop mobile; do
             FAMBUDGET_TEST_DEVICE="$profile" node --test frontend/tests/personal-entry-browser.cjs frontend/tests/memories-jigsaw-browser.cjs frontend/tests/payment-report-app-browser.cjs frontend/tests/smoking-inventory-browser.cjs || exit 1
+            FAMBUDGET_TEST_DEVICE="$profile" node --test frontend/tests/demo-sandbox-browser.cjs frontend/tests/financial-planning-browser.cjs frontend/tests/allowance-simulation-browser.cjs frontend/tests/receipt-lab-browser.cjs frontend/tests/rag-evaluation-browser.cjs frontend/tests/teacher-features-app-browser.cjs || exit 1
           done
 
       - name: Save isolated layout screenshots

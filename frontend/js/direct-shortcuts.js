@@ -1,7 +1,7 @@
 /* Reorder real dashboard tiles; label visibility is an account/device display preference. */
 (function(global){
   'use strict';
-  var ids=['quick-entry','entry','manual-entry','exchange','groups','stats','advice','ai','fraud','members','profile','savings-game','health','calendar','memories','smoking','calculator','settings','appearance','logout'];
+  var ids=['quick-entry','entry','manual-entry','exchange','groups','stats','advice','ai','financial-planning','allowance-simulation','fraud','members','profile','savings-game','health','calendar','memories','smoking','calculator','settings','appearance','logout'];
   var states=new Set(),mounted=new WeakMap(),observer=null,labelPreferences=new Map();
   var words={
     'zh-TW':{edit:'排列位置',done:'完成並儲存',cancel:'取消排列',help:'長按或拖曳功能圖示調整位置；也可先按「排列位置」，再用方向鍵移動。',editing:'正在排列；拖到想要的位置，再按完成。方向鍵可移動，Esc 可取消。',moved:'已移到第 {position} 個位置，尚未儲存。',saving:'正在儲存排列…',saved:'常用功能排列已儲存。',failed:'排列尚未儲存，請重試或取消。',retry:'重試儲存',cancelled:'已取消排列，恢復原本位置。',dragCancelled:'這次拖曳已取消，原先的位置已保留。',unavailable:'登入並連接網站後，才能儲存常用功能排列。',changed:'帳號或頁面已變更，這次排列未儲存。',label:'直接排列常用功能'},

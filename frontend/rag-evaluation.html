@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="color-scheme" content="light dark">
+  <meta name="description" content="使用固定虛構資料，比較相同本機模型有無理財知識檢索的回答與實測紀錄。">
+  <title>RAG 評估工作台｜家庭記帳</title>
+  <link rel="stylesheet" href="css/rag-evaluation.css?v=187">
+  <script defer src="js/financial-knowledge-browser.js?v=187"></script>
+  <script defer src="js/local-ai-engine.js?v=187"></script>
+  <script defer src="js/rag-evaluation.js?v=187"></script>
+</head>
+<body>
+  <a class="re-skip" href="#evaluation">跳到主要內容</a>
+  <header class="re-header"><a href="index.html#/">← 家庭記帳</a><nav aria-label="專題展示"><a href="demo.html">專題試用</a><a href="receipt-lab.html">圖片研究室</a></nav></header>
+  <main id="evaluation" class="re-main">
+    <section class="re-hero"><p class="re-eyebrow">課程實驗 · 24 題固定測試</p><h1>RAG 評估工作台</h1><p>使用同一個本機模型、同一題問題與同一份虛構財務事實，比較加入理財知識檢索前後的回答。</p><p class="re-note">本頁不登入、不讀取正式帳務或權杖。每次推論都需要明確操作；未執行、失敗或未人工評分時，不會產生準確率或改善率。</p></section>
+    <section class="re-card" aria-labelledby="modelTitle"><h2 id="modelTitle">1. 準備本機模型</h2><p class="re-help">使用免費開源 Qwen 0.5B 模型，首次約下載 290 MB，需要支援 WebGPU 的瀏覽器與足夠記憶體。模型在此裝置推論，不會使用付費 AI API；裝置不支援時，本頁會標示未測試。</p><label class="re-check"><input type="checkbox" data-re-consent><span>我同意在這台裝置下載並執行本機模型。</span></label><div class="re-actions"><button type="button" class="re-primary" data-re-action="load">檢查裝置並下載／啟動模型</button><button type="button" hidden data-re-action="cancel">取消目前操作</button><button type="button" data-re-action="unload">卸載模型</button></div><progress max="1" hidden aria-label="模型載入進度" data-re-progress></progress><p role="status" aria-live="polite" data-re-model-status>尚未啟動模型；不會自動下載。</p></section>
+    <section class="re-card" aria-labelledby="caseTitle"><h2 id="caseTitle">2. 選擇相同問題與資料</h2><label class="re-field">固定測試題目<select disabled data-re-case><option>載入公開題庫中…</option></select></label><p class="re-question" data-re-question></p><p class="re-help" data-re-scenario-note></p><details><summary>查看兩種模式共同使用的虛構事實</summary><dl class="re-facts" data-re-facts></dl></details><details><summary>人工核對標準（不送入模型）</summary><ul data-re-rubric></ul></details><p class="re-help">「沒有理財知識檢索」仍提供相同的虛構財務事實，因此不是完全沒有依據的聊天。兩模式僅改變是否加入檢索到的教育摘要。</p><p role="status" data-re-data-status>載入題庫與公開知識中…</p></section>
+    <div class="re-comparison">
+      <section class="re-card" data-re-panel="baseline" aria-labelledby="baselineTitle"><h2 id="baselineTitle">3A. 沒有理財知識檢索</h2><p class="re-help">只提供共同的虛構事實，不加入外部理財教育摘要。</p><button type="button" class="re-primary" disabled data-re-action="run-baseline">執行這一題（無檢索）</button><div data-re-result="baseline"><p class="re-empty">尚未執行；沒有分數。</p></div></section>
+      <section class="re-card" data-re-panel="rag" aria-labelledby="ragTitle"><h2 id="ragTitle">3B. 有 RAG 理財知識檢索</h2><p class="re-help">BM25 檢索至多三則教育摘要，連同共同事實交給相同模型。</p><details open><summary>這一題實際檢索的來源</summary><div data-re-sources></div></details><button type="button" class="re-primary" disabled data-re-action="run-rag">執行這一題（有 RAG）</button><div data-re-result="rag"><p class="re-empty">尚未執行；沒有分數。</p></div></section>
+    </div>
+    <section class="re-card re-export" aria-labelledby="recordTitle"><h2 id="recordTitle">4. 保存本次評估紀錄</h2><p data-re-summary>完成 0 次、失敗／取消 0 次、人工完成兩項評分 0 次。</p><p class="re-help">僅保留在本頁記憶體。匿名 JSON 包含固定題目 ID、模式、模型、來源 ID、實測時間、Token 及人工評分；不包含回答全文、正式帳務、圖片或任意輸入。題庫與知識版本也會一併記錄。</p><p class="re-help">每題先執行哪一種模式可能影響速度；建議交替順序並分開記錄模型載入與推論時間。引用格式檢查無法證明來源真的支持答案，仍須人工核對。</p><div class="re-actions"><button type="button" disabled data-re-action="download">下載匿名評估 JSON</button><button type="button" data-re-action="clear">清除本次評估</button></div><p class="re-help" data-re-download-status></p></section>
+    <noscript><p>請啟用 JavaScript，才能載入題庫及執行本機比較。</p></noscript>
+  </main>
+</body>
+</html>
